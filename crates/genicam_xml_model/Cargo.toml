@@ -5,3 +5,10 @@ edition = "2021"
 
 [lib]
 path = "src/lib.rs"
+
+[dependencies]
+quick-xml = "0.31"
+serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = "1.0"
