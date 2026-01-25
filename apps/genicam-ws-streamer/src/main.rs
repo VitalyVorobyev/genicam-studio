@@ -1,0 +1,143 @@
+mod bmp;
+mod error;
+mod ws;
+mod zenoh_source;
+
+use clap::Parser;
+use std::net::SocketAddr;
+use tokio::sync::watch;
+use tracing::{error, info};
+use tracing_subscriber::EnvFilter;
+
+use crate::error::StreamerError;
+use crate::ws::{AppState, StreamInfo};
+use crate::zenoh_source::{FrameEncoder, PixelFormat, StreamSpec, ZenohSourceConfig};
+
+#[derive(Parser, Debug)]
+#[command(
+    name = "genicam-ws-streamer",
+    about = "Zenoh -> BMP -> WebSocket streamer"
+)]
+struct Cli {
+    /// Zenoh key expression to subscribe to (Mono8 bytes)
+    #[arg(long, value_name = "KEYEXPR")]
+    image_key: String,
+
+    /// Image width in pixels
+    #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
+    width: u32,
+
+    /// Image height in pixels
+    #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
+    height: u32,
+
+    /// Bind address for the WebSocket server
+    #[arg(long, default_value = "127.0.0.1:8081")]
+    bind: String,
+
+    /// WebSocket path
+    #[arg(long, default_value = "/ws")]
+    path: String,
+
+    /// Optional FPS limit (drop frames above this rate)
+    #[arg(long)]
+    fps_limit: Option<u32>,
+
+    /// Zenoh configuration (JSON5 string or file path)
+    #[arg(long)]
+    zenoh_config: Option<String>,
+}
+
+#[tokio::main]
+async fn main() -> Result<(), StreamerError> {
+    init_tracing();
+    let cli = Cli::parse();
+
+    let bind: SocketAddr = cli
+        .bind
+        .parse()
+        .map_err(|err| StreamerError::Config(format!("Invalid bind address: {err}")))?;
+    let path = normalize_path(cli.path);
+
+    let config = load_zenoh_config(cli.zenoh_config.as_deref())?;
+
+    let spec = StreamSpec {
+        width: cli.width,
+        height: cli.height,
+        pixel_format: PixelFormat::Mono8,
+    };
+    let encoder = FrameEncoder::new(spec);
+    let info = StreamInfo::mono8_bmp(cli.width, cli.height);
+
+    let (frame_tx, _frame_rx) = watch::channel(bytes::Bytes::new());
+    let (shutdown_tx, shutdown_rx) = watch::channel(false);
+
+    info!(
+        "Starting streamer: {}x{} {} -> ws://{}{}",
+        cli.width,
+        cli.height,
+        spec.pixel_format.as_str(),
+        bind,
+        path
+    );
+
+    let ws_state = AppState {
+        frame_tx: frame_tx.clone(),
+        info: info.clone(),
+    };
+    let ws_shutdown = shutdown_rx.clone();
+    let ws_task = tokio::spawn(async move {
+        if let Err(err) = ws::run_server(bind, path, ws_state, ws_shutdown).await {
+            error!("WebSocket server error: {err}");
+        }
+    });
+
+    let source_config = ZenohSourceConfig {
+        key_expr: cli.image_key,
+        fps_limit: cli.fps_limit,
+    };
+    let zenoh_shutdown = shutdown_rx.clone();
+    let zenoh_task = tokio::spawn(async move {
+        if let Err(err) =
+            zenoh_source::run(config, source_config, encoder, frame_tx, zenoh_shutdown).await
+        {
+            error!("Zenoh source error: {err}");
+        }
+    });
+
+    tokio::signal::ctrl_c().await?;
+    info!("Shutdown requested (CTRL+C)");
+    let _ = shutdown_tx.send(true);
+
+    let _ = ws_task.await;
+    let _ = zenoh_task.await;
+
+    Ok(())
+}
+
+fn init_tracing() {
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+    tracing_subscriber::fmt().with_env_filter(filter).init();
+}
+
+fn normalize_path(path: String) -> String {
+    if path.starts_with('/') {
+        path
+    } else {
+        format!("/{path}")
+    }
+}
+
+fn load_zenoh_config(input: Option<&str>) -> Result<zenoh::Config, StreamerError> {
+    match input {
+        None => Ok(zenoh::Config::default()),
+        Some(value) => {
+            let path = std::path::Path::new(value);
+            if path.exists() {
+                Ok(zenoh::Config::from_file(path)?)
+            } else {
+                Ok(zenoh::Config::from_json5(value)?)
+            }
+        }
+    }
+}
