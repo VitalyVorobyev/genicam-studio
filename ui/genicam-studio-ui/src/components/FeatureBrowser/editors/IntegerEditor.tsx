@@ -1,28 +1,45 @@
-import { useEffect, useState } from "react";
 import type { UiNode } from "../../../xml_model/uigraph";
+import type { NodeValue, ValueError } from "../../../xml_model/values";
+import { ValidationErrors } from "./ValidationErrors";
 
 interface IntegerEditorProps {
   node: UiNode;
+  value: NodeValue | undefined;
+  errors: ValueError[];
+  onChange: (value: NodeValue) => void;
 }
 
-// Integer editor keeps a local draft value for offline use (no device writes).
-export function IntegerEditor({ node }: IntegerEditorProps) {
-  const [draft, setDraft] = useState<string>("");
-
-  useEffect(() => {
-    const value = node.constraints?.value;
-    setDraft(value !== undefined ? String(value) : "");
-  }, [node]);
+// Integer editor writes into the shared draft store (offline mode).
+export function IntegerEditor({ node, value, errors, onChange }: IntegerEditorProps) {
+  const numericValue = typeof value === "number" ? value : "";
+  const { min, max, inc } = node.constraints ?? {};
+  const step = inc ?? 1;
 
   return (
     <div className="editor">
       <label className="editor__label">Value</label>
-      <input
-        className="editor__input"
-        type="number"
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-      />
+      <div className="editor__input-row">
+        <input
+          className="editor__input"
+          type="number"
+          step={step}
+          min={min}
+          max={max}
+          value={numericValue}
+          placeholder="unset (offline)"
+          onChange={(event) => {
+            const raw = event.target.value;
+            if (raw === "") {
+              onChange(null);
+              return;
+            }
+            const parsed = Number(raw);
+            onChange(Number.isFinite(parsed) ? parsed : null);
+          }}
+        />
+        {node.unit && <span className="editor__unit">{node.unit}</span>}
+      </div>
+      <ValidationErrors errors={errors} />
       <ConstraintDetails node={node} />
     </div>
   );
@@ -30,7 +47,7 @@ export function IntegerEditor({ node }: IntegerEditorProps) {
 
 function ConstraintDetails({ node }: { node: UiNode }) {
   const { min, max, inc } = node.constraints ?? {};
-  if (min === undefined && max === undefined && inc === undefined && !node.unit) {
+  if (min === undefined && max === undefined && inc === undefined) {
     return null;
   }
 
@@ -39,7 +56,6 @@ function ConstraintDetails({ node }: { node: UiNode }) {
       {min !== undefined && <span>min: {min}</span>}
       {max !== undefined && <span>max: {max}</span>}
       {inc !== undefined && <span>inc: {inc}</span>}
-      {node.unit && <span>unit: {node.unit}</span>}
     </div>
   );
 }

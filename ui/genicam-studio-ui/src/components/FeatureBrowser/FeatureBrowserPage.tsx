@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import type { Diag, ParseXmlResponse, UiGraph, UiNode } from "../../xml_model/uigraph";
+import type { NodeValue } from "../../xml_model/values";
 import { TauriProvider, WebWasmProvider } from "../../xml_model/provider";
 import { isUnknownKind, nodeDisplayName } from "../../xml_model/helpers";
 import { isTauri } from "../../tauri";
+import { useDraftValues } from "../../state/useDraftValues";
 import { CategoryTree } from "./CategoryTree";
 import { FeaturePanel } from "./FeaturePanel";
 
@@ -33,8 +35,11 @@ export function FeatureBrowserPage() {
   const [fixtures, setFixtures] = useState<string[]>([]);
   const [selectedFixture, setSelectedFixture] = useState<string>("");
 
+  const { drafts, errors, setDraft, resetDraft, clearAllDrafts } = useDraftValues();
+
   const applyResponse = useCallback(
     (response: ParseXmlResponse, fileName: string) => {
+      clearAllDrafts();
       setGraph(response.graph);
       setXmlText(response.xml);
       setSelectedNodeName(response.graph.root_category || null);
@@ -44,7 +49,7 @@ export function FeatureBrowserPage() {
       );
       setStatus({ kind: "ready", fileName });
     },
-    []
+    [clearAllDrafts]
   );
 
   useEffect(() => {
@@ -148,6 +153,73 @@ export function FeatureBrowserPage() {
     }
     return graph.nodes_by_name[selectedNodeName] ?? null;
   }, [graph, selectedNodeName]);
+
+  const selectedDraftValue = selectedNode ? drafts[selectedNode.name] : undefined;
+  const selectedDraftErrors = selectedNode ? errors[selectedNode.name] ?? [] : [];
+  const selectedHasDraft = selectedNode
+    ? Object.prototype.hasOwnProperty.call(drafts, selectedNode.name)
+    : false;
+
+  const onDraftChange = useCallback(
+    (value: NodeValue) => {
+      if (!selectedNode) {
+        return;
+      }
+      setDraft(selectedNode, value);
+    },
+    [selectedNode, setDraft]
+  );
+
+  const onDraftReset = useCallback(() => {
+    if (!selectedNode) {
+      return;
+    }
+    resetDraft(selectedNode.name);
+  }, [resetDraft, selectedNode]);
+
+  const canApply = Boolean(provider.applyNodeValue);
+  const canExecute = Boolean(provider.executeCommand);
+
+  const applyDisabledReason = useMemo(() => {
+    if (!provider.applyNodeValue) {
+      return "Offline mode: will be enabled when connected to a device.";
+    }
+    if (!selectedHasDraft) {
+      return "No draft value to apply.";
+    }
+    if (selectedDraftErrors.length > 0) {
+      return "Resolve validation errors before applying.";
+    }
+    return "";
+  }, [provider.applyNodeValue, selectedDraftErrors.length, selectedHasDraft]);
+
+  const executeDisabledReason = useMemo(() => {
+    if (!provider.executeCommand) {
+      return "Offline mode: will be enabled when connected to a device.";
+    }
+    return "";
+  }, [provider.executeCommand]);
+
+  const onApply = useCallback(async () => {
+    if (!provider.applyNodeValue || !selectedNode) {
+      return;
+    }
+    if (!selectedHasDraft || selectedDraftErrors.length > 0) {
+      return;
+    }
+    const value = drafts[selectedNode.name];
+    if (value === undefined) {
+      return;
+    }
+    await provider.applyNodeValue(selectedNode.name, value);
+  }, [drafts, provider, selectedDraftErrors.length, selectedHasDraft, selectedNode]);
+
+  const onExecute = useCallback(async () => {
+    if (!provider.executeCommand || !selectedNode) {
+      return;
+    }
+    await provider.executeCommand(selectedNode.name);
+  }, [provider, selectedNode]);
 
   const searchResults = useMemo(() => {
     if (!graph || !searchText.trim()) {
@@ -279,6 +351,17 @@ export function FeatureBrowserPage() {
             selectedNode={selectedNode}
             xmlText={xmlText}
             diags={diags}
+            draftValue={selectedDraftValue}
+            draftErrors={selectedDraftErrors}
+            hasDraft={selectedHasDraft}
+            onDraftChange={onDraftChange}
+            onDraftReset={onDraftReset}
+            canApply={canApply}
+            applyDisabledReason={applyDisabledReason}
+            onApply={onApply}
+            canExecute={canExecute}
+            executeDisabledReason={executeDisabledReason}
+            onExecute={onExecute}
           />
         </section>
       </div>
