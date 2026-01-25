@@ -1,17 +1,15 @@
-import { useEffect, useState } from "react";
-import type { UiNode } from "../../../xml_model/uigraph";
+import type { NodeValue, ValueError } from "../../../xml_model/values";
+import { ValidationErrors } from "./ValidationErrors";
 
 interface StringEditorProps {
-  node: UiNode;
+  value: NodeValue | undefined;
+  errors: ValueError[];
+  onChange: (value: NodeValue) => void;
 }
 
-// String editor uses a local draft value for offline preview.
-export function StringEditor({ node }: StringEditorProps) {
-  const [draft, setDraft] = useState("");
-
-  useEffect(() => {
-    setDraft("");
-  }, [node]);
+// String editor writes into the shared draft store (offline mode).
+export function StringEditor({ value, errors, onChange }: StringEditorProps) {
+  const textValue = typeof value === "string" ? value : "";
 
   return (
     <div className="editor">
@@ -19,9 +17,11 @@ export function StringEditor({ node }: StringEditorProps) {
       <input
         className="editor__input"
         type="text"
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
+        value={textValue}
+        placeholder="unset (offline)"
+        onChange={(event) => onChange(event.target.value)}
       />
+      <ValidationErrors errors={errors} />
     </div>
   );
 }

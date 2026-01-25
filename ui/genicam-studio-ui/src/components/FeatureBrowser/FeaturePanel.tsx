@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import type { Diag, UiGraph, UiNode } from "../../xml_model/uigraph";
+import type { Diag, UiGraph, UiNode, UiNodeKind } from "../../xml_model/uigraph";
+import type { NodeValue, ValueError } from "../../xml_model/values";
 import { isUnknownKind, nodeDisplayName, nodeKindLabel } from "../../xml_model/helpers";
 import { BoolEditor } from "./editors/BoolEditor";
 import { CommandView } from "./editors/CommandView";
@@ -14,11 +15,38 @@ interface FeaturePanelProps {
   selectedNode: UiNode | null;
   xmlText: string;
   diags: Diag[];
+  draftValue: NodeValue | undefined;
+  draftErrors: ValueError[];
+  hasDraft: boolean;
+  onDraftChange: (value: NodeValue) => void;
+  onDraftReset: () => void;
+  canApply: boolean;
+  applyDisabledReason: string;
+  onApply: () => void;
+  canExecute: boolean;
+  executeDisabledReason: string;
+  onExecute: () => void;
 }
 
 // Feature panel renders the selected node with a lightweight editor/view.
-// All edits are local drafts (offline), so we don't mutate the UiGraph contract.
-export function FeaturePanel({ graph, selectedNode, xmlText, diags }: FeaturePanelProps) {
+// Draft values live in a separate layer so UiGraph stays read-only.
+export function FeaturePanel({
+  graph,
+  selectedNode,
+  xmlText,
+  diags,
+  draftValue,
+  draftErrors,
+  hasDraft,
+  onDraftChange,
+  onDraftReset,
+  canApply,
+  applyDisabledReason,
+  onApply,
+  canExecute,
+  executeDisabledReason,
+  onExecute,
+}: FeaturePanelProps) {
   const [infoOpen, setInfoOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<"raw" | "debug" | "diagnostics">(
     "raw"
@@ -35,6 +63,10 @@ export function FeaturePanel({ graph, selectedNode, xmlText, diags }: FeaturePan
   }, [selectedNode]);
 
   const diagnosticsPanel = renderDiagnostics(diags);
+  const editable = selectedNode ? isEditableKind(selectedNode.kind) : false;
+  const draftSummary = selectedNode && editable
+    ? formatDraftSummary(selectedNode, draftValue, hasDraft)
+    : null;
 
   if (!graph || !selectedNode) {
     return (
@@ -78,6 +110,11 @@ export function FeaturePanel({ graph, selectedNode, xmlText, diags }: FeaturePan
     );
   }
 
+  const applyDisabled = !canApply || !hasDraft || draftErrors.length > 0;
+  const applyTitle = applyDisabled
+    ? applyDisabledReason || "Draft not ready."
+    : "Apply draft to device.";
+
   return (
     <div className="feature-panel">
       <header className="feature-panel__header">
@@ -93,6 +130,7 @@ export function FeaturePanel({ graph, selectedNode, xmlText, diags }: FeaturePan
               <span className="muted">visibility: {selectedNode.visibility}</span>
             )}
           </div>
+          {draftSummary && <div className="draft-summary">{draftSummary}</div>}
         </div>
       </header>
 
@@ -109,7 +147,28 @@ export function FeaturePanel({ graph, selectedNode, xmlText, diags }: FeaturePan
         </section>
       )}
 
-      <section className="feature-panel__body">{renderEditor(selectedNode)}</section>
+      <section className="feature-panel__body">
+        {renderEditor(
+          selectedNode,
+          draftValue,
+          draftErrors,
+          onDraftChange,
+          canExecute,
+          executeDisabledReason,
+          onExecute
+        )}
+      </section>
+
+      {editable && (
+        <section className="editor-actions">
+          <button type="button" onClick={onDraftReset} disabled={!hasDraft}>
+            Reset
+          </button>
+          <button type="button" onClick={onApply} disabled={applyDisabled} title={applyTitle}>
+            Apply
+          </button>
+        </section>
+      )}
 
       <section className="feature-panel__tabs">
         <div className="tabs">
@@ -151,24 +210,71 @@ export function FeaturePanel({ graph, selectedNode, xmlText, diags }: FeaturePan
   );
 }
 
-function renderEditor(node: UiNode) {
+function renderEditor(
+  node: UiNode,
+  draftValue: NodeValue | undefined,
+  draftErrors: ValueError[],
+  onDraftChange: (value: NodeValue) => void,
+  canExecute: boolean,
+  executeDisabledReason: string,
+  onExecute: () => void
+) {
   if (isUnknownKind(node.kind)) {
     return <UnknownDebugView raw={node.raw} />;
   }
 
   switch (node.kind) {
     case "Integer":
-      return <IntegerEditor node={node} />;
+      return (
+        <IntegerEditor
+          node={node}
+          value={draftValue}
+          errors={draftErrors}
+          onChange={onDraftChange}
+        />
+      );
     case "Float":
-      return <FloatEditor node={node} />;
+      return (
+        <FloatEditor
+          node={node}
+          value={draftValue}
+          errors={draftErrors}
+          onChange={onDraftChange}
+        />
+      );
     case "Enumeration":
-      return <EnumEditor node={node} />;
+      return (
+        <EnumEditor
+          node={node}
+          value={draftValue}
+          errors={draftErrors}
+          onChange={onDraftChange}
+        />
+      );
     case "Boolean":
-      return <BoolEditor node={node} />;
+      return (
+        <BoolEditor
+          value={draftValue}
+          errors={draftErrors}
+          onChange={onDraftChange}
+        />
+      );
     case "String":
-      return <StringEditor node={node} />;
+      return (
+        <StringEditor
+          value={draftValue}
+          errors={draftErrors}
+          onChange={onDraftChange}
+        />
+      );
     case "Command":
-      return <CommandView />;
+      return (
+        <CommandView
+          canExecute={canExecute}
+          onExecute={onExecute}
+          disabledReason={executeDisabledReason}
+        />
+      );
     case "Register":
       return (
         <div className="editor__hint">
@@ -184,6 +290,46 @@ function renderEditor(node: UiNode) {
     default:
       return null;
   }
+}
+
+function isEditableKind(kind: UiNodeKind): boolean {
+  return (
+    kind === "Integer" ||
+    kind === "Float" ||
+    kind === "Enumeration" ||
+    kind === "Boolean" ||
+    kind === "String"
+  );
+}
+
+function formatDraftSummary(
+  node: UiNode,
+  value: NodeValue | undefined,
+  hasDraft: boolean
+) {
+  if (!hasDraft || value === null || value === undefined) {
+    return "Draft: unset (offline)";
+  }
+
+  if (node.kind === "Boolean" && typeof value === "boolean") {
+    return `Draft: ${value ? "enabled" : "disabled"}`;
+  }
+
+  if (node.kind === "String" && typeof value === "string") {
+    return value.length === 0 ? "Draft: \"\" (empty)" : `Draft: ${value}`;
+  }
+
+  if (node.kind === "Enumeration" && isEnumValue(value)) {
+    const match = node.enum_entries?.find((entry) => entry.name === value.enumName);
+    const label = match?.display_name ?? match?.name ?? value.enumName;
+    return `Draft: ${label}`;
+  }
+
+  if (typeof value === "number") {
+    return `Draft: ${value}`;
+  }
+
+  return "Draft: (unrecognized)";
 }
 
 // Diagnostics are read-only hints from the parser; keep rendering lightweight.
@@ -204,5 +350,14 @@ function renderDiagnostics(diags: Diag[]) {
         </li>
       ))}
     </ul>
+  );
+}
+
+function isEnumValue(value: NodeValue): value is { enumName: string } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "enumName" in value &&
+    typeof (value as { enumName?: unknown }).enumName === "string"
   );
 }

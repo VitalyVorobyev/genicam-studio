@@ -1,27 +1,27 @@
-import { useEffect, useState } from "react";
-import type { UiNode } from "../../../xml_model/uigraph";
+import type { NodeValue, ValueError } from "../../../xml_model/values";
+import { ValidationErrors } from "./ValidationErrors";
 
 interface BoolEditorProps {
-  node: UiNode;
+  value: NodeValue | undefined;
+  errors: ValueError[];
+  onChange: (value: NodeValue) => void;
 }
 
-// Boolean editor uses local state; it does not persist back to the model.
-export function BoolEditor({ node }: BoolEditorProps) {
-  const [draft, setDraft] = useState(false);
-
-  useEffect(() => {
-    // Default to false; we don't assume a source-of-truth value in offline mode.
-    setDraft(false);
-  }, [node]);
+// Boolean editor writes into the shared draft store (offline mode).
+export function BoolEditor({ value, errors, onChange }: BoolEditorProps) {
+  const checked = typeof value === "boolean" ? value : false;
 
   return (
-    <label className="editor editor--inline">
-      <input
-        type="checkbox"
-        checked={draft}
-        onChange={(event) => setDraft(event.target.checked)}
-      />
-      Enabled
-    </label>
+    <div className="editor">
+      <label className="editor editor--inline">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(event) => onChange(event.target.checked)}
+        />
+        Enabled
+      </label>
+      <ValidationErrors errors={errors} />
+    </div>
   );
 }

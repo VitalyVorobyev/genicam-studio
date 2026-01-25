@@ -1,10 +1,14 @@
 import type { ParseXmlResponse, UiGraph } from "./uigraph";
+import type { NodeValue } from "./values";
 
 export interface XmlModelProvider {
   parseXml(xml: string): Promise<ParseXmlResponse>;
   listFixtures?(): Promise<string[]>;
   loadFixture?(name: string): Promise<ParseXmlResponse>;
   getCurrentModel?(): Promise<ParseXmlResponse | null>;
+  // Optional live actions for future device integration.
+  applyNodeValue?(nodeName: string, value: NodeValue): Promise<void>;
+  executeCommand?(nodeName: string): Promise<void>;
 }
 
 // Browser-only provider that loads the Rust/WASM adapter on demand.
