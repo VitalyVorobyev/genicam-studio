@@ -6,20 +6,21 @@
   "scripts": {
     "dev": "vite",
     "dev:wasm": "npm run wasm:build && vite",
+    "wasm:build": "wasm-pack build ../../crates/genicam_xml_model_wasm --target web --out-dir ../../ui/genicam-studio-ui/src/wasm/genicam_xml_model_wasm --out-name genicam_xml_model_wasm",
+    "prebuild": "npm run wasm:build",
     "build": "vite build",
-    "preview": "vite preview",
-    "wasm:build": "wasm-pack build ../../crates/genicam_xml_model_wasm --target web --out-dir ./src/wasm/genicam_xml_model_wasm --out-name genicam_xml_model_wasm"
+    "preview": "vite preview"
   },
   "dependencies": {
-    "@tauri-apps/api": "^1.5.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "@tauri-apps/api": "^2.9.1",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
   },
   "devDependencies": {
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0",
-    "@vitejs/plugin-react": "^4.2.0",
-    "typescript": "^5.3.3",
-    "vite": "^5.0.0"
+    "@types/react": "^19.2.9",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.2",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
   }
 }

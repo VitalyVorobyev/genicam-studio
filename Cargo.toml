@@ -1,6 +1,12 @@
 [workspace]
 resolver = "2"
+
 members = [
   "crates/genicam_xml_model",
   "crates/genicam_xml_model_wasm",
+]
+
+# Keep Tauri app(s) out of the Rust workspace. They are built via `cargo tauri`.
+exclude = [
+  "apps/genicam-studio-tauri/src-tauri",
 ]
