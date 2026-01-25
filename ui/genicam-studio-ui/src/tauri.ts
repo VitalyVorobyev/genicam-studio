@@ -3,6 +3,6 @@ export function isTauri(): boolean {
 }
 
 export async function ping(): Promise<string> {
-  const { invoke } = await import("@tauri-apps/api/tauri");
+  const { invoke } = await import("@tauri-apps/api/core");
   return await invoke<string>("ping");
 }
