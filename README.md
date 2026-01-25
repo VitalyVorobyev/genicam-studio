@@ -61,3 +61,19 @@ cargo tauri dev
 Notes:
 - `apps/genicam-studio-tauri/src-tauri/tauri.conf.json` points Tauri to the Vite dev server (`http://localhost:5173`).
 - The Tauri dev command will start the UI dev server via `beforeDevCommand`.
+## Feature Browser UI
+
+The Feature Browser renders the UiGraph produced by Rust/WASM and lets you:
+- browse the category tree
+- search by node name or display name
+- inspect/edit features in offline mode
+- view Raw XML and a model debug JSON snapshot
+
+Run it with:
+
+```sh
+cd ui/genicam-studio-ui
+npm run dev
+```
+
+Load `crates/genicam_xml_model/fixtures/minimal.xml` to see the full workflow.

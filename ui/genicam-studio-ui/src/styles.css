@@ -1,7 +1,7 @@
 :root {
   font-family: "Segoe UI", system-ui, sans-serif;
-  color: #111827;
-  background-color: #f9fafb;
+  color: #0f172a;
+  background-color: #f8fafc;
 }
 
 * {
@@ -14,35 +14,46 @@ body {
 }
 
 .app {
-  max-width: 720px;
-  margin: 48px auto;
-  padding: 24px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.top-bar {
+  padding: 20px 24px;
   background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-}
-
-header h1 {
-  margin-bottom: 4px;
-}
-
-header p {
-  margin-top: 0;
-  color: #6b7280;
-}
-
-main {
-  display: grid;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  flex-wrap: wrap;
   gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.top-bar__left h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.top-bar__left p {
+  margin: 4px 0 0;
+  color: #64748b;
+}
+
+.top-bar__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
 }
 
 button {
-  padding: 10px 16px;
+  padding: 8px 14px;
   border-radius: 8px;
   border: none;
   background: #0f172a;
   color: #f8fafc;
-  font-size: 16px;
+  font-size: 14px;
   cursor: pointer;
 }
 
@@ -50,16 +61,316 @@ button:hover {
   background: #1e293b;
 }
 
-textarea {
-  width: 100%;
-  padding: 12px;
+.search-input {
+  padding: 8px 12px;
   border-radius: 8px;
-  border: 1px solid #e5e7eb;
-  font-family: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    "Liberation Mono", "Courier New", monospace;
-  resize: vertical;
+  border: 1px solid #cbd5f5;
+  min-width: 220px;
 }
 
-.debug-label {
+.toggle {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 14px;
+  color: #475569;
+}
+
+.summary-badge {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #0f172a;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.status {
+  padding: 8px 24px;
+  font-size: 13px;
+}
+
+.status--info {
+  color: #0369a1;
+}
+
+.status--error {
+  color: #b91c1c;
+}
+
+.status--success {
+  color: #15803d;
+}
+
+.feature-browser__body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 16px;
+  padding: 16px 24px 24px;
+}
+
+.pane {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.pane__section {
+  padding: 12px;
+}
+
+.category-tree__header {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.tree-empty {
+  color: #94a3b8;
+  padding: 12px;
+}
+
+.tree-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 6px 8px;
+  border-radius: 6px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  text-align: left;
+  color: #0f172a;
+}
+
+.tree-item:hover {
+  background: #f1f5f9;
+}
+
+.tree-item--active {
+  background: #e2e8f0;
+}
+
+.tree-item--missing {
+  color: #b45309;
+  font-size: 13px;
+}
+
+.tree-item__caret {
+  width: 16px;
+  color: #475569;
+}
+
+.tree-item__label {
+  flex: 1;
+  font-size: 14px;
+}
+
+.tree-item__meta {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.tree-children {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+
+.search-results {
+  margin-bottom: 16px;
+}
+
+.search-results__header {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.search-results__empty {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.search-results ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.feature-panel {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+}
+
+.feature-panel--empty {
+  color: #64748b;
+}
+
+.feature-panel__header h2 {
+  margin: 0;
+}
+
+.feature-panel__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.kind-badge {
+  background: #0f172a;
+  color: #f8fafc;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.muted {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.info {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.info__toggle {
+  background: transparent;
+  border: none;
+  color: #0f172a;
   font-weight: 600;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+.info__content {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  font-size: 13px;
+  color: #334155;
+}
+
+.editor {
+  display: grid;
+  gap: 8px;
+}
+
+.editor--inline {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.editor__label {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.editor__input {
+  padding: 8px 10px;
+  border: 1px solid #cbd5f5;
+  border-radius: 6px;
+}
+
+.editor__constraints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.editor__hint {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.tab {
+  background: #e2e8f0;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tab--active {
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+.tab-panel {
+  margin-top: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tab-panel textarea,
+.tab-panel pre {
+  width: 100%;
+  min-height: 160px;
+  border: none;
+  padding: 12px;
+  font-family: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  background: #0f172a;
+  color: #f8fafc;
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+.unknown-debug__section {
+  margin-bottom: 12px;
+}
+
+.unknown-debug__section h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.unknown-debug__section ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.unknown-debug__key {
+  font-weight: 600;
+  margin-right: 6px;
+}
+
+.unknown-debug__value {
+  color: #475569;
+}
+
+@media (max-width: 900px) {
+  .feature-browser__body {
+    grid-template-columns: 1fr;
+  }
 }

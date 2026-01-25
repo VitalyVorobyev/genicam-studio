@@ -7,15 +7,21 @@
 //! Module boundary: this crate should stay small and only translate between JS values and
 //! the `UiGraph` contract. No parsing logic lives here.
 
+use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub fn parse_xml_to_uigraph(xml: String) -> JsValue {
     match genicam_xml_model::parse_genicam_xml(&xml) {
-        Ok(graph) => match serde_wasm_bindgen::to_value(&graph) {
-            Ok(value) => value,
-            Err(err) => throw_js(format!("Failed to serialize UiGraph: {err}")),
-        },
+        Ok(graph) => {
+            // HashMaps serialize to JS Maps by default; force plain objects so the UI can
+            // treat UiGraph like a JSON contract without extra adapters.
+            let serializer = serde_wasm_bindgen::Serializer::new().serialize_maps_as_objects(true);
+            match graph.serialize(&serializer) {
+                Ok(value) => value,
+                Err(err) => throw_js(format!("Failed to serialize UiGraph: {err}")),
+            }
+        }
         Err(err) => throw_js(format!("XML parse failed: {err}")),
     }
 }
