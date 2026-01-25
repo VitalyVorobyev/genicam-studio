@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { UiGraph, UiNode } from "../../xml_model/uigraph";
+import type { Diag, UiGraph, UiNode } from "../../xml_model/uigraph";
 import { isUnknownKind, nodeDisplayName, nodeKindLabel } from "../../xml_model/helpers";
 import { BoolEditor } from "./editors/BoolEditor";
 import { CommandView } from "./editors/CommandView";
@@ -13,13 +13,16 @@ interface FeaturePanelProps {
   graph: UiGraph | null;
   selectedNode: UiNode | null;
   xmlText: string;
+  diags: Diag[];
 }
 
 // Feature panel renders the selected node with a lightweight editor/view.
 // All edits are local drafts (offline), so we don't mutate the UiGraph contract.
-export function FeaturePanel({ graph, selectedNode, xmlText }: FeaturePanelProps) {
+export function FeaturePanel({ graph, selectedNode, xmlText, diags }: FeaturePanelProps) {
   const [infoOpen, setInfoOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState<"raw" | "debug">("raw");
+  const [activeTab, setActiveTab] = useState<"raw" | "debug" | "diagnostics">(
+    "raw"
+  );
 
   const infoText = useMemo(() => {
     if (!selectedNode) {
@@ -30,6 +33,8 @@ export function FeaturePanel({ graph, selectedNode, xmlText }: FeaturePanelProps
       .join("\n\n");
     return info || null;
   }, [selectedNode]);
+
+  const diagnosticsPanel = renderDiagnostics(diags);
 
   if (!graph || !selectedNode) {
     return (
@@ -50,12 +55,23 @@ export function FeaturePanel({ graph, selectedNode, xmlText }: FeaturePanelProps
           >
             Model Debug
           </button>
+          <button
+            type="button"
+            className={
+              activeTab === "diagnostics" ? "tab tab--active" : "tab"
+            }
+            onClick={() => setActiveTab("diagnostics")}
+          >
+            Diagnostics
+          </button>
         </div>
         <div className="tab-panel">
           {activeTab === "raw" ? (
             <textarea readOnly value={xmlText || "(no XML loaded)"} />
-          ) : (
+          ) : activeTab === "debug" ? (
             <pre>(no selection)</pre>
+          ) : (
+            diagnosticsPanel
           )}
         </div>
       </div>
@@ -93,9 +109,7 @@ export function FeaturePanel({ graph, selectedNode, xmlText }: FeaturePanelProps
         </section>
       )}
 
-      <section className="feature-panel__body">
-        {renderEditor(selectedNode)}
-      </section>
+      <section className="feature-panel__body">{renderEditor(selectedNode)}</section>
 
       <section className="feature-panel__tabs">
         <div className="tabs">
@@ -113,12 +127,23 @@ export function FeaturePanel({ graph, selectedNode, xmlText }: FeaturePanelProps
           >
             Model Debug
           </button>
+          <button
+            type="button"
+            className={
+              activeTab === "diagnostics" ? "tab tab--active" : "tab"
+            }
+            onClick={() => setActiveTab("diagnostics")}
+          >
+            Diagnostics
+          </button>
         </div>
         <div className="tab-panel">
           {activeTab === "raw" ? (
             <textarea readOnly value={xmlText || "(no XML loaded)"} />
-          ) : (
+          ) : activeTab === "debug" ? (
             <pre>{JSON.stringify(selectedNode, null, 2)}</pre>
+          ) : (
+            diagnosticsPanel
           )}
         </div>
       </section>
@@ -159,4 +184,25 @@ function renderEditor(node: UiNode) {
     default:
       return null;
   }
+}
+
+// Diagnostics are read-only hints from the parser; keep rendering lightweight.
+function renderDiagnostics(diags: Diag[]) {
+  if (!diags || diags.length === 0) {
+    return <div className="diagnostics diagnostics--empty">No diagnostics.</div>;
+  }
+
+  return (
+    <ul className="diagnostics">
+      {diags.map((diag, index) => (
+        <li key={`${diag.level}-${diag.message}-${index}`}>
+          <span className={`diagnostics__level diagnostics__level--${diag.level}`}>
+            {diag.level.toUpperCase()}
+          </span>
+          <span className="diagnostics__message">{diag.message}</span>
+          {diag.node && <span className="diagnostics__node">({diag.node})</span>}
+        </li>
+      ))}
+    </ul>
+  );
 }

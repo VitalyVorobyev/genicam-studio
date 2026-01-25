@@ -1,6 +1,12 @@
 {
   "identifier": "main",
   "description": "Main window permissions (core APIs + app commands).",
-  "windows": ["main"],
-  "permissions": ["core:default", "ping"]
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "ping",
+    "xml-model"
+  ]
 }

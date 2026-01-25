@@ -374,3 +374,68 @@ button:hover {
     grid-template-columns: 1fr;
   }
 }
+
+.fixture-loader {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.fixture-loader select {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #cbd5f5;
+  background: #ffffff;
+  font-size: 13px;
+}
+
+.diagnostics {
+  list-style: none;
+  margin: 0;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  color: #0f172a;
+}
+
+.diagnostics--empty {
+  padding: 12px;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.diagnostics li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.diagnostics__level {
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: #e2e8f0;
+}
+
+.diagnostics__level--error {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.diagnostics__level--warning {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.diagnostics__message {
+  font-weight: 600;
+}
+
+.diagnostics__node {
+  color: #64748b;
+}

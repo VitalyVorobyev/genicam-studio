@@ -1,12 +1,11 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
-import type { UiGraph, UiNode } from "../../xml_model/uigraph";
-import { WebWasmProvider } from "../../xml_model/provider";
+import type { Diag, ParseXmlResponse, UiGraph, UiNode } from "../../xml_model/uigraph";
+import { TauriProvider, WebWasmProvider } from "../../xml_model/provider";
 import { isUnknownKind, nodeDisplayName } from "../../xml_model/helpers";
+import { isTauri } from "../../tauri";
 import { CategoryTree } from "./CategoryTree";
 import { FeaturePanel } from "./FeaturePanel";
-
-const xmlProvider = new WebWasmProvider();
 
 type ParseStatus =
   | { kind: "idle" }
@@ -18,12 +17,71 @@ type ParseStatus =
 // Parsing happens only in Rust/WASM (via provider) and the UI only renders the JSON contract.
 export function FeatureBrowserPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const provider = useMemo(
+    () => (isTauri() ? new TauriProvider() : new WebWasmProvider()),
+    []
+  );
+
   const [graph, setGraph] = useState<UiGraph | null>(null);
   const [xmlText, setXmlText] = useState<string>("");
   const [selectedNodeName, setSelectedNodeName] = useState<string | null>(null);
   const [searchText, setSearchText] = useState("");
   const [hideUnknown, setHideUnknown] = useState(false);
   const [status, setStatus] = useState<ParseStatus>({ kind: "idle" });
+  const [diags, setDiags] = useState<Diag[]>([]);
+  const [summaryOverride, setSummaryOverride] = useState<string | null>(null);
+  const [fixtures, setFixtures] = useState<string[]>([]);
+  const [selectedFixture, setSelectedFixture] = useState<string>("");
+
+  const applyResponse = useCallback(
+    (response: ParseXmlResponse, fileName: string) => {
+      setGraph(response.graph);
+      setXmlText(response.xml);
+      setSelectedNodeName(response.graph.root_category || null);
+      setDiags(response.diags || []);
+      setSummaryOverride(
+        `${response.summary.node_count} nodes • ${response.summary.category_count} categories • root: ${response.summary.root_category}`
+      );
+      setStatus({ kind: "ready", fileName });
+    },
+    []
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (provider.listFixtures) {
+      provider
+        .listFixtures()
+        .then((names) => {
+          if (!isMounted) {
+            return;
+          }
+          setFixtures(names);
+          setSelectedFixture(names[0] ?? "");
+        })
+        .catch(() => {
+          if (isMounted) {
+            setFixtures([]);
+          }
+        });
+    }
+
+    if (provider.getCurrentModel) {
+      provider
+        .getCurrentModel()
+        .then((response) => {
+          if (isMounted && response) {
+            applyResponse(response, response.summary.root_category || "Current Model");
+          }
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [applyResponse, provider]);
 
   const onLoadXml = useCallback(() => {
     fileInputRef.current?.click();
@@ -40,24 +98,40 @@ export function FeatureBrowserPage() {
 
       try {
         const xml = await file.text();
-        const parsed = await xmlProvider.parseXml(xml);
-        setGraph(parsed as UiGraph);
-        setXmlText(xml);
-        setSelectedNodeName(parsed.root_category || null);
-        setStatus({ kind: "ready", fileName: file.name });
+        const parsed = await provider.parseXml(xml);
+        applyResponse(parsed, file.name);
       } catch (error) {
         setGraph(null);
         setXmlText("");
         setSelectedNodeName(null);
-        setStatus({ kind: "error", message: String(error) });
+        setDiags([]);
+        setSummaryOverride(null);
+        setStatus({ kind: "error", message: formatErrorMessage(error) });
       } finally {
         event.target.value = "";
       }
     },
-    []
+    [applyResponse, provider]
   );
 
+  const onLoadFixture = useCallback(async () => {
+    if (!provider.loadFixture || !selectedFixture) {
+      return;
+    }
+
+    setStatus({ kind: "loading", fileName: selectedFixture });
+    try {
+      const parsed = await provider.loadFixture(selectedFixture);
+      applyResponse(parsed, selectedFixture);
+    } catch (error) {
+      setStatus({ kind: "error", message: formatErrorMessage(error) });
+    }
+  }, [applyResponse, provider, selectedFixture]);
+
   const summary = useMemo(() => {
+    if (summaryOverride) {
+      return summaryOverride;
+    }
     if (!graph) {
       return "No model loaded";
     }
@@ -66,7 +140,7 @@ export function FeatureBrowserPage() {
     const categoryCount = Object.keys(graph.categories ?? {}).length;
     const root = graph.root_category || "(none)";
     return `${nodeCount} nodes • ${categoryCount} categories • root: ${root}`;
-  }, [graph]);
+  }, [graph, summaryOverride]);
 
   const selectedNode = useMemo<UiNode | null>(() => {
     if (!graph || !selectedNodeName) {
@@ -110,6 +184,23 @@ export function FeatureBrowserPage() {
           <button type="button" onClick={onLoadXml}>
             Load XML
           </button>
+          {fixtures.length > 0 && provider.loadFixture && (
+            <div className="fixture-loader">
+              <select
+                value={selectedFixture}
+                onChange={(event) => setSelectedFixture(event.target.value)}
+              >
+                {fixtures.map((fixture) => (
+                  <option key={fixture} value={fixture}>
+                    {fixture}
+                  </option>
+                ))}
+              </select>
+              <button type="button" onClick={onLoadFixture}>
+                Load Fixture
+              </button>
+            </div>
+          )}
           <input
             className="search-input"
             type="search"
@@ -132,9 +223,7 @@ export function FeatureBrowserPage() {
       </header>
 
       {status.kind === "loading" && (
-        <div className="status status--info">
-          Loading {status.fileName}...
-        </div>
+        <div className="status status--info">Loading {status.fileName}...</div>
       )}
       {status.kind === "error" && (
         <div className="status status--error">{status.message}</div>
@@ -189,9 +278,36 @@ export function FeatureBrowserPage() {
             graph={graph}
             selectedNode={selectedNode}
             xmlText={xmlText}
+            diags={diags}
           />
         </section>
       </div>
     </div>
   );
+}
+
+function formatErrorMessage(error: unknown) {
+  if (typeof error === "string") {
+    return error;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (error && typeof error === "object") {
+    const message = (error as { message?: string }).message;
+    const details = (error as { details?: string }).details;
+    if (message && details) {
+      return `${message} (${details})`;
+    }
+    if (message) {
+      return message;
+    }
+    if (details) {
+      return details;
+    }
+  }
+
+  return String(error);
 }
