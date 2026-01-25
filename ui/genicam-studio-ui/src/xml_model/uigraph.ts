@@ -57,3 +57,23 @@ export interface RawNode {
   attributes: Record<string, string>;
   children_text: Record<string, string>;
 }
+
+
+export interface Diag {
+  level: "warning" | "error";
+  message: string;
+  node?: string;
+}
+
+export interface ModelSummary {
+  node_count: number;
+  category_count: number;
+  root_category: string;
+}
+
+export interface ParseXmlResponse {
+  graph: UiGraph;
+  xml: string;
+  diags: Diag[];
+  summary: ModelSummary;
+}
