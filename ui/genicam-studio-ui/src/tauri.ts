@@ -1,0 +1,8 @@
+export function isTauri(): boolean {
+  return typeof window.__TAURI__ !== "undefined";
+}
+
+export async function ping(): Promise<string> {
+  const { invoke } = await import("@tauri-apps/api/tauri");
+  return await invoke<string>("ping");
+}

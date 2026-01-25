@@ -111,7 +111,7 @@
         },
         "children_text": {
           "DisplayName": "Root",
-          "pFeature": "MagicCalc"
+          "pFeature": "ExposureTime\nPixelFormat\nAcquisitionEnable\nTriggerSoftware\nMagicCalc"
         },
         "tag": "Category"
       }

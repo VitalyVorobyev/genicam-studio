@@ -4,6 +4,8 @@ Monorepo for GenICam XML tooling, UI, and desktop app.
 
 ## Development
 
+See `AGENTS.md` for the AI working agreement (standards + Definition of Done).
+
 Rust (workspace tests):
 
 ```sh
