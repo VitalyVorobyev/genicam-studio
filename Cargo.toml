@@ -1,0 +1,5 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/genicam_xml_model",
+]

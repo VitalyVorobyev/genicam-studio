@@ -1,0 +1,22 @@
+# Rust
+/target
+**/target
+
+# Node
+node_modules
+**/node_modules
+npm-debug.log*
+
+# Vite
+**/dist
+**/.vite
+
+# Tauri
+**/src-tauri/target
+
+# OS
+.DS_Store
+
+# Env
+.env
+.env.*

@@ -1,0 +1,12 @@
+[package]
+name = "genicam_studio_tauri"
+version = "0.1.0"
+description = "GenICam Studio desktop app"
+edition = "2021"
+build = "build.rs"
+
+[dependencies]
+tauri = { version = "1", features = ["api-all"] }
+
+[build-dependencies]
+tauri-build = { version = "1" }
