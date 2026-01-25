@@ -20,3 +20,6 @@ npm-debug.log*
 # Env
 .env
 .env.*
+# WASM build output
+/ui/genicam-studio-ui/src/wasm/genicam_xml_model_wasm
+

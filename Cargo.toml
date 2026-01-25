@@ -2,4 +2,5 @@
 resolver = "2"
 members = [
   "crates/genicam_xml_model",
+  "crates/genicam_xml_model_wasm",
 ]

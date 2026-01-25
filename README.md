@@ -17,6 +17,8 @@ UI (Vite dev server):
 ```sh
 cd ui/genicam-studio-ui
 npm install
+# Browser mode needs WASM built once.
+npm run wasm:build
 npm run dev
 ```
 

@@ -26,6 +26,12 @@ jobs:
       - name: Rust tests
         run: cargo test
 
+      - name: Set up wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+
+      - name: Build WASM adapter
+        run: ./scripts/wasm-build.sh
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
