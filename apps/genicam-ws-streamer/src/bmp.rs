@@ -33,7 +33,7 @@ pub struct BmpEncoder {
 impl BmpEncoder {
     pub fn new(width: u32, height: u32) -> Self {
         // 8-bit BMP rows are padded to 4-byte alignment.
-        let row_stride = ((width as usize + 3) / 4) * 4;
+        let row_stride = (width as usize).div_ceil(4);
         let image_size = row_stride * height as usize;
 
         let palette_size = 256 * 4;

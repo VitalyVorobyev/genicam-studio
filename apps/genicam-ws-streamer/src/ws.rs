@@ -95,14 +95,13 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
 
     // If a frame is already available, send it immediately.
     let initial = rx.borrow().clone();
-    if !initial.is_empty() {
-        if socket
+    if !initial.is_empty()
+        && socket
             .send(Message::Binary(initial.to_vec()))
             .await
             .is_err()
-        {
-            return;
-        }
+    {
+        return;
     }
 
     loop {
