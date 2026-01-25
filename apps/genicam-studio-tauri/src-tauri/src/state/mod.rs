@@ -1,3 +1,3 @@
 mod model_state;
 
-pub use model_state::{Diag, DiagLevel, ModelState};
+pub use model_state::{Diag, ModelState};

@@ -4,6 +4,7 @@ use serde::Serialize;
 // Diagnostics are intentionally minimal in the MVP so the UI can surface parser
 // warnings/errors without committing to a heavy schema.
 #[derive(Debug, Clone, Serialize)]
+#[allow(dead_code)]
 #[serde(rename_all = "lowercase")]
 pub enum DiagLevel {
     Warning,
