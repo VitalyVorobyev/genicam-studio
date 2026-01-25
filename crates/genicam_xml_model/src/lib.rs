@@ -1,21 +1,7 @@
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DeviceModel {
-    pub name: String,
-}
+mod error;
+mod model;
+mod parser;
 
-impl DeviceModel {
-    pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into() }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::DeviceModel;
-
-    #[test]
-    fn creates_model() {
-        let model = DeviceModel::new("Camera-1");
-        assert_eq!(model.name, "Camera-1");
-    }
-}
+pub use error::ParseError;
+pub use model::{EnumEntry, NumericConstraints, RawNode, UiCategory, UiGraph, UiNode, UiNodeKind};
+pub use parser::parse_genicam_xml;

@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/tauri";
-
-const isTauri = typeof (window as any).__TAURI__ !== "undefined";
+import { isTauri, ping } from "./tauri";
 
 export default function App() {
-  const [debugOutput, setDebugOutput] = useState<string>(
+  const [debugOutput, setDebugOutput] = useState(
     "Ready. Click 'Load XML' to simulate an action."
   );
 
@@ -13,12 +11,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!isTauri) {
+    if (!isTauri()) {
       setDebugOutput((prev) => `${prev}\nRunning in browser mode.`);
       return;
     }
 
-    invoke<string>("ping")
+    ping()
       .then((response) => {
         setDebugOutput((prev) => `${prev}\nTauri ping() -> ${response}`);
       })
@@ -40,12 +38,7 @@ export default function App() {
         <label className="debug-label" htmlFor="debug-output">
           Debug Output
         </label>
-        <textarea
-          id="debug-output"
-          readOnly
-          value={debugOutput}
-          rows={10}
-        />
+        <textarea id="debug-output" readOnly value={debugOutput} rows={10} />
       </main>
     </div>
   );

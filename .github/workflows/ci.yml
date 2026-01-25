@@ -19,27 +19,24 @@ jobs:
 
       - name: Rust fmt
         run: cargo fmt --check
-        working-directory: genicam-studio
 
       - name: Rust clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
-        working-directory: genicam-studio
 
       - name: Rust tests
         run: cargo test
-        working-directory: genicam-studio
 
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: genicam-studio/ui/genicam-studio-ui/package-lock.json
+          cache-dependency-path: ui/genicam-studio-ui/package-lock.json
 
       - name: UI install
         run: npm ci
-        working-directory: genicam-studio/ui/genicam-studio-ui
+        working-directory: ui/genicam-studio-ui
 
       - name: UI build
         run: npm run build
-        working-directory: genicam-studio/ui/genicam-studio-ui
+        working-directory: ui/genicam-studio-ui
