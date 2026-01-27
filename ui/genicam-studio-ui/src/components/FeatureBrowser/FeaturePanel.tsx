@@ -56,7 +56,7 @@ export function FeaturePanel({
     if (!selectedNode) {
       return null;
     }
-    const info = [selectedNode.tooltip, selectedNode.description]
+    const info = [selectedNode.tooltip, selectedNode.comment, selectedNode.description]
       .filter(Boolean)
       .join("\n\n");
     return info || null;

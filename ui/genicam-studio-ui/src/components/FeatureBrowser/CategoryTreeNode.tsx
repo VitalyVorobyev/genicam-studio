@@ -51,6 +51,7 @@ export function CategoryTreeNode({
 
   const nextPath = new Set(pathSet);
   nextPath.add(categoryName);
+  const categoryTitle = category.tooltip ?? category.comment ?? category.display_name;
 
   return (
     <div className="tree-node">
@@ -62,6 +63,7 @@ export function CategoryTreeNode({
             : "tree-item"
         }
         style={padding}
+        title={categoryTitle}
         onClick={() => {
           onToggleCategory(categoryName);
           onSelectNode(categoryName);
@@ -122,6 +124,7 @@ export function CategoryTreeNode({
                       : "tree-item"
                   }
                   style={{ paddingLeft: `${(depth + 1) * 16}px` }}
+                  title={node.tooltip ?? node.comment ?? nodeDisplayName(node)}
                   onClick={() => onSelectNode(featureName)}
                 >
                   <span className="tree-item__label">

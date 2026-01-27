@@ -22,6 +22,13 @@ pub fn parse_genicam_xml(xml: &str) -> Result<UiGraph, ParseError> {
     let mut current_node_depth: Option<usize> = None;
     let mut current_enum_entry: Option<TempEnumEntry> = None;
     let mut text_context: Option<TextContext> = None;
+    // Some GenICam files wrap feature definitions in <Group Comment="..."> without a Name.
+    // We tolerate that by treating Group as a container and mapping its Comment to a category.
+    let mut current_group_depth: Option<usize> = None;
+    let mut current_group_comment: Option<String> = None;
+    let mut pending_group_comments: Vec<String> = Vec::new();
+    // When a top-level element is missing Name, synthesize a stable debug-friendly key.
+    let mut synthetic_counters: HashMap<String, usize> = HashMap::new();
 
     loop {
         match reader.read_event_into(&mut buf)? {
@@ -29,6 +36,9 @@ pub fn parse_genicam_xml(xml: &str) -> Result<UiGraph, ParseError> {
                 handle_start(
                     &event,
                     depth,
+                    &mut current_group_depth,
+                    &mut current_group_comment,
+                    &mut synthetic_counters,
                     &mut current_node,
                     &mut current_node_depth,
                     &mut current_enum_entry,
@@ -40,6 +50,9 @@ pub fn parse_genicam_xml(xml: &str) -> Result<UiGraph, ParseError> {
                 handle_start(
                     &event,
                     depth,
+                    &mut current_group_depth,
+                    &mut current_group_comment,
+                    &mut synthetic_counters,
                     &mut current_node,
                     &mut current_node_depth,
                     &mut current_enum_entry,
@@ -50,6 +63,9 @@ pub fn parse_genicam_xml(xml: &str) -> Result<UiGraph, ParseError> {
                 handle_end(
                     &tag,
                     depth,
+                    &mut current_group_depth,
+                    &mut current_group_comment,
+                    &mut pending_group_comments,
                     &mut current_node,
                     &mut current_node_depth,
                     &mut current_enum_entry,
@@ -86,6 +102,9 @@ pub fn parse_genicam_xml(xml: &str) -> Result<UiGraph, ParseError> {
                 handle_end(
                     &tag,
                     depth,
+                    &mut current_group_depth,
+                    &mut current_group_comment,
+                    &mut pending_group_comments,
                     &mut current_node,
                     &mut current_node_depth,
                     &mut current_enum_entry,
@@ -102,6 +121,13 @@ pub fn parse_genicam_xml(xml: &str) -> Result<UiGraph, ParseError> {
         buf.clear();
     }
 
+    // Resolve any deferred group comments after the full pass.
+    apply_pending_group_comments(
+        &mut pending_group_comments,
+        &mut categories,
+        &mut nodes_by_name,
+    );
+
     Ok(UiGraph {
         nodes_by_name,
         categories,
@@ -114,6 +140,7 @@ struct TempNode {
     tag: String,
     kind: UiNodeKind,
     display_name: Option<String>,
+    comment: Option<String>,
     tooltip: Option<String>,
     description: Option<String>,
     visibility: Option<String>,
@@ -133,6 +160,7 @@ impl TempNode {
             name: self.name,
             kind: self.kind,
             display_name: self.display_name,
+            comment: self.comment,
             tooltip: self.tooltip,
             description: self.description,
             visibility: self.visibility,
@@ -171,9 +199,13 @@ enum TextContext {
     EnumEntryField { tag: String, depth: usize },
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_start(
     event: &BytesStart<'_>,
     depth: usize,
+    current_group_depth: &mut Option<usize>,
+    current_group_comment: &mut Option<String>,
+    synthetic_counters: &mut HashMap<String, usize>,
     current_node: &mut Option<TempNode>,
     current_node_depth: &mut Option<usize>,
     current_enum_entry: &mut Option<TempEnumEntry>,
@@ -181,12 +213,24 @@ fn handle_start(
 ) -> Result<(), ParseError> {
     let tag = qname_to_string(event.local_name().as_ref());
 
-    if current_node.is_none() && depth == 1 {
+    // Treat <Group ...> as a container. Many real-world GenICam files place all feature
+    // nodes inside a Group without a Name attribute, which would otherwise be a hard error.
+    if current_node.is_none() && depth == 1 && tag == "Group" {
+        let attributes = attributes_to_map(event)?;
+        *current_group_depth = Some(depth);
+        *current_group_comment = attributes.get("Comment").cloned();
+        return Ok(());
+    }
+
+    let is_group_child = current_group_depth.is_some_and(|group_depth| depth == group_depth + 1);
+    let is_top_level = depth == 1 || is_group_child;
+
+    if current_node.is_none() && is_top_level {
         let attributes = attributes_to_map(event)?;
         let name = attributes
             .get("Name")
             .cloned()
-            .ok_or(ParseError::MissingName { tag: tag.clone() })?;
+            .unwrap_or_else(|| synthetic_name(&tag, synthetic_counters));
 
         let kind = match tag.as_str() {
             "Category" => UiNodeKind::Category,
@@ -197,6 +241,7 @@ fn handle_start(
             "Enumeration" => UiNodeKind::Enumeration,
             "Command" => UiNodeKind::Command,
             "Register" => UiNodeKind::Register,
+            _ if tag.ends_with("Reg") => UiNodeKind::Register,
             _ => UiNodeKind::Unknown { tag: tag.clone() },
         };
 
@@ -205,6 +250,7 @@ fn handle_start(
             tag: tag.clone(),
             kind,
             display_name: None,
+            comment: attributes.get("Comment").cloned(),
             tooltip: None,
             description: None,
             visibility: None,
@@ -249,6 +295,9 @@ fn handle_start(
 fn handle_end(
     tag: &str,
     depth: usize,
+    current_group_depth: &mut Option<usize>,
+    current_group_comment: &mut Option<String>,
+    pending_group_comments: &mut Vec<String>,
     current_node: &mut Option<TempNode>,
     current_node_depth: &mut Option<usize>,
     current_enum_entry: &mut Option<TempEnumEntry>,
@@ -257,6 +306,15 @@ fn handle_end(
     categories: &mut HashMap<String, UiCategory>,
     root_category: &mut Option<String>,
 ) {
+    if tag == "Group" && current_group_depth.is_some_and(|group_depth| group_depth == depth) {
+        if let Some(comment) = current_group_comment.take() {
+            pending_group_comments.push(comment);
+            apply_pending_group_comments(pending_group_comments, categories, nodes_by_name);
+        }
+        *current_group_depth = None;
+        return;
+    }
+
     if let Some(TextContext::NodeField {
         tag: ctx_tag,
         depth: ctx_depth,
@@ -309,6 +367,8 @@ fn handle_end(
                         name: name.clone(),
                         display_name,
                         features: node.features.clone(),
+                        tooltip: node.tooltip.clone(),
+                        comment: node.comment.clone(),
                     },
                 );
 
@@ -319,6 +379,7 @@ fn handle_end(
             }
 
             nodes_by_name.insert(name, node.into_ui_node());
+            apply_pending_group_comments(pending_group_comments, categories, nodes_by_name);
         }
     }
 }
@@ -326,6 +387,7 @@ fn handle_end(
 fn apply_node_field(node: &mut TempNode, tag: &str, text: &str) {
     match tag {
         "DisplayName" => node.display_name = Some(text.to_string()),
+        "Comment" => node.comment = Some(text.to_string()),
         "ToolTip" => node.tooltip = Some(text.to_string()),
         "Description" => node.description = Some(text.to_string()),
         "Visibility" => node.visibility = Some(text.to_string()),
@@ -393,4 +455,53 @@ fn attributes_to_map(event: &BytesStart<'_>) -> Result<HashMap<String, String>, 
 
 fn qname_to_string(name: &[u8]) -> String {
     String::from_utf8_lossy(name).to_string()
+}
+
+fn synthetic_name(tag: &str, counters: &mut HashMap<String, usize>) -> String {
+    let counter = counters.entry(tag.to_string()).or_insert(0);
+    *counter += 1;
+    format!("__{tag}_{counter}")
+}
+
+fn apply_pending_group_comments(
+    pending_group_comments: &mut Vec<String>,
+    categories: &mut HashMap<String, UiCategory>,
+    nodes_by_name: &mut HashMap<String, UiNode>,
+) {
+    pending_group_comments
+        .retain(|comment| !apply_group_comment(comment, categories, nodes_by_name));
+}
+
+fn apply_group_comment(
+    comment: &str,
+    categories: &mut HashMap<String, UiCategory>,
+    nodes_by_name: &mut HashMap<String, UiNode>,
+) -> bool {
+    let trimmed = comment.trim();
+    if trimmed.is_empty() {
+        return true;
+    }
+
+    let matched_category = categories
+        .iter()
+        .find(|(_, category)| category.name == trimmed || category.display_name == trimmed)
+        .map(|(name, _)| name.clone());
+
+    let Some(category_name) = matched_category else {
+        return false;
+    };
+
+    if let Some(category) = categories.get_mut(&category_name) {
+        if category.comment.is_none() {
+            category.comment = Some(trimmed.to_string());
+        }
+    }
+
+    if let Some(node) = nodes_by_name.get_mut(&category_name) {
+        if node.comment.is_none() {
+            node.comment = Some(trimmed.to_string());
+        }
+    }
+
+    true
 }
