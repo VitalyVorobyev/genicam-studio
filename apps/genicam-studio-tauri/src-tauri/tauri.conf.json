@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "identifier": "com.vitalyvorobyev.genicam-studio",
   "build": {
-    "beforeDevCommand": "npm --prefix ../../ui/genicam-studio-ui run dev:wasm",
-    "beforeBuildCommand": "npm --prefix ../../ui/genicam-studio-ui run build",
+    "beforeDevCommand": "bun run --cwd ../../ui/genicam-studio-ui dev:wasm",
+    "beforeBuildCommand": "bun run --cwd ../../ui/genicam-studio-ui build",
     "devUrl": "http://localhost:5173",
     "frontendDist": "../../../ui/genicam-studio-ui/dist"
   },

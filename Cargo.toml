@@ -4,6 +4,7 @@ resolver = "2"
 members = [
   "crates/genicam_xml_model",
   "crates/genicam_xml_model_wasm",
+  "crates/genicam_zenoh_api",
   "apps/genicam-ws-streamer",
 ]
 

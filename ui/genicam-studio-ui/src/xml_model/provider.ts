@@ -45,6 +45,14 @@ export class TauriProvider implements XmlModelProvider {
   async getCurrentModel(): Promise<ParseXmlResponse | null> {
     return await invokeNative<ParseXmlResponse | null>("get_current_model");
   }
+
+  async applyNodeValue(nodeName: string, value: NodeValue): Promise<void> {
+    await invokeNative("write_node", { nodeName, value: nodeValueToJson(value) });
+  }
+
+  async executeCommand(nodeName: string): Promise<void> {
+    await invokeNative("execute_command", { nodeName });
+  }
 }
 
 type WasmModule = {
@@ -61,7 +69,7 @@ async function loadWasmModule(): Promise<WasmModule> {
       "../wasm/genicam_xml_model_wasm/genicam_xml_model_wasm.js"
     )
       .then(async (module) => {
-        const typed = module as WasmModule;
+        const typed = module as unknown as WasmModule;
         await typed.default();
         return typed;
       })
@@ -88,4 +96,10 @@ function buildSummary(graph: UiGraph) {
     category_count: Object.keys(graph.categories ?? {}).length,
     root_category: graph.root_category || "",
   };
+}
+
+function nodeValueToJson(value: NodeValue): unknown {
+  if (value === null) return null;
+  if (typeof value === "object" && "enumName" in value) return value.enumName;
+  return value;
 }

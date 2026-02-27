@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { Diag, UiGraph, UiNode, UiNodeKind } from "../../xml_model/uigraph";
 import type { NodeValue, ValueError } from "../../xml_model/values";
+import type { NodeValueEntry } from "../../device/types";
 import { isUnknownKind, nodeDisplayName, nodeKindLabel } from "../../xml_model/helpers";
 import { BoolEditor } from "./editors/BoolEditor";
 import { CommandView } from "./editors/CommandView";
@@ -26,6 +27,8 @@ interface FeaturePanelProps {
   canExecute: boolean;
   executeDisabledReason: string;
   onExecute: () => void;
+  /** Live value streamed from the connected device (undefined = no device or no data). */
+  liveValue?: NodeValueEntry;
 }
 
 // Feature panel renders the selected node with a lightweight editor/view.
@@ -46,6 +49,7 @@ export function FeaturePanel({
   canExecute,
   executeDisabledReason,
   onExecute,
+  liveValue,
 }: FeaturePanelProps) {
   const [infoOpen, setInfoOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<"raw" | "debug" | "diagnostics">(
@@ -123,8 +127,15 @@ export function FeaturePanel({
           <div className="feature-panel__meta">
             <span className="kind-badge">{nodeKindLabel(selectedNode.kind)}</span>
             <span className="muted">{selectedNode.name}</span>
-            {selectedNode.access_mode && (
-              <span className="muted">access: {selectedNode.access_mode}</span>
+            {liveValue !== undefined && (
+              <span className="live-badge">
+                Live: {String(liveValue.value)}
+              </span>
+            )}
+            {(liveValue?.access_mode ?? selectedNode.access_mode) && (
+              <span className="muted">
+                access: {liveValue?.access_mode ?? selectedNode.access_mode}
+              </span>
             )}
             {selectedNode.visibility && (
               <span className="muted">visibility: {selectedNode.visibility}</span>

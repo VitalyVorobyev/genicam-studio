@@ -1,5 +1,5 @@
-import { FeatureBrowserPage } from "./components/FeatureBrowser/FeatureBrowserPage";
+import { AppLayout } from "./components/Layout/AppLayout";
 
 export default function App() {
-  return <FeatureBrowserPage />;
+  return <AppLayout />;
 }

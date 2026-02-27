@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import type { Diag, ParseXmlResponse, UiGraph, UiNode } from "../../xml_model/uigraph";
 import type { NodeValue } from "../../xml_model/values";
-import { TauriProvider, WebWasmProvider } from "../../xml_model/provider";
+import type { NodeValueEntry } from "../../device/types";
+import { TauriProvider, WebWasmProvider, type XmlModelProvider } from "../../xml_model/provider";
 import { isUnknownKind, nodeDisplayName } from "../../xml_model/helpers";
 import { isTauri } from "../../tauri";
 import { useDraftValues } from "../../state/useDraftValues";
@@ -15,11 +16,24 @@ type ParseStatus =
   | { kind: "error"; message: string }
   | { kind: "ready"; fileName: string };
 
+interface FeatureBrowserPageProps {
+  /** Externally provided model (e.g. from device connect). Triggers applyResponse on change. */
+  externalModel?: ParseXmlResponse | null;
+  /** Live node value cache from the Zenoh device subscription. */
+  liveValues?: Map<string, NodeValueEntry>;
+  /** Whether a Zenoh device is currently connected. */
+  isConnected?: boolean;
+}
+
 // The Feature Browser is the main UI. It owns the loaded XML, UiGraph, and UI filters.
 // Parsing happens only in Rust/WASM (via provider) and the UI only renders the JSON contract.
-export function FeatureBrowserPage() {
+export function FeatureBrowserPage({
+  externalModel,
+  liveValues = new Map(),
+  isConnected = false,
+}: FeatureBrowserPageProps = {}) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const provider = useMemo(
+  const provider = useMemo<XmlModelProvider>(
     () => (isTauri() ? new TauriProvider() : new WebWasmProvider()),
     []
   );
@@ -87,6 +101,13 @@ export function FeatureBrowserPage() {
       isMounted = false;
     };
   }, [applyResponse, provider]);
+
+  // Apply externally-provided model (from device connect) when the reference changes.
+  useEffect(() => {
+    if (externalModel) {
+      applyResponse(externalModel, externalModel.summary.root_category || "Device");
+    }
+  }, [externalModel, applyResponse]);
 
   const onLoadXml = useCallback(() => {
     fileInputRef.current?.click();
@@ -159,6 +180,28 @@ export function FeatureBrowserPage() {
   const selectedHasDraft = selectedNode
     ? Object.prototype.hasOwnProperty.call(drafts, selectedNode.name)
     : false;
+
+  // Live value from device subscription (undefined when not connected or no data yet)
+  const selectedLiveValue = selectedNode ? liveValues.get(selectedNode.name) : undefined;
+
+  // When selecting a node for the first time while connected and a live value is
+  // available, pre-populate the draft so the Apply workflow is frictionless.
+  const onSelectNode = useCallback(
+    (name: string) => {
+      setSelectedNodeName(name);
+      if (!isConnected) return;
+      const node = graph?.nodes_by_name[name];
+      if (!node) return;
+      if (Object.prototype.hasOwnProperty.call(drafts, name)) return; // already has draft
+      const live = liveValues.get(name);
+      if (!live) return;
+      const nodeValue = liveValueToNodeValue(live.value);
+      if (nodeValue !== null) {
+        setDraft(node, nodeValue);
+      }
+    },
+    [graph, drafts, isConnected, liveValues, setDraft]
+  );
 
   const onDraftChange = useCallback(
     (value: NodeValue) => {
@@ -323,7 +366,7 @@ export function FeatureBrowserPage() {
                               ? "tree-item tree-item--active"
                               : "tree-item"
                           }
-                          onClick={() => setSelectedNodeName(node.name)}
+                          onClick={() => onSelectNode(node.name)}
                         >
                           <span className="tree-item__label">
                             {nodeDisplayName(node)}
@@ -340,7 +383,7 @@ export function FeatureBrowserPage() {
               graph={graph}
               hideUnknown={hideUnknown}
               selectedNodeName={selectedNodeName}
-              onSelectNode={setSelectedNodeName}
+              onSelectNode={onSelectNode}
             />
           </div>
         </aside>
@@ -362,11 +405,17 @@ export function FeatureBrowserPage() {
             canExecute={canExecute}
             executeDisabledReason={executeDisabledReason}
             onExecute={onExecute}
+            liveValue={selectedLiveValue}
           />
         </section>
       </div>
     </div>
   );
+}
+
+/** Convert a raw live value (number | string | boolean) to the NodeValue union. */
+function liveValueToNodeValue(raw: number | string | boolean): import("../../xml_model/values").NodeValue {
+  return raw as import("../../xml_model/values").NodeValue;
 }
 
 function formatErrorMessage(error: unknown) {
