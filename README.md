@@ -100,9 +100,9 @@ cargo test
 
 ```sh
 cd ui/genicam-studio-ui
-npm ci
-npm run wasm:build
-npm run dev
+bun install
+bun run wasm:build
+bun run dev
 ```
 
 Then load the sample XML fixture:
@@ -112,7 +112,7 @@ Then load the sample XML fixture:
 
 ```sh
 cd ui/genicam-studio-ui
-npm ci
+bun install
 ```
 
 ```sh
@@ -131,8 +131,8 @@ Notes:
 
 ```sh
 cd ui/genicam-studio-ui
-npm ci
-npm run build
+bun install
+bun run build
 ```
 
 ### Build the desktop app

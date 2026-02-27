@@ -32,17 +32,13 @@ jobs:
       - name: Build WASM adapter
         run: ./scripts/wasm-build.sh
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: ui/genicam-studio-ui/package-lock.json
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
 
       - name: UI install
-        run: npm ci
+        run: bun install --frozen-lockfile
         working-directory: ui/genicam-studio-ui
 
       - name: UI build
-        run: npm run build
+        run: bun run build
         working-directory: ui/genicam-studio-ui
