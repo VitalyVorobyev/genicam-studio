@@ -27,12 +27,9 @@ interface FeaturePanelProps {
   canExecute: boolean;
   executeDisabledReason: string;
   onExecute: () => void;
-  /** Live value streamed from the connected device (undefined = no device or no data). */
   liveValue?: NodeValueEntry;
 }
 
-// Feature panel renders the selected node with a lightweight editor/view.
-// Draft values live in a separate layer so UiGraph stays read-only.
 export function FeaturePanel({
   graph,
   selectedNode,
@@ -52,14 +49,10 @@ export function FeaturePanel({
   liveValue,
 }: FeaturePanelProps) {
   const [infoOpen, setInfoOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState<"raw" | "debug" | "diagnostics">(
-    "raw"
-  );
+  const [activeTab, setActiveTab] = useState<"raw" | "debug" | "diagnostics">("raw");
 
   const infoText = useMemo(() => {
-    if (!selectedNode) {
-      return null;
-    }
+    if (!selectedNode) return null;
     const info = [selectedNode.tooltip, selectedNode.comment, selectedNode.description]
       .filter(Boolean)
       .join("\n\n");
@@ -68,47 +61,37 @@ export function FeaturePanel({
 
   const diagnosticsPanel = renderDiagnostics(diags);
   const editable = selectedNode ? isEditableKind(selectedNode.kind) : false;
-  const draftSummary = selectedNode && editable
-    ? formatDraftSummary(selectedNode, draftValue, hasDraft)
-    : null;
+  const draftSummary =
+    selectedNode && editable
+      ? formatDraftSummary(selectedNode, draftValue, hasDraft)
+      : null;
 
   if (!graph || !selectedNode) {
     return (
       <div className="feature-panel feature-panel--empty">
         <p>Select a feature to view details.</p>
-        <div className="tabs">
-          <button
-            type="button"
-            className={activeTab === "raw" ? "tab tab--active" : "tab"}
-            onClick={() => setActiveTab("raw")}
-          >
-            Raw XML
-          </button>
-          <button
-            type="button"
-            className={activeTab === "debug" ? "tab tab--active" : "tab"}
-            onClick={() => setActiveTab("debug")}
-          >
-            Model Debug
-          </button>
-          <button
-            type="button"
-            className={
-              activeTab === "diagnostics" ? "tab tab--active" : "tab"
-            }
-            onClick={() => setActiveTab("diagnostics")}
-          >
-            Diagnostics
-          </button>
-        </div>
-        <div className="tab-panel">
-          {activeTab === "raw" ? (
-            <textarea readOnly value={xmlText || "(no XML loaded)"} />
-          ) : activeTab === "debug" ? (
-            <pre>(no selection)</pre>
-          ) : (
-            diagnosticsPanel
-          )}
+        <div className="feature-panel__tabs">
+          <div className="tabs">
+            {(["raw", "debug", "diagnostics"] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                className={activeTab === t ? "tab tab--active" : "tab"}
+                onClick={() => setActiveTab(t)}
+              >
+                {tabLabel(t)}
+              </button>
+            ))}
+          </div>
+          <div className="tab-panel">
+            {activeTab === "raw" ? (
+              <textarea readOnly value={xmlText || "(no XML loaded)"} />
+            ) : activeTab === "debug" ? (
+              <pre>(no selection)</pre>
+            ) : (
+              diagnosticsPanel
+            )}
+          </div>
         </div>
       </div>
     );
@@ -117,42 +100,50 @@ export function FeaturePanel({
   const applyDisabled = !canApply || !hasDraft || draftErrors.length > 0;
   const applyTitle = applyDisabled
     ? applyDisabledReason || "Draft not ready."
-    : "Apply draft to device.";
+    : "Apply draft to device  (Ctrl+Enter)";
+
+  const kindLabel = nodeKindLabel(selectedNode.kind);
+  const kindClass = kindBadgeClass(selectedNode.kind);
 
   return (
     <div className="feature-panel">
       <header className="feature-panel__header">
-        <div>
-          <h2>{nodeDisplayName(selectedNode)}</h2>
-          <div className="feature-panel__meta">
-            <span className="kind-badge">{nodeKindLabel(selectedNode.kind)}</span>
-            <span className="muted">{selectedNode.name}</span>
-            {liveValue !== undefined && (
-              <span className="live-badge">
-                Live: {String(liveValue.value)}
-              </span>
-            )}
-            {(liveValue?.access_mode ?? selectedNode.access_mode) && (
-              <span className="muted">
-                access: {liveValue?.access_mode ?? selectedNode.access_mode}
-              </span>
-            )}
-            {selectedNode.visibility && (
-              <span className="muted">visibility: {selectedNode.visibility}</span>
-            )}
-          </div>
-          {draftSummary && <div className="draft-summary">{draftSummary}</div>}
+        <h2 className="feature-panel__name">{nodeDisplayName(selectedNode)}</h2>
+        <div className="feature-panel__meta">
+          <span className={`kind-badge ${kindClass}`}>{kindLabel}</span>
+          <span className="feature-panel__raw-name">{selectedNode.name}</span>
+          {liveValue !== undefined && (
+            <span className="live-badge">
+              <span className="live-badge__dot" />
+              <span className="live-badge__value">{String(liveValue.value)}</span>
+            </span>
+          )}
+          {(liveValue?.access_mode ?? selectedNode.access_mode) && (
+            <span className="feature-panel__access">
+              {liveValue?.access_mode ?? selectedNode.access_mode}
+            </span>
+          )}
+          {selectedNode.visibility && (
+            <span className="feature-panel__visibility">{selectedNode.visibility}</span>
+          )}
         </div>
+        {draftSummary && (
+          <div className="draft-summary">
+            <span className="draft-summary__dot" />
+            {draftSummary}
+          </div>
+        )}
       </header>
 
       {infoText && (
-        <section className="info">
+        <section className="info" style={{ marginTop: "12px" }}>
           <button
             type="button"
             className="info__toggle"
             onClick={() => setInfoOpen((prev) => !prev)}
           >
-            {infoOpen ? "Hide Info" : "Show Info"}
+            <span className="info__toggle-caret">{infoOpen ? "▾" : "▸"}</span>
+            Info
           </button>
           {infoOpen && <pre className="info__content">{infoText}</pre>}
         </section>
@@ -172,10 +163,21 @@ export function FeaturePanel({
 
       {editable && (
         <section className="editor-actions">
-          <button type="button" onClick={onDraftReset} disabled={!hasDraft}>
+          <button
+            type="button"
+            className="btn--secondary"
+            onClick={onDraftReset}
+            disabled={!hasDraft}
+          >
             Reset
           </button>
-          <button type="button" onClick={onApply} disabled={applyDisabled} title={applyTitle}>
+          <button
+            type="button"
+            className="btn"
+            onClick={onApply}
+            disabled={applyDisabled}
+            title={applyTitle}
+          >
             Apply
           </button>
         </section>
@@ -183,29 +185,16 @@ export function FeaturePanel({
 
       <section className="feature-panel__tabs">
         <div className="tabs">
-          <button
-            type="button"
-            className={activeTab === "raw" ? "tab tab--active" : "tab"}
-            onClick={() => setActiveTab("raw")}
-          >
-            Raw XML
-          </button>
-          <button
-            type="button"
-            className={activeTab === "debug" ? "tab tab--active" : "tab"}
-            onClick={() => setActiveTab("debug")}
-          >
-            Model Debug
-          </button>
-          <button
-            type="button"
-            className={
-              activeTab === "diagnostics" ? "tab tab--active" : "tab"
-            }
-            onClick={() => setActiveTab("diagnostics")}
-          >
-            Diagnostics
-          </button>
+          {(["raw", "debug", "diagnostics"] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              className={activeTab === t ? "tab tab--active" : "tab"}
+              onClick={() => setActiveTab(t)}
+            >
+              {tabLabel(t)}
+            </button>
+          ))}
         </div>
         <div className="tab-panel">
           {activeTab === "raw" ? (
@@ -219,6 +208,29 @@ export function FeaturePanel({
       </section>
     </div>
   );
+}
+
+function tabLabel(t: "raw" | "debug" | "diagnostics"): string {
+  switch (t) {
+    case "raw":         return "Raw XML";
+    case "debug":       return "Model Debug";
+    case "diagnostics": return "Diagnostics";
+  }
+}
+
+function kindBadgeClass(kind: UiNodeKind): string {
+  if (typeof kind !== "string") return "kind-badge--unknown";
+  switch (kind) {
+    case "Integer":     return "kind-badge--integer";
+    case "Float":       return "kind-badge--float";
+    case "Boolean":     return "kind-badge--boolean";
+    case "String":      return "kind-badge--string";
+    case "Enumeration": return "kind-badge--enum";
+    case "Command":     return "kind-badge--command";
+    case "Register":    return "kind-badge--register";
+    case "Category":    return "kind-badge--category";
+    default:            return "kind-badge--unknown";
+  }
 }
 
 function renderEditor(
@@ -237,46 +249,23 @@ function renderEditor(
   switch (node.kind) {
     case "Integer":
       return (
-        <IntegerEditor
-          node={node}
-          value={draftValue}
-          errors={draftErrors}
-          onChange={onDraftChange}
-        />
+        <IntegerEditor node={node} value={draftValue} errors={draftErrors} onChange={onDraftChange} />
       );
     case "Float":
       return (
-        <FloatEditor
-          node={node}
-          value={draftValue}
-          errors={draftErrors}
-          onChange={onDraftChange}
-        />
+        <FloatEditor node={node} value={draftValue} errors={draftErrors} onChange={onDraftChange} />
       );
     case "Enumeration":
       return (
-        <EnumEditor
-          node={node}
-          value={draftValue}
-          errors={draftErrors}
-          onChange={onDraftChange}
-        />
+        <EnumEditor node={node} value={draftValue} errors={draftErrors} onChange={onDraftChange} />
       );
     case "Boolean":
       return (
-        <BoolEditor
-          value={draftValue}
-          errors={draftErrors}
-          onChange={onDraftChange}
-        />
+        <BoolEditor value={draftValue} errors={draftErrors} onChange={onDraftChange} />
       );
     case "String":
       return (
-        <StringEditor
-          value={draftValue}
-          errors={draftErrors}
-          onChange={onDraftChange}
-        />
+        <StringEditor value={draftValue} errors={draftErrors} onChange={onDraftChange} />
       );
     case "Command":
       return (
@@ -288,15 +277,11 @@ function renderEditor(
       );
     case "Register":
       return (
-        <div className="editor__hint">
-          Register node (not editable in offline mode).
-        </div>
+        <div className="editor__hint">Register node — read-only in offline mode.</div>
       );
     case "Category":
       return (
-        <div className="editor__hint">
-          Category node — select a feature in the tree to edit.
-        </div>
+        <div className="editor__hint">Category — select a child feature to edit.</div>
       );
     default:
       return null;
@@ -317,38 +302,25 @@ function formatDraftSummary(
   node: UiNode,
   value: NodeValue | undefined,
   hasDraft: boolean
-) {
-  if (!hasDraft || value === null || value === undefined) {
-    return "Draft: unset (offline)";
-  }
-
-  if (node.kind === "Boolean" && typeof value === "boolean") {
+): string {
+  if (!hasDraft || value === null || value === undefined) return "Draft: unset (offline)";
+  if (node.kind === "Boolean" && typeof value === "boolean")
     return `Draft: ${value ? "enabled" : "disabled"}`;
-  }
-
-  if (node.kind === "String" && typeof value === "string") {
-    return value.length === 0 ? "Draft: \"\" (empty)" : `Draft: ${value}`;
-  }
-
+  if (node.kind === "String" && typeof value === "string")
+    return value.length === 0 ? 'Draft: "" (empty)' : `Draft: ${value}`;
   if (node.kind === "Enumeration" && isEnumValue(value)) {
-    const match = node.enum_entries?.find((entry) => entry.name === value.enumName);
+    const match = node.enum_entries?.find((e) => e.name === value.enumName);
     const label = match?.display_name ?? match?.name ?? value.enumName;
     return `Draft: ${label}`;
   }
-
-  if (typeof value === "number") {
-    return `Draft: ${value}`;
-  }
-
+  if (typeof value === "number") return `Draft: ${value}`;
   return "Draft: (unrecognized)";
 }
 
-// Diagnostics are read-only hints from the parser; keep rendering lightweight.
 function renderDiagnostics(diags: Diag[]) {
   if (!diags || diags.length === 0) {
-    return <div className="diagnostics diagnostics--empty">No diagnostics.</div>;
+    return <div className="diagnostics diagnostics--empty">No parser diagnostics.</div>;
   }
-
   return (
     <ul className="diagnostics">
       {diags.map((diag, index) => (

@@ -1,10 +1,12 @@
 import type { UiGraph, UiNode } from "../../xml_model/uigraph";
 import { isUnknownKind, nodeDisplayName, nodeKindLabel } from "../../xml_model/helpers";
+import { visibilityPassesFilter, type VisibilityFilter } from "./FeatureBrowserPage";
 
 interface CategoryTreeNodeProps {
   categoryName: string;
   graph: UiGraph;
   hideUnknown: boolean;
+  visibilityFilter: VisibilityFilter;
   selectedNodeName: string | null;
   expanded: Set<string>;
   onToggleCategory: (name: string) => void;
@@ -13,12 +15,11 @@ interface CategoryTreeNodeProps {
   path?: Set<string>;
 }
 
-// Recursive renderer that looks up nodes by name on demand.
-// Avoids building a full tree structure while still supporting nested categories.
 export function CategoryTreeNode({
   categoryName,
   graph,
   hideUnknown,
+  visibilityFilter,
   selectedNodeName,
   expanded,
   onToggleCategory,
@@ -28,23 +29,21 @@ export function CategoryTreeNode({
 }: CategoryTreeNodeProps) {
   const category = graph.categories[categoryName];
   const isExpanded = expanded.has(categoryName);
-
-  const padding = { paddingLeft: `${depth * 16}px` };
+  const indent = { paddingLeft: `${8 + depth * 16}px` };
 
   if (!category) {
     return (
-      <div className="tree-item tree-item--missing" style={padding}>
-        <span className="tree-item__label">Missing category: {categoryName}</span>
+      <div className="tree-item tree-item--missing" style={indent}>
+        <span className="tree-item__label">Missing: {categoryName}</span>
       </div>
     );
   }
 
-  const pathSet = path ?? new Set();
+  const pathSet = path ?? new Set<string>();
   if (pathSet.has(categoryName)) {
-    // Guard against accidental cycles in category references.
     return (
-      <div className="tree-item tree-item--missing" style={padding}>
-        <span className="tree-item__label">Cycle detected: {categoryName}</span>
+      <div className="tree-item tree-item--missing" style={indent}>
+        <span className="tree-item__label">Cycle: {categoryName}</span>
       </div>
     );
   }
@@ -52,6 +51,10 @@ export function CategoryTreeNode({
   const nextPath = new Set(pathSet);
   nextPath.add(categoryName);
   const categoryTitle = category.tooltip ?? category.comment ?? category.display_name;
+
+  // Determine if any feature in this category (recursively) passes the filter.
+  // We don't prune categories — a category stays visible even if all its leaf
+  // features are filtered, to preserve hierarchy awareness.
 
   return (
     <div className="tree-node">
@@ -62,7 +65,7 @@ export function CategoryTreeNode({
             ? "tree-item tree-item--active"
             : "tree-item"
         }
-        style={padding}
+        style={indent}
         title={categoryTitle}
         onClick={() => {
           onToggleCategory(categoryName);
@@ -70,6 +73,7 @@ export function CategoryTreeNode({
         }}
       >
         <span className="tree-item__caret">{isExpanded ? "▾" : "▸"}</span>
+        <span className="tree-item__icon">&#x25A6;</span>
         <span className="tree-item__label">{category.display_name}</span>
         <span className="tree-item__meta">{category.name}</span>
       </button>
@@ -83,7 +87,7 @@ export function CategoryTreeNode({
                 <li key={featureName}>
                   <div
                     className="tree-item tree-item--missing"
-                    style={{ paddingLeft: `${(depth + 1) * 16}px` }}
+                    style={{ paddingLeft: `${8 + (depth + 1) * 16}px` }}
                   >
                     <span className="tree-item__label">MissingRef</span>
                     <span className="tree-item__meta">{featureName}</span>
@@ -92,7 +96,12 @@ export function CategoryTreeNode({
               );
             }
 
-            if (hideUnknown && isUnknownKind(node.kind)) {
+            // T7.1 — apply visibility filter to leaf nodes
+            if (!isCategoryNode(node) && hideUnknown && isUnknownKind(node.kind)) {
+              return null;
+            }
+
+            if (!isCategoryNode(node) && !visibilityPassesFilter(node.visibility, visibilityFilter)) {
               return null;
             }
 
@@ -103,6 +112,7 @@ export function CategoryTreeNode({
                     categoryName={featureName}
                     graph={graph}
                     hideUnknown={hideUnknown}
+                    visibilityFilter={visibilityFilter}
                     selectedNodeName={selectedNodeName}
                     expanded={expanded}
                     onToggleCategory={onToggleCategory}
@@ -114,6 +124,9 @@ export function CategoryTreeNode({
               );
             }
 
+            const nodeTitle = node.tooltip ?? node.comment ?? nodeDisplayName(node);
+            const kindLabel = nodeKindLabel(node.kind);
+
             return (
               <li key={featureName}>
                 <button
@@ -123,14 +136,14 @@ export function CategoryTreeNode({
                       ? "tree-item tree-item--active"
                       : "tree-item"
                   }
-                  style={{ paddingLeft: `${(depth + 1) * 16}px` }}
-                  title={node.tooltip ?? node.comment ?? nodeDisplayName(node)}
+                  style={{ paddingLeft: `${8 + (depth + 1) * 16}px` }}
+                  title={nodeTitle}
                   onClick={() => onSelectNode(featureName)}
                 >
-                  <span className="tree-item__label">
-                    {nodeDisplayName(node)}
-                  </span>
-                  <span className="tree-item__meta">{nodeKindLabel(node.kind)}</span>
+                  <span className="tree-item__caret" />
+                  <span className="tree-item__icon">{kindIcon(kindLabel)}</span>
+                  <span className="tree-item__label">{nodeDisplayName(node)}</span>
+                  <span className="tree-item__meta">{kindLabel}</span>
                 </button>
               </li>
             );
@@ -143,4 +156,18 @@ export function CategoryTreeNode({
 
 function isCategoryNode(node: UiNode): boolean {
   return typeof node.kind === "string" && node.kind === "Category";
+}
+
+// Tiny ASCII icons to distinguish node kinds without an icon library
+function kindIcon(kind: string): string {
+  switch (kind) {
+    case "Integer":     return "#";
+    case "Float":       return "~";
+    case "Boolean":     return "?";
+    case "String":      return "\"";
+    case "Enumeration": return "=";
+    case "Command":     return ">";
+    case "Register":    return "@";
+    default:            return "\u00B7";
+  }
 }

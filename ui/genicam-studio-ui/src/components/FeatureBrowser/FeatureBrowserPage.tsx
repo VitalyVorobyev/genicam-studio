@@ -1,5 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import type { ChangeEvent, KeyboardEvent } from "react";
 import type { Diag, ParseXmlResponse, UiGraph, UiNode } from "../../xml_model/uigraph";
 import type { NodeValue } from "../../xml_model/values";
 import type { NodeValueEntry } from "../../device/types";
@@ -10,6 +16,26 @@ import { useDraftValues } from "../../state/useDraftValues";
 import { CategoryTree } from "./CategoryTree";
 import { FeaturePanel } from "./FeaturePanel";
 
+// T7.1 — visibility levels; rank determines filtering inclusivity
+export type VisibilityFilter = "Beginner" | "Expert" | "Guru" | "All";
+
+const VISIBILITY_RANK: Record<string, number> = {
+  Beginner: 0,
+  Expert: 1,
+  Guru: 2,
+};
+
+export function visibilityPassesFilter(
+  nodeVisibility: string | undefined,
+  filter: VisibilityFilter
+): boolean {
+  if (filter === "All") return true;
+  if (!nodeVisibility) return true; // nodes without visibility always show
+  const nodeRank = VISIBILITY_RANK[nodeVisibility] ?? 2;
+  const filterRank = VISIBILITY_RANK[filter] ?? 0;
+  return nodeRank <= filterRank;
+}
+
 type ParseStatus =
   | { kind: "idle" }
   | { kind: "loading"; fileName: string }
@@ -17,22 +43,23 @@ type ParseStatus =
   | { kind: "ready"; fileName: string };
 
 interface FeatureBrowserPageProps {
-  /** Externally provided model (e.g. from device connect). Triggers applyResponse on change. */
   externalModel?: ParseXmlResponse | null;
-  /** Live node value cache from the Zenoh device subscription. */
   liveValues?: Map<string, NodeValueEntry>;
-  /** Whether a Zenoh device is currently connected. */
   isConnected?: boolean;
 }
 
-// The Feature Browser is the main UI. It owns the loaded XML, UiGraph, and UI filters.
-// Parsing happens only in Rust/WASM (via provider) and the UI only renders the JSON contract.
 export function FeatureBrowserPage({
   externalModel,
   liveValues = new Map(),
   isConnected = false,
 }: FeatureBrowserPageProps = {}) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const presetInputRef = useRef<HTMLInputElement | null>(null);
+  // T7.2 — search input ref for Ctrl+F focus
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  // T7.2 — debounce timer
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const provider = useMemo<XmlModelProvider>(
     () => (isTauri() ? new TauriProvider() : new WebWasmProvider()),
     []
@@ -41,7 +68,14 @@ export function FeatureBrowserPage({
   const [graph, setGraph] = useState<UiGraph | null>(null);
   const [xmlText, setXmlText] = useState<string>("");
   const [selectedNodeName, setSelectedNodeName] = useState<string | null>(null);
+  // T7.2 — raw input value (not debounced)
+  const [searchInput, setSearchInput] = useState("");
+  // T7.2 — debounced query used for actual filtering
   const [searchText, setSearchText] = useState("");
+  // T7.2 — keyboard nav index in search results
+  const [searchFocusIndex, setSearchFocusIndex] = useState(-1);
+  // T7.1 — visibility filter
+  const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>("Beginner");
   const [hideUnknown, setHideUnknown] = useState(false);
   const [status, setStatus] = useState<ParseStatus>({ kind: "idle" });
   const [diags, setDiags] = useState<Diag[]>([]);
@@ -59,12 +93,28 @@ export function FeatureBrowserPage({
       setSelectedNodeName(response.graph.root_category || null);
       setDiags(response.diags || []);
       setSummaryOverride(
-        `${response.summary.node_count} nodes • ${response.summary.category_count} categories • root: ${response.summary.root_category}`
+        `${response.summary.node_count} nodes · ${response.summary.category_count} cat`
       );
       setStatus({ kind: "ready", fileName });
     },
     [clearAllDrafts]
   );
+
+  // T7.2 — debounce search by 150 ms
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchInput(value);
+    setSearchFocusIndex(-1);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setSearchText(value);
+    }, 150);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -73,17 +123,11 @@ export function FeatureBrowserPage({
       provider
         .listFixtures()
         .then((names) => {
-          if (!isMounted) {
-            return;
-          }
+          if (!isMounted) return;
           setFixtures(names);
           setSelectedFixture(names[0] ?? "");
         })
-        .catch(() => {
-          if (isMounted) {
-            setFixtures([]);
-          }
-        });
+        .catch(() => { if (isMounted) setFixtures([]); });
     }
 
     if (provider.getCurrentModel) {
@@ -97,31 +141,61 @@ export function FeatureBrowserPage({
         .catch(() => {});
     }
 
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, [applyResponse, provider]);
 
-  // Apply externally-provided model (from device connect) when the reference changes.
   useEffect(() => {
     if (externalModel) {
       applyResponse(externalModel, externalModel.summary.root_category || "Device");
     }
   }, [externalModel, applyResponse]);
 
-  const onLoadXml = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
+  // T7.6 — keyboard shortcuts
+  useEffect(() => {
+    function onKeyDown(e: globalThis.KeyboardEvent) {
+      const ctrl = e.ctrlKey || e.metaKey;
+
+      // Ctrl+F — focus search
+      if (ctrl && e.key === "f") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        return;
+      }
+
+      // Escape — clear search or deselect
+      if (e.key === "Escape") {
+        if (searchInput) {
+          setSearchInput("");
+          setSearchText("");
+          setSearchFocusIndex(-1);
+        } else {
+          setSelectedNodeName(null);
+        }
+        return;
+      }
+
+      // Ctrl+Enter — apply if enabled
+      if (ctrl && e.key === "Enter") {
+        const applyBtn = document.querySelector<HTMLButtonElement>(
+          ".editor-actions button:last-child:not(:disabled)"
+        );
+        applyBtn?.click();
+        return;
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [searchInput]);
+
+  const onLoadXml = useCallback(() => { fileInputRef.current?.click(); }, []);
 
   const onFileSelected = useCallback(
     async (event: ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
-      if (!file) {
-        return;
-      }
-
+      if (!file) return;
       setStatus({ kind: "loading", fileName: file.name });
-
       try {
         const xml = await file.text();
         const parsed = await provider.parseXml(xml);
@@ -141,10 +215,7 @@ export function FeatureBrowserPage({
   );
 
   const onLoadFixture = useCallback(async () => {
-    if (!provider.loadFixture || !selectedFixture) {
-      return;
-    }
-
+    if (!provider.loadFixture || !selectedFixture) return;
     setStatus({ kind: "loading", fileName: selectedFixture });
     try {
       const parsed = await provider.loadFixture(selectedFixture);
@@ -154,24 +225,57 @@ export function FeatureBrowserPage({
     }
   }, [applyResponse, provider, selectedFixture]);
 
-  const summary = useMemo(() => {
-    if (summaryOverride) {
-      return summaryOverride;
-    }
-    if (!graph) {
-      return "No model loaded";
-    }
+  // T7.3 — Export preset: download current drafts as JSON
+  const onExportPreset = useCallback(() => {
+    if (!graph) return;
+    const data = JSON.stringify(drafts, null, 2);
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "genicam-preset.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [graph, drafts]);
 
+  // T7.3 — Import preset: load JSON and restore drafts
+  const onImportPreset = useCallback(() => {
+    if (!graph) return;
+    presetInputRef.current?.click();
+  }, [graph]);
+
+  const onPresetFileSelected = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file || !graph) return;
+      try {
+        const text = await file.text();
+        const imported = JSON.parse(text) as Record<string, NodeValue>;
+        Object.entries(imported).forEach(([name, value]) => {
+          const node = graph.nodes_by_name[name];
+          if (node && value !== undefined) {
+            setDraft(node, value);
+          }
+        });
+      } catch {
+        // Silently ignore malformed preset files
+      } finally {
+        event.target.value = "";
+      }
+    },
+    [graph, setDraft]
+  );
+
+  const summary = useMemo(() => {
+    if (summaryOverride) return summaryOverride;
+    if (!graph) return "No model loaded";
     const nodeCount = Object.keys(graph.nodes_by_name ?? {}).length;
     const categoryCount = Object.keys(graph.categories ?? {}).length;
-    const root = graph.root_category || "(none)";
-    return `${nodeCount} nodes • ${categoryCount} categories • root: ${root}`;
+    return `${nodeCount} nodes · ${categoryCount} cat`;
   }, [graph, summaryOverride]);
 
   const selectedNode = useMemo<UiNode | null>(() => {
-    if (!graph || !selectedNodeName) {
-      return null;
-    }
+    if (!graph || !selectedNodeName) return null;
     return graph.nodes_by_name[selectedNodeName] ?? null;
   }, [graph, selectedNodeName]);
 
@@ -181,210 +285,232 @@ export function FeatureBrowserPage({
     ? Object.prototype.hasOwnProperty.call(drafts, selectedNode.name)
     : false;
 
-  // Live value from device subscription (undefined when not connected or no data yet)
   const selectedLiveValue = selectedNode ? liveValues.get(selectedNode.name) : undefined;
 
-  // When selecting a node for the first time while connected and a live value is
-  // available, pre-populate the draft so the Apply workflow is frictionless.
   const onSelectNode = useCallback(
     (name: string) => {
       setSelectedNodeName(name);
+      setSearchFocusIndex(-1);
       if (!isConnected) return;
       const node = graph?.nodes_by_name[name];
       if (!node) return;
-      if (Object.prototype.hasOwnProperty.call(drafts, name)) return; // already has draft
+      if (Object.prototype.hasOwnProperty.call(drafts, name)) return;
       const live = liveValues.get(name);
       if (!live) return;
       const nodeValue = liveValueToNodeValue(live.value);
-      if (nodeValue !== null) {
-        setDraft(node, nodeValue);
-      }
+      if (nodeValue !== null) setDraft(node, nodeValue);
     },
     [graph, drafts, isConnected, liveValues, setDraft]
   );
 
   const onDraftChange = useCallback(
-    (value: NodeValue) => {
-      if (!selectedNode) {
-        return;
-      }
-      setDraft(selectedNode, value);
-    },
+    (value: NodeValue) => { if (selectedNode) setDraft(selectedNode, value); },
     [selectedNode, setDraft]
   );
 
   const onDraftReset = useCallback(() => {
-    if (!selectedNode) {
-      return;
-    }
-    resetDraft(selectedNode.name);
+    if (selectedNode) resetDraft(selectedNode.name);
   }, [resetDraft, selectedNode]);
 
   const canApply = Boolean(provider.applyNodeValue);
   const canExecute = Boolean(provider.executeCommand);
 
   const applyDisabledReason = useMemo(() => {
-    if (!provider.applyNodeValue) {
-      return "Offline mode: will be enabled when connected to a device.";
-    }
-    if (!selectedHasDraft) {
-      return "No draft value to apply.";
-    }
-    if (selectedDraftErrors.length > 0) {
-      return "Resolve validation errors before applying.";
-    }
+    if (!provider.applyNodeValue) return "Offline mode: will be enabled when connected to a device.";
+    if (!selectedHasDraft) return "No draft value to apply.";
+    if (selectedDraftErrors.length > 0) return "Resolve validation errors before applying.";
     return "";
   }, [provider.applyNodeValue, selectedDraftErrors.length, selectedHasDraft]);
 
   const executeDisabledReason = useMemo(() => {
-    if (!provider.executeCommand) {
-      return "Offline mode: will be enabled when connected to a device.";
-    }
+    if (!provider.executeCommand) return "Offline mode: will be enabled when connected to a device.";
     return "";
   }, [provider.executeCommand]);
 
   const onApply = useCallback(async () => {
-    if (!provider.applyNodeValue || !selectedNode) {
-      return;
-    }
-    if (!selectedHasDraft || selectedDraftErrors.length > 0) {
-      return;
-    }
+    if (!provider.applyNodeValue || !selectedNode) return;
+    if (!selectedHasDraft || selectedDraftErrors.length > 0) return;
     const value = drafts[selectedNode.name];
-    if (value === undefined) {
-      return;
-    }
+    if (value === undefined) return;
     await provider.applyNodeValue(selectedNode.name, value);
   }, [drafts, provider, selectedDraftErrors.length, selectedHasDraft, selectedNode]);
 
   const onExecute = useCallback(async () => {
-    if (!provider.executeCommand || !selectedNode) {
-      return;
-    }
+    if (!provider.executeCommand || !selectedNode) return;
     await provider.executeCommand(selectedNode.name);
   }, [provider, selectedNode]);
 
+  // T7.1+T7.2 — filtered search results
   const searchResults = useMemo(() => {
-    if (!graph || !searchText.trim()) {
-      return [] as UiNode[];
-    }
-
+    if (!graph || !searchText.trim()) return [] as UiNode[];
     const query = searchText.trim().toLowerCase();
     return Object.values(graph.nodes_by_name)
       .filter((node) => {
-        if (hideUnknown && isUnknownKind(node.kind)) {
-          return false;
-        }
+        if (hideUnknown && isUnknownKind(node.kind)) return false;
+        if (!visibilityPassesFilter(node.visibility, visibilityFilter)) return false;
         const display = nodeDisplayName(node).toLowerCase();
         return node.name.toLowerCase().includes(query) || display.includes(query);
       })
       .slice(0, 200);
-  }, [graph, hideUnknown, searchText]);
+  }, [graph, hideUnknown, searchText, visibilityFilter]);
+
+  // T7.2 — keyboard nav in search results
+  const handleSearchKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLInputElement>) => {
+      if (searchResults.length === 0) return;
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSearchFocusIndex((prev) =>
+          prev < searchResults.length - 1 ? prev + 1 : prev
+        );
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSearchFocusIndex((prev) => (prev > 0 ? prev - 1 : 0));
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        const idx = searchFocusIndex >= 0 ? searchFocusIndex : 0;
+        const node = searchResults[idx];
+        if (node) {
+          onSelectNode(node.name);
+          // Clear search after selecting via Enter
+          setSearchInput("");
+          setSearchText("");
+          setSearchFocusIndex(-1);
+        }
+      }
+    },
+    [searchResults, searchFocusIndex, onSelectNode]
+  );
 
   return (
-    <div className="app feature-browser">
-      <header className="top-bar">
-        <div className="top-bar__left">
-          <h1>GenICam Studio</h1>
-          <p>XML tools for GenICam devices.</p>
-        </div>
-        <div className="top-bar__controls">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xml,text/xml"
-            onChange={onFileSelected}
-            hidden
-          />
-          <button type="button" onClick={onLoadXml}>
+    <div className="feature-browser">
+      {/* Hidden file inputs */}
+      <input ref={fileInputRef} type="file" accept=".xml,text/xml" onChange={onFileSelected} hidden />
+      <input ref={presetInputRef} type="file" accept=".json,application/json" onChange={onPresetFileSelected} hidden />
+
+      {/* Compact toolbar replacing the old top-bar */}
+      <div className="browser-toolbar">
+        <div className="browser-toolbar__group">
+          <button type="button" className="btn--secondary" onClick={onLoadXml}>
             Load XML
           </button>
-          {fixtures.length > 0 && provider.loadFixture && (
-            <div className="fixture-loader">
+        </div>
+
+        {fixtures.length > 0 && provider.loadFixture && (
+          <>
+            <div className="browser-toolbar__sep" />
+            <div className="browser-toolbar__group fixture-loader">
               <select
                 value={selectedFixture}
-                onChange={(event) => setSelectedFixture(event.target.value)}
+                onChange={(e) => setSelectedFixture(e.target.value)}
               >
-                {fixtures.map((fixture) => (
-                  <option key={fixture} value={fixture}>
-                    {fixture}
-                  </option>
+                {fixtures.map((f) => (
+                  <option key={f} value={f}>{f}</option>
                 ))}
               </select>
-              <button type="button" onClick={onLoadFixture}>
-                Load Fixture
+              <button type="button" className="btn--secondary" onClick={onLoadFixture}>
+                Load
               </button>
             </div>
-          )}
-          <input
-            className="search-input"
-            type="search"
-            placeholder="Search name or display name"
-            value={searchText}
-            onChange={(event) => setSearchText(event.target.value)}
-          />
-          <label className="toggle">
-            <input
-              type="checkbox"
-              checked={hideUnknown}
-              onChange={(event) => setHideUnknown(event.target.checked)}
-            />
-            Hide Unknown
-          </label>
-          <span className="summary-badge" title={summary}>
-            {summary}
-          </span>
-        </div>
-      </header>
+          </>
+        )}
 
+        <div className="browser-toolbar__sep" />
+
+        {/* T7.3 — Preset buttons */}
+        <div className="browser-toolbar__group">
+          <button
+            type="button"
+            className="btn--ghost"
+            onClick={onExportPreset}
+            disabled={!graph}
+            title="Export current draft values as a JSON preset file"
+          >
+            Export Preset
+          </button>
+          <button
+            type="button"
+            className="btn--ghost"
+            onClick={onImportPreset}
+            disabled={!graph}
+            title="Import a JSON preset file and restore draft values"
+          >
+            Import Preset
+          </button>
+        </div>
+
+        <div className="browser-toolbar__sep" />
+
+        {/* T7.2 — Search with debounce */}
+        <div className="browser-toolbar__search">
+          <span className="browser-toolbar__search-icon">&#x2315;</span>
+          <input
+            ref={searchInputRef}
+            className="browser-toolbar__search-input"
+            type="search"
+            placeholder="Search  (Ctrl+F)"
+            value={searchInput}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
+          />
+        </div>
+
+        <div className="browser-toolbar__sep" />
+
+        {/* T7.1 — Visibility filter toggle group */}
+        <div className="vis-filter" role="group" aria-label="Visibility filter">
+          {(["Beginner", "Expert", "Guru", "All"] as VisibilityFilter[]).map((level) => (
+            <button
+              key={level}
+              type="button"
+              className={`vis-filter__btn${visibilityFilter === level ? " vis-filter__btn--active" : ""}`}
+              onClick={() => setVisibilityFilter(level)}
+              title={`Show ${level === "All" ? "all" : level.toLowerCase()} features`}
+            >
+              {level}
+            </button>
+          ))}
+        </div>
+
+        <span className="browser-toolbar__summary" title={summary}>{summary}</span>
+      </div>
+
+      {/* Status strip */}
       {status.kind === "loading" && (
-        <div className="status status--info">Loading {status.fileName}...</div>
+        <div className="browser-status browser-status--info">
+          Loading {status.fileName}\u2026
+        </div>
       )}
       {status.kind === "error" && (
-        <div className="status status--error">{status.message}</div>
+        <div className="browser-status browser-status--error">{status.message}</div>
       )}
       {status.kind === "ready" && (
-        <div className="status status--success">Loaded {status.fileName}</div>
+        <div className="browser-status browser-status--success">
+          Loaded {status.fileName}
+        </div>
       )}
 
+      {/* Two-pane body */}
       <div className="feature-browser__body">
         <aside className="pane pane--left">
-          <div className="pane__section">
-            {searchText.trim().length > 0 && (
-              <div className="search-results">
-                <div className="search-results__header">Search Results</div>
-                {searchResults.length === 0 ? (
-                  <div className="search-results__empty">No matches.</div>
-                ) : (
-                  <ul>
-                    {searchResults.map((node) => (
-                      <li key={node.name}>
-                        <button
-                          type="button"
-                          className={
-                            node.name === selectedNodeName
-                              ? "tree-item tree-item--active"
-                              : "tree-item"
-                          }
-                          onClick={() => onSelectNode(node.name)}
-                        >
-                          <span className="tree-item__label">
-                            {nodeDisplayName(node)}
-                          </span>
-                          <span className="tree-item__meta">{node.name}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+          <div className="pane__scroll">
+            {searchText.trim().length > 0 ? (
+              <SearchResults
+                results={searchResults}
+                query={searchText.trim()}
+                selectedNodeName={selectedNodeName}
+                focusIndex={searchFocusIndex}
+                onSelectNode={onSelectNode}
+              />
+            ) : (
+              <CategoryTree
+                graph={graph}
+                hideUnknown={hideUnknown}
+                visibilityFilter={visibilityFilter}
+                selectedNodeName={selectedNodeName}
+                onSelectNode={onSelectNode}
+              />
             )}
-            <CategoryTree
-              graph={graph}
-              hideUnknown={hideUnknown}
-              selectedNodeName={selectedNodeName}
-              onSelectNode={onSelectNode}
-            />
           </div>
         </aside>
 
@@ -413,33 +539,101 @@ export function FeatureBrowserPage({
   );
 }
 
-/** Convert a raw live value (number | string | boolean) to the NodeValue union. */
-function liveValueToNodeValue(raw: number | string | boolean): import("../../xml_model/values").NodeValue {
+// ── Search results with highlight ────────────────────────────────────────────
+
+interface SearchResultsProps {
+  results: UiNode[];
+  query: string;
+  selectedNodeName: string | null;
+  focusIndex: number;
+  onSelectNode: (name: string) => void;
+}
+
+function SearchResults({
+  results,
+  query,
+  selectedNodeName,
+  focusIndex,
+  onSelectNode,
+}: SearchResultsProps) {
+  return (
+    <div className="search-results">
+      <div className="search-results__header">
+        {results.length === 0
+          ? "No matches"
+          : `${results.length} result${results.length !== 1 ? "s" : ""}`}
+      </div>
+      {results.length === 0 ? (
+        <div className="search-results__empty">No features match "{query}"</div>
+      ) : (
+        <ul>
+          {results.map((node, idx) => {
+            const displayName = nodeDisplayName(node);
+            const isActive = node.name === selectedNodeName;
+            const isKeyboardFocused = idx === focusIndex;
+            const classes = [
+              "tree-item",
+              isActive ? "tree-item--active" : "",
+              isKeyboardFocused ? "tree-item--keyboard-focus" : "",
+            ]
+              .filter(Boolean)
+              .join(" ");
+
+            return (
+              <li key={node.name}>
+                <button
+                  type="button"
+                  className={classes}
+                  onClick={() => onSelectNode(node.name)}
+                >
+                  <span className="tree-item__label">
+                    {highlightMatch(displayName, query)}
+                  </span>
+                  <span className="tree-item__meta">
+                    {highlightMatch(node.name, query)}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// T7.2 — highlight the matched substring in a label
+function highlightMatch(text: string, query: string): React.ReactNode {
+  const lowerText = text.toLowerCase();
+  const lowerQuery = query.toLowerCase();
+  const idx = lowerText.indexOf(lowerQuery);
+  if (idx === -1) return text;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark className="search-match">{text.slice(idx, idx + query.length)}</mark>
+      {text.slice(idx + query.length)}
+    </>
+  );
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function liveValueToNodeValue(
+  raw: number | string | boolean
+): import("../../xml_model/values").NodeValue {
   return raw as import("../../xml_model/values").NodeValue;
 }
 
-function formatErrorMessage(error: unknown) {
-  if (typeof error === "string") {
-    return error;
-  }
-
-  if (error instanceof Error) {
-    return error.message;
-  }
-
+function formatErrorMessage(error: unknown): string {
+  if (typeof error === "string") return error;
+  if (error instanceof Error) return error.message;
   if (error && typeof error === "object") {
     const message = (error as { message?: string }).message;
     const details = (error as { details?: string }).details;
-    if (message && details) {
-      return `${message} (${details})`;
-    }
-    if (message) {
-      return message;
-    }
-    if (details) {
-      return details;
-    }
+    if (message && details) return `${message} (${details})`;
+    if (message) return message;
+    if (details) return details;
   }
-
   return String(error);
 }

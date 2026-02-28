@@ -14,21 +14,17 @@ export function DeviceCard({ device, connectionState, onConnect, onDisconnect }:
   const isConnected =
     connectionState.kind === "connected" &&
     connectionState.device_id === device.id;
-  const isError =
-    connectionState.kind === "error";
   const isBusy =
     connectionState.kind === "connecting" || connectionState.kind === "connected";
 
   return (
-    <div className={`device-card ${isConnected ? "device-card--connected" : ""} ${isError && isConnecting ? "device-card--error" : ""}`}>
-      <div className="device-card__info">
-        <div className="device-card__name">{device.name}</div>
-        <div className="device-card__meta">
-          <span>{device.model}</span>
-          <span className="muted">{device.serial}</span>
-        </div>
-        <div className="device-card__id muted">{device.id}</div>
+    <div className={`device-card${isConnected ? " device-card--connected" : ""}`}>
+      <div className="device-card__name">{device.name}</div>
+      <div className="device-card__meta">
+        {device.model && <span>{device.model}</span>}
+        {device.serial && <span className="muted">{device.serial}</span>}
       </div>
+      <div className="device-card__id">{device.id}</div>
       <div className="device-card__actions">
         {isConnected ? (
           <button type="button" className="btn--secondary" onClick={onDisconnect}>
@@ -37,10 +33,11 @@ export function DeviceCard({ device, connectionState, onConnect, onDisconnect }:
         ) : (
           <button
             type="button"
+            className="btn"
             disabled={isBusy || isConnecting}
             onClick={() => onConnect(device.id)}
           >
-            {isConnecting ? "Connecting…" : "Connect"}
+            {isConnecting ? "Connecting\u2026" : "Connect"}
           </button>
         )}
       </div>

@@ -1,26 +1,26 @@
 import { useEffect, useState } from "react";
 import type { UiGraph } from "../../xml_model/uigraph";
+import type { VisibilityFilter } from "./FeatureBrowserPage";
 import { CategoryTreeNode } from "./CategoryTreeNode";
 
 interface CategoryTreeProps {
   graph: UiGraph | null;
   hideUnknown: boolean;
+  visibilityFilter: VisibilityFilter;
   selectedNodeName: string | null;
   onSelectNode: (name: string) => void;
 }
 
-// The tree renders categories on demand from the UiGraph contract.
-// We intentionally avoid building a full tree model to keep data structures minimal.
 export function CategoryTree({
   graph,
   hideUnknown,
+  visibilityFilter,
   selectedNodeName,
   onSelectNode,
 }: CategoryTreeProps) {
   const rootCategory = graph?.root_category || "";
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
 
-  // Ensure the root is expanded on first render for a loaded graph.
   useEffect(() => {
     if (rootCategory && !expanded.has(rootCategory)) {
       setExpanded((prev) => new Set(prev).add(rootCategory));
@@ -28,7 +28,7 @@ export function CategoryTree({
   }, [expanded, rootCategory]);
 
   if (!graph) {
-    return <div className="tree-empty">Load an XML file to browse categories.</div>;
+    return <div className="tree-empty">Load an XML file to browse the feature tree.</div>;
   }
 
   if (!rootCategory) {
@@ -38,11 +38,8 @@ export function CategoryTree({
   const toggleCategory = (name: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(name)) {
-        next.delete(name);
-      } else {
-        next.add(name);
-      }
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
       return next;
     });
   };
@@ -54,6 +51,7 @@ export function CategoryTree({
         categoryName={rootCategory}
         graph={graph}
         hideUnknown={hideUnknown}
+        visibilityFilter={visibilityFilter}
         selectedNodeName={selectedNodeName}
         expanded={expanded}
         onToggleCategory={toggleCategory}

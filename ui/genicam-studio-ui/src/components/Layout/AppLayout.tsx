@@ -1,16 +1,27 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { isTauri } from "../../tauri";
 import { useDevice } from "../../device/useDevice";
 import { useNodeValues } from "../../device/useNodeValues";
 import { useAcquisition } from "../../device/useAcquisition";
+import { AppLogProvider, useAppLog } from "../../context/AppLogContext";
 import { DeviceSidebar } from "../DeviceSidebar/DeviceSidebar";
 import { FeatureBrowserPage } from "../FeatureBrowser/FeatureBrowserPage";
 import { ImageViewer } from "../ImageViewer/ImageViewer";
+import { DiagnosticsTab } from "../Diagnostics/DiagnosticsTab";
 import type { ParseXmlResponse } from "../../xml_model/uigraph";
 
 type MainTab = "features" | "image" | "diagnostics";
 
+// AppLayout is wrapped by AppLogProvider so all children can call useAppLog.
 export function AppLayout() {
+  return (
+    <AppLogProvider>
+      <AppLayoutInner />
+    </AppLogProvider>
+  );
+}
+
+function AppLayoutInner() {
   const [activeTab, setActiveTab] = useState<MainTab>("features");
   const [externalModel, setExternalModel] = useState<ParseXmlResponse | null>(null);
   const [connectError, setConnectError] = useState<string>("");
@@ -18,57 +29,96 @@ export function AppLayout() {
   const { devices, connectionState, connect, disconnect } = useDevice();
   const { liveValues } = useNodeValues();
   const { status: acqStatus, streamerInfo, start: startAcq, stop: stopAcq } = useAcquisition();
+  const { log } = useAppLog();
 
   const isConnected = connectionState.kind === "connected";
   const connectedDeviceName =
     connectionState.kind === "connected" ? connectionState.device_name : null;
 
+  // T7.7 — keep document.title in sync with connection state
+  useEffect(() => {
+    document.title = connectedDeviceName
+      ? `GenICam Studio — ${connectedDeviceName}`
+      : "GenICam Studio";
+  }, [connectedDeviceName]);
+
   const handleConnect = useCallback(
     async (deviceId: string) => {
       setConnectError("");
+      log("info", "Connecting to device\u2026", deviceId);
       try {
         const response = await connect(deviceId);
         setExternalModel(response);
         setActiveTab("features");
+        log("success", `Connected`, deviceId);
       } catch (e) {
-        const msg = typeof e === "object" && e !== null && "message" in e
-          ? String((e as { message?: unknown }).message)
-          : String(e);
+        const msg =
+          typeof e === "object" && e !== null && "message" in e
+            ? String((e as { message?: unknown }).message)
+            : String(e);
         setConnectError(msg);
+        log("error", `Connection failed: ${msg}`, deviceId);
       }
     },
-    [connect]
+    [connect, log]
   );
 
+  const handleDisconnect = useCallback(async () => {
+    const name = connectedDeviceName ?? "device";
+    try {
+      await disconnect();
+      log("info", `Disconnected from ${name}`);
+    } catch (e) {
+      log("error", `Disconnect error: ${String(e)}`);
+    }
+  }, [disconnect, connectedDeviceName, log]);
+
   const handleStartAcquisition = useCallback(async () => {
+    log("info", "Starting acquisition\u2026");
     try {
       await startAcq();
       setActiveTab("image");
+      log("success", "Acquisition started");
     } catch (e) {
-      console.error("Start acquisition failed:", e);
+      log("error", `Acquisition start failed: ${String(e)}`);
     }
-  }, [startAcq]);
+  }, [startAcq, log]);
 
-  const windowTitle = connectedDeviceName
-    ? `GenICam Studio — ${connectedDeviceName}`
-    : "GenICam Studio";
+  const handleStopAcquisition = useCallback(async () => {
+    log("info", "Stopping acquisition\u2026");
+    try {
+      await stopAcq();
+      log("success", "Acquisition stopped");
+    } catch (e) {
+      log("error", `Acquisition stop failed: ${String(e)}`);
+    }
+  }, [stopAcq, log]);
 
   return (
     <div className="app-layout">
       <header className="app-header">
         <div className="app-header__brand">
-          <h1>{windowTitle}</h1>
+          <h1 className="app-header__brand-name">GenICam Studio</h1>
+          {connectedDeviceName && (
+            <>
+              <span className="app-header__brand-sep">/</span>
+              <span className="app-header__device-name">{connectedDeviceName}</span>
+            </>
+          )}
         </div>
         <div className="app-header__actions">
           {isConnected && !acqStatus.active && (
-            <button type="button" onClick={handleStartAcquisition}>
+            <button type="button" className="btn" onClick={handleStartAcquisition}>
               Start Acquisition
             </button>
           )}
           {isConnected && acqStatus.active && (
-            <button type="button" className="btn--danger" onClick={() => stopAcq()}>
-              Stop Acquisition
-              {acqStatus.fps != null && ` (${acqStatus.fps.toFixed(1)} fps)`}
+            <button
+              type="button"
+              className="btn--danger"
+              onClick={handleStopAcquisition}
+            >
+              Stop{acqStatus.fps != null ? ` (${acqStatus.fps.toFixed(1)} fps)` : ""}
             </button>
           )}
         </div>
@@ -85,7 +135,7 @@ export function AppLayout() {
               devices={devices}
               connectionState={connectionState}
               onConnect={handleConnect}
-              onDisconnect={disconnect}
+              onDisconnect={handleDisconnect}
             />
           </aside>
         )}
@@ -94,22 +144,22 @@ export function AppLayout() {
           <div className="main-tabs">
             <button
               type="button"
-              className={activeTab === "features" ? "tab tab--active" : "tab"}
+              className={activeTab === "features" ? "main-tab main-tab--active" : "main-tab"}
               onClick={() => setActiveTab("features")}
             >
               Feature Browser
             </button>
             <button
               type="button"
-              className={activeTab === "image" ? "tab tab--active" : "tab"}
+              className={activeTab === "image" ? "main-tab main-tab--active" : "main-tab"}
               onClick={() => setActiveTab("image")}
             >
               Image Viewer
-              {acqStatus.active && <span className="tab__indicator"> ●</span>}
+              {acqStatus.active && <span className="main-tab__live-dot" title="Streaming" />}
             </button>
             <button
               type="button"
-              className={activeTab === "diagnostics" ? "tab tab--active" : "tab"}
+              className={activeTab === "diagnostics" ? "main-tab main-tab--active" : "main-tab"}
               onClick={() => setActiveTab("diagnostics")}
             >
               Diagnostics
@@ -117,6 +167,7 @@ export function AppLayout() {
           </div>
 
           <div className="main-content">
+            {/* Feature Browser stays mounted so tree state is preserved between tabs */}
             <div style={{ display: activeTab === "features" ? "contents" : "none" }}>
               <FeatureBrowserPage
                 externalModel={externalModel}
@@ -125,11 +176,7 @@ export function AppLayout() {
               />
             </div>
             {activeTab === "image" && <ImageViewer streamerInfo={streamerInfo} />}
-            {activeTab === "diagnostics" && (
-              <div className="diagnostics-placeholder">
-                <p className="muted">Diagnostics tab — coming soon.</p>
-              </div>
-            )}
+            {activeTab === "diagnostics" && <DiagnosticsTab />}
           </div>
         </main>
       </div>

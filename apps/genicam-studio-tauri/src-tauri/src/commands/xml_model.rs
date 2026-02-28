@@ -51,15 +51,13 @@ struct Fixture {
 
 // Embed fixtures at compile time so the desktop app can load them without
 // hitting the filesystem (keeps dev + packaged app behavior consistent).
-const FIXTURES: &[Fixture] = &[
-    Fixture {
-        name: "minimal.xml",
-        xml: include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../../crates/genicam_xml_model/fixtures/minimal.xml"
-        )),
-    },
-];
+const FIXTURES: &[Fixture] = &[Fixture {
+    name: "minimal.xml",
+    xml: include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../crates/genicam_xml_model/fixtures/minimal.xml"
+    )),
+}];
 
 fn build_summary(graph: &UiGraph) -> ModelSummary {
     ModelSummary {
@@ -81,7 +79,10 @@ fn build_response(graph: UiGraph, xml: String, diags: Vec<Diag>) -> ParseXmlResp
 
 #[tauri::command]
 pub async fn list_fixtures() -> Vec<String> {
-    FIXTURES.iter().map(|fixture| fixture.name.to_string()).collect()
+    FIXTURES
+        .iter()
+        .map(|fixture| fixture.name.to_string())
+        .collect()
 }
 
 #[tauri::command]
