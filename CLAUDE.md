@@ -4,7 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-GenICam Studio is a monorepo toolkit for parsing GenICam XML camera device descriptions and providing a browser/desktop UI for exploring the resulting feature model. Pre-alpha: parsing coverage is expanding; JSON contracts aim for stability.
+GenICam Studio is a desktop application (Tauri v2) for machine vision engineers to discover, configure, and operate GenICam-compliant industrial cameras. The app communicates with cameras through a separate camera service process over Zenoh.
+
+Key docs:
+- `docs/backlog.md` — product backlog and milestone plan
+- `docs/camera-service-api.md` — camera service library API specification
+- `docs/zenoh-api.md` — Zenoh wire protocol between service and app
+- `docs/adrs/` — architecture decision records
+
+Pre-alpha: parsing coverage is expanding; JSON contracts aim for stability. Desktop (Tauri) is the primary runtime; WASM is maintained for offline XML browsing.
 
 ## Build Commands
 
@@ -53,12 +61,18 @@ The root `Cargo.toml` defines workspace members; `apps/genicam-studio-tauri/src-
 ```
 crates/
   genicam_xml_model/          # Core streaming XML parser → UiGraph model
-  genicam_xml_model_wasm/     # wasm-bindgen wrapper for browser use
+  genicam_xml_model_wasm/     # wasm-bindgen wrapper (maintenance mode)
+  genicam_zenoh_api/          # Shared Zenoh payload types (no zenoh dep)
 apps/
   genicam-studio-tauri/       # Tauri v2 desktop shell (thin glue only)
   genicam-ws-streamer/        # Zenoh subscriber → BMP encoder → WebSocket broadcaster
 ui/
   genicam-studio-ui/          # React 19 + TypeScript frontend
+docs/
+  backlog.md                  # Product backlog and milestones
+  camera-service-api.md       # Camera service Rust library API spec
+  zenoh-api.md                # Zenoh key-expression wire protocol
+  adrs/                       # Architecture Decision Records
 ```
 
 ### Data flow
@@ -100,4 +114,4 @@ Fixtures live in `crates/genicam_xml_model/fixtures/`. Integration tests in `cra
 2. `cargo clippy --all-targets --all-features -- -D warnings`
 3. `cargo test`
 4. `./scripts/wasm-build.sh`
-5. `npm ci && npm run build` (UI)
+5. `cd ui/genicam-studio-ui && bun install && bun run build` (UI)
