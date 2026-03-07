@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import type { StreamerInfo, NodeValueEntry } from "../../device/types";
 import type { ParseXmlResponse, EnumEntry } from "../../xml_model/uigraph";
 import type { ZoomPanState } from "./useZoomPan";
@@ -17,6 +17,7 @@ interface ImageViewerProps {
   onStopAcq: () => Promise<void>;
   externalModel: ParseXmlResponse | null;
   liveValues: Map<string, NodeValueEntry>;
+  deviceName?: string;
 }
 
 export function ImageViewer({
@@ -27,6 +28,7 @@ export function ImageViewer({
   onStopAcq,
   externalModel,
   liveValues,
+  deviceName,
 }: ImageViewerProps) {
   const [fps, setFps] = useState<number>(0);
   const [frameCount, setFrameCount] = useState<number>(0);
@@ -34,6 +36,7 @@ export function ImageViewer({
   const [pixelHover, setPixelHover] = useState<PixelHoverInfo | null>(null);
   const prevAcquiring = useRef<boolean>(false);
   const { sidebarCollapsed, toggleSidebar } = useViewerLayout();
+  const resetZoomRef = useRef<(() => void) | null>(null);
 
   // Reset frame counter each time acquisition transitions false → true
   useEffect(() => {
@@ -47,6 +50,10 @@ export function ImageViewer({
     setZoomLabel(s.zoomLabel);
   };
 
+  const handleResetZoom = useCallback(() => {
+    resetZoomRef.current?.();
+  }, []);
+
   const acquisitionModeEntries: EnumEntry[] =
     externalModel?.graph.nodes_by_name["AcquisitionMode"]?.enum_entries ?? [];
 
@@ -57,8 +64,8 @@ export function ImageViewer({
     return (
       <div className="image-viewer-v2">
         <div className="iv-canvas-column">
-          <ViewerToolbar />
-          <div className="iv-canvas-wrap image-viewer--idle">
+          <ViewerToolbar deviceName={deviceName} onResetZoom={handleResetZoom} />
+          <div className="iv-canvas-wrap iv-canvas-wrap--idle">
             <p>Start acquisition to view the live image stream.</p>
           </div>
         </div>
@@ -81,7 +88,7 @@ export function ImageViewer({
   return (
     <div className="image-viewer-v2">
       <div className="iv-canvas-column">
-        <ViewerToolbar zoomLabel={zoomLabel} />
+        <ViewerToolbar zoomLabel={zoomLabel} deviceName={deviceName} onResetZoom={handleResetZoom} />
         <ViewerCanvas
           wsUrl={streamerInfo.ws_url}
           onFrameStats={setFps}
@@ -89,6 +96,8 @@ export function ImageViewer({
           onZoomPanChange={handleZoomPanChange}
           pixelFormat={pixelFormat}
           onPixelHover={setPixelHover}
+          resetZoomRef={resetZoomRef}
+          isStreaming={true}
         />
         <ViewerStatusBar
           fps={fps}

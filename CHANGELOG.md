@@ -8,6 +8,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- UX-05: Image Viewer chrome polish — device name in toolbar, fit-to-window button, clickable zoom badge, snapshot placeholder, fps warning color, distinct status bar surface, idle/active canvas border states
 - UX-02: Professional three-zone app header with device-status chip and inline acquisition indicator
 - IV-12: Pixel inspector crosshair — hover shows image coordinates and raw pixel value in the status bar
 - IV-11 (review fixes): `clampPan` now returns `{0,0}` at fit scale; `--radius-pill` token added; `buildTransform` covered by unit tests

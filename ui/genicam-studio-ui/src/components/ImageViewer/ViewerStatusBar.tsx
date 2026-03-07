@@ -7,6 +7,7 @@ interface ViewerStatusBarProps {
   height: number;
   pixelFormat: string;
   pixelInfo?: { coords: ImageCoords; formatted: string } | null;
+  fpsWarnBelow?: number;
 }
 
 export function ViewerStatusBar({
@@ -15,9 +16,11 @@ export function ViewerStatusBar({
   height,
   pixelFormat,
   pixelInfo,
+  fpsWarnBelow = 10,
 }: ViewerStatusBarProps) {
   const resolution = formatResolution(width, height);
   const fpsText = formatFps(fps);
+  const fpsWarn = fps > 0 && fps < fpsWarnBelow;
 
   return (
     <div className="iv-statusbar">
@@ -29,7 +32,7 @@ export function ViewerStatusBar({
         </>
       )}
       <span className="iv-statusbar__sep">·</span>
-      <span>{fpsText}</span>
+      <span className={fpsWarn ? "iv-statusbar__fps--warn" : undefined}>{fpsText}</span>
       {pixelInfo && (
         <>
           <span className="iv-statusbar__sep">·</span>

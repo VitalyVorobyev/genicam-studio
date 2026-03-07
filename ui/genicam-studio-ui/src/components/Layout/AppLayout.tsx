@@ -208,6 +208,7 @@ function AppLayoutInner() {
                 onStopAcq={handleStopAcquisition}
                 externalModel={externalModel}
                 liveValues={liveValues}
+                deviceName={connectedDeviceName ?? undefined}
               />
             )}
             {activeTab === "diagnostics" && <DiagnosticsTab />}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { fitContain, mouseToImageCoords } from "./viewerUtils";
 import { useZoomPan } from "./useZoomPan";
 import type { ZoomPanState } from "./useZoomPan";
@@ -16,6 +16,8 @@ interface ViewerCanvasProps {
   onZoomPanChange?: (state: ZoomPanState) => void;
   pixelFormat?: string;
   onPixelHover?: (info: PixelHoverInfo | null) => void;
+  resetZoomRef?: React.RefObject<(() => void) | null>;
+  isStreaming?: boolean;
 }
 
 export function ViewerCanvas({
@@ -25,6 +27,8 @@ export function ViewerCanvas({
   onZoomPanChange,
   pixelFormat,
   onPixelHover,
+  resetZoomRef,
+  isStreaming,
 }: ViewerCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -84,6 +88,15 @@ export function ViewerCanvas({
   useEffect(() => {
     onZoomPanChange?.(zoomPan.state);
   }, [zoomPan.state, onZoomPanChange]);
+
+  // Expose reset-zoom callback to parent via ref
+  useEffect(() => {
+    if (!resetZoomRef) return;
+    resetZoomRef.current = zoomPan.onDoubleClick;
+    return () => {
+      resetZoomRef.current = null;
+    };
+  }, [resetZoomRef, zoomPan.onDoubleClick]);
 
   // WebSocket + render loop
   useEffect(() => {
@@ -209,11 +222,12 @@ export function ViewerCanvas({
       ? "iv-canvas-wrap--grabbing"
       : "iv-canvas-wrap--grab"
     : "";
+  const streamClass = isStreaming ? "iv-canvas-wrap--active" : "iv-canvas-wrap--idle";
 
   return (
     <div
       ref={wrapRef}
-      className={`iv-canvas-wrap${cursorClass ? ` ${cursorClass}` : ""}`}
+      className={`iv-canvas-wrap ${streamClass}${cursorClass ? ` ${cursorClass}` : ""}`}
       onPointerDown={zoomPan.onPointerDown}
       onPointerMove={zoomPan.onPointerMove}
       onPointerUp={zoomPan.onPointerUp}
