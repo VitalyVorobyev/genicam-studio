@@ -8,6 +8,7 @@ import { DeviceSidebar } from "../DeviceSidebar/DeviceSidebar";
 import { FeatureBrowserPage } from "../FeatureBrowser/FeatureBrowserPage";
 import { ImageViewer } from "../ImageViewer/ImageViewer";
 import { DiagnosticsTab } from "../Diagnostics/DiagnosticsTab";
+import { formatDeviceChip } from "./headerUtils";
 import type { ParseXmlResponse } from "../../xml_model/uigraph";
 
 type MainTab = "features" | "image" | "diagnostics";
@@ -94,33 +95,81 @@ function AppLayoutInner() {
     }
   }, [stopAcq, log]);
 
+  const chip = formatDeviceChip(connectionState);
+
   return (
     <div className="app-layout">
       <header className="app-header">
+        {/* Left: brand wordmark */}
         <div className="app-header__brand">
           <h1 className="app-header__brand-name">GenICam Studio</h1>
-          {connectedDeviceName && (
-            <>
-              <span className="app-header__brand-sep">/</span>
-              <span className="app-header__device-name">{connectedDeviceName}</span>
-            </>
-          )}
         </div>
+
+        {/* Center: tab navigation */}
+        <nav className="app-header__tabs">
+          <button
+            type="button"
+            className={
+              activeTab === "features"
+                ? "app-header__tab app-header__tab--active"
+                : "app-header__tab"
+            }
+            onClick={() => setActiveTab("features")}
+          >
+            Feature Browser
+          </button>
+          <button
+            type="button"
+            className={
+              activeTab === "image"
+                ? "app-header__tab app-header__tab--active"
+                : "app-header__tab"
+            }
+            onClick={() => setActiveTab("image")}
+          >
+            Image Viewer
+          </button>
+          <button
+            type="button"
+            className={
+              activeTab === "diagnostics"
+                ? "app-header__tab app-header__tab--active"
+                : "app-header__tab"
+            }
+            onClick={() => setActiveTab("diagnostics")}
+          >
+            Diagnostics
+          </button>
+        </nav>
+
+        {/* Right: acquisition indicator + device chip */}
         <div className="app-header__actions">
           {isConnected && !acqStatus.active && (
             <button type="button" className="btn" onClick={handleStartAcquisition}>
               Start Acquisition
             </button>
           )}
+          {acqStatus.active && (
+            <div className="app-header__acq-indicator">
+              <span className="app-header__acq-dot" />
+              Acquiring{acqStatus.fps != null ? ` ${acqStatus.fps.toFixed(1)} fps` : ""}
+            </div>
+          )}
           {isConnected && acqStatus.active && (
             <button
               type="button"
-              className="btn--danger"
+              className="btn--stop-sm"
               onClick={handleStopAcquisition}
             >
-              Stop{acqStatus.fps != null ? ` (${acqStatus.fps.toFixed(1)} fps)` : ""}
+              Stop
             </button>
           )}
+          <div className="app-header__device-chip">
+            <span
+              className={`app-header__device-dot app-header__device-dot--${chip.state}`}
+            />
+            {chip.label}
+          </div>
         </div>
       </header>
 
@@ -141,31 +190,6 @@ function AppLayoutInner() {
         )}
 
         <main className="main-area">
-          <div className="main-tabs">
-            <button
-              type="button"
-              className={activeTab === "features" ? "main-tab main-tab--active" : "main-tab"}
-              onClick={() => setActiveTab("features")}
-            >
-              Feature Browser
-            </button>
-            <button
-              type="button"
-              className={activeTab === "image" ? "main-tab main-tab--active" : "main-tab"}
-              onClick={() => setActiveTab("image")}
-            >
-              Image Viewer
-              {acqStatus.active && <span className="main-tab__live-dot" title="Streaming" />}
-            </button>
-            <button
-              type="button"
-              className={activeTab === "diagnostics" ? "main-tab main-tab--active" : "main-tab"}
-              onClick={() => setActiveTab("diagnostics")}
-            >
-              Diagnostics
-            </button>
-          </div>
-
           <div className="main-content">
             {/* Feature Browser stays mounted so tree state is preserved between tabs */}
             <div style={{ display: activeTab === "features" ? "contents" : "none" }}>

@@ -142,14 +142,14 @@ input[type="checkbox"] {
 }
 
 .app-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   height: var(--header-h);
   padding: 0 var(--sp-8);
+  gap: var(--sp-6);
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border);
-  display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-8);
   flex-shrink: 0;
   z-index: var(--z-base);
 }
@@ -168,24 +168,109 @@ input[type="checkbox"] {
   letter-spacing: -0.01em;
 }
 
-.app-header__brand-sep {
-  color: var(--border);
-  font-weight: 300;
-  font-size: 18px;
-  line-height: 1;
+/* ── Header center — tab nav ───────────────────────────────── */
+
+.app-header__tabs {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  justify-content: center;
 }
 
-.app-header__device-name {
+.app-header__tab {
+  height: 100%;
+  padding: 0 var(--sp-7);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
   font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
   color: var(--text-secondary);
-  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
 }
+
+.app-header__tab:hover:not(.app-header__tab--active) {
+  color: var(--text-primary);
+  background: transparent;
+}
+
+.app-header__tab--active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent);
+}
+
+/* ── Header right — actions ────────────────────────────────── */
 
 .app-header__actions {
   display: flex;
   gap: var(--sp-4);
   align-items: center;
+  justify-content: flex-end;
 }
+
+/* Acquisition indicator (pulsing dot + label) */
+.app-header__acq-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-xs);
+  color: var(--danger);
+  font-weight: var(--fw-medium);
+}
+
+.app-header__acq-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--danger);
+  animation: pulse 1.8s ease-in-out infinite;
+}
+
+/* Compact pill-shaped stop button */
+.btn--stop-sm {
+  background: var(--danger-muted);
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-pill);
+  padding: var(--sp-1) var(--sp-5);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-medium);
+}
+.btn--stop-sm:hover:not(:disabled) {
+  background: var(--danger);
+  color: var(--text-on-accent);
+  border-color: transparent;
+}
+
+/* Device status chip */
+.app-header__device-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: var(--sp-1) var(--sp-4);
+  white-space: nowrap;
+}
+
+.app-header__device-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.app-header__device-dot--connected    { background: var(--success); }
+.app-header__device-dot--connecting   { background: var(--warning); animation: pulse 1.8s ease-in-out infinite; }
+.app-header__device-dot--disconnected { background: var(--text-muted); }
 
 .app-body {
   flex: 1;
@@ -210,54 +295,6 @@ input[type="checkbox"] {
   min-width: 0;
   overflow: hidden;
   background: var(--bg-base);
-}
-
-/* ── Main tab bar ───────────────────────────────────────────── */
-
-.main-tabs {
-  display: flex;
-  align-items: flex-end;
-  gap: 0;
-  padding: 0 var(--sp-8);
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-surface);
-  flex-shrink: 0;
-  height: var(--tab-h);
-}
-
-.main-tab {
-  height: var(--tab-h);
-  padding: 0 var(--sp-7);
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  font-size: var(--text-sm);
-  font-weight: var(--fw-medium);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: color var(--transition-fast), border-color var(--transition-fast);
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-}
-
-.main-tab:hover:not(.main-tab--active) {
-  color: var(--text-primary);
-  background: transparent;
-}
-
-.main-tab--active {
-  color: var(--text-primary);
-  border-bottom-color: var(--accent);
-}
-
-.main-tab__live-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--success);
-  animation: pulse 1.8s ease-in-out infinite;
 }
 
 @keyframes pulse {
