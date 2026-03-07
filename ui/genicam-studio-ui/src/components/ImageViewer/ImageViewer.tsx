@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import type { StreamerInfo, NodeValueEntry } from "../../device/types";
 import type { ParseXmlResponse, EnumEntry } from "../../xml_model/uigraph";
+import type { ZoomPanState } from "./useZoomPan";
 import { ViewerToolbar } from "./ViewerToolbar";
 import { ViewerCanvas } from "./ViewerCanvas";
 import { ViewerStatusBar } from "./ViewerStatusBar";
@@ -28,6 +29,7 @@ export function ImageViewer({
 }: ImageViewerProps) {
   const [fps, setFps] = useState<number>(0);
   const [frameCount, setFrameCount] = useState<number>(0);
+  const [zoomLabel, setZoomLabel] = useState<string>("Fit");
   const prevAcquiring = useRef<boolean>(false);
   const { sidebarCollapsed, toggleSidebar } = useViewerLayout();
 
@@ -38,6 +40,10 @@ export function ImageViewer({
     }
     prevAcquiring.current = isAcquiring;
   }, [isAcquiring]);
+
+  const handleZoomPanChange = (s: ZoomPanState) => {
+    setZoomLabel(s.zoomLabel);
+  };
 
   const acquisitionModeEntries: EnumEntry[] =
     externalModel?.graph.nodes_by_name["AcquisitionMode"]?.enum_entries ?? [];
@@ -70,11 +76,12 @@ export function ImageViewer({
   return (
     <div className="image-viewer-v2">
       <div className="iv-canvas-column">
-        <ViewerToolbar />
+        <ViewerToolbar zoomLabel={zoomLabel} />
         <ViewerCanvas
           wsUrl={streamerInfo.ws_url}
           onFrameStats={setFps}
           onFrame={() => setFrameCount((c) => c + 1)}
+          onZoomPanChange={handleZoomPanChange}
         />
         <ViewerStatusBar
           fps={fps}

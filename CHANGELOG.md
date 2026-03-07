@@ -8,6 +8,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- IV-11 (review fixes): `clampPan` now returns `{0,0}` at fit scale; `--radius-pill` token added; `buildTransform` covered by unit tests
+- IV-11: Image Viewer — mouse wheel zoom (cursor-centered), click-drag pan, double-click reset to Fit; zoom level shown in toolbar
 - IV-04: Image Format sidebar section — PixelFormat select, Width/Height/OffsetX/OffsetY integer sliders with dynamic OffsetX/Y max, optional BinningHorizontal/BinningVertical selects
 - IV-03: Add Exposure & Gain sidebar section with sliders, text inputs, and Auto toggles for ExposureTime, Gain, ExposureAuto, GainAuto
 - IV-02: Acquisition control section — Start/Stop button, AcquisitionMode dropdown, and frame counter in Image Viewer sidebar
