@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { fitContain, formatFps, formatResolution } from "./viewerUtils";
+import { fitContain, formatFps, formatResolution, formatFrameCount } from "./viewerUtils";
 
 describe("fitContain", () => {
   it("test_fitContain_landscape_smaller_than_container", () => {
@@ -69,5 +69,23 @@ describe("formatResolution", () => {
 
   it("test_formatResolution_square", () => {
     expect(formatResolution(512, 512)).toBe("512 \u00d7 512");
+  });
+});
+
+describe("formatFrameCount", () => {
+  it("test_formatFrameCount_zero", () => {
+    expect(formatFrameCount(0)).toBe("0 frames");
+  });
+
+  it("test_formatFrameCount_one", () => {
+    expect(formatFrameCount(1)).toBe("1 frame");
+  });
+
+  it("test_formatFrameCount_many", () => {
+    expect(formatFrameCount(42)).toBe("42 frames");
+  });
+
+  it("test_formatFrameCount_large", () => {
+    expect(formatFrameCount(1234)).toBe("1,234 frames");
   });
 });

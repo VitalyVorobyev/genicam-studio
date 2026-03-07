@@ -8,6 +8,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- IV-02: Acquisition control section — Start/Stop button, AcquisitionMode dropdown, and frame counter in Image Viewer sidebar
 - IV-01: Image Viewer layout redesign — split canvas/sidebar layout with collapsible control sidebar, toolbar strip, and status bar
 - UX-01: Design system — extract CSS tokens to src/styles/tokens.css, complete token vocabulary (warning/danger borders, kind-badge palette, bg-canvas, shadows, z-index scale, focus ring, font weights, transitions)
 - **MS-13 / ZA-02**: Bulk node read queryable (`nodes/bulk/read`) — batch-read multiple node values in one Zenoh round-trip; added shared `BulkReadRequest` / `BulkReadResponse` types to `genicam_zenoh_api`

@@ -1,18 +1,35 @@
+import type { EnumEntry } from "../../xml_model/uigraph";
 import { SidebarSection } from "./SidebarSection";
+import { AcquisitionSection } from "./AcquisitionSection";
 
 interface ControlSidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  isConnected: boolean;
+  isAcquiring: boolean;
+  frameCount: number;
+  onStartAcq: () => void;
+  onStopAcq: () => void;
+  acquisitionModeEntries: EnumEntry[];
 }
 
-const SECTIONS = [
+const RAIL_SECTIONS = [
   { title: "Acquisition Control", icon: "▶" },
   { title: "Exposure & Gain", icon: "☀" },
   { title: "Image Format", icon: "⊞" },
   { title: "Trigger", icon: "⚡" },
 ] as const;
 
-export function ControlSidebar({ collapsed, onToggle }: ControlSidebarProps) {
+export function ControlSidebar({
+  collapsed,
+  onToggle,
+  isConnected,
+  isAcquiring,
+  frameCount,
+  onStartAcq,
+  onStopAcq,
+  acquisitionModeEntries,
+}: ControlSidebarProps) {
   return (
     <aside
       className={`iv-sidebar${collapsed ? " iv-sidebar--collapsed" : ""}`}
@@ -29,7 +46,7 @@ export function ControlSidebar({ collapsed, onToggle }: ControlSidebarProps) {
 
       {collapsed ? (
         <div className="iv-sidebar__rail">
-          {SECTIONS.map((section) => (
+          {RAIL_SECTIONS.map((section) => (
             <button
               key={section.title}
               type="button"
@@ -44,17 +61,28 @@ export function ControlSidebar({ collapsed, onToggle }: ControlSidebarProps) {
         </div>
       ) : (
         <>
-          {SECTIONS.map((section) => (
-            <SidebarSection
-              key={section.title}
-              title={section.title}
-              icon={section.icon}
-            >
-              <p className="sidebar-placeholder">
-                Available in a future update.
-              </p>
-            </SidebarSection>
-          ))}
+          <SidebarSection title="Acquisition Control" icon="▶">
+            <AcquisitionSection
+              isConnected={isConnected}
+              isAcquiring={isAcquiring}
+              frameCount={frameCount}
+              onStartAcq={onStartAcq}
+              onStopAcq={onStopAcq}
+              acquisitionModeEntries={acquisitionModeEntries}
+            />
+          </SidebarSection>
+
+          <SidebarSection title="Exposure & Gain" icon="☀">
+            <p className="sidebar-placeholder">Available in a future update.</p>
+          </SidebarSection>
+
+          <SidebarSection title="Image Format" icon="⊞">
+            <p className="sidebar-placeholder">Available in a future update.</p>
+          </SidebarSection>
+
+          <SidebarSection title="Trigger" icon="⚡">
+            <p className="sidebar-placeholder">Available in a future update.</p>
+          </SidebarSection>
         </>
       )}
     </aside>

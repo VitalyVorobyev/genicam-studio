@@ -45,3 +45,13 @@ export function formatFps(fps: number): string {
 export function formatResolution(w: number, h: number): string {
   return `${w} \u00d7 ${h}`;
 }
+
+/**
+ * Format a frame count as a human-readable string with thousands separators.
+ * Uses en-US locale for deterministic output across environments.
+ * Examples: 0 → "0 frames", 1 → "1 frame", 1234 → "1,234 frames"
+ */
+export function formatFrameCount(n: number): string {
+  const formatted = new Intl.NumberFormat("en-US").format(n);
+  return n === 1 ? `${formatted} frame` : `${formatted} frames`;
+}

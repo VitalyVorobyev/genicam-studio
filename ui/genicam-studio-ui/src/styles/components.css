@@ -1320,3 +1320,62 @@ input[type="checkbox"] {
   font-style: italic;
   margin: 0;
 }
+
+/* ── Acquisition Section ─────────────────────────────────────── */
+
+.acq-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-2) 0;
+}
+
+.acq-btn {
+  width: 100%;
+  justify-content: center;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  border: 1px solid transparent;
+  padding: var(--sp-2) var(--sp-4);
+}
+
+.acq-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.acq-btn--stop {
+  background: var(--danger-muted);
+  color: var(--danger);
+  border-color: var(--danger-border);
+}
+
+.acq-btn--stop:hover:not(:disabled) {
+  background: var(--danger);
+  color: var(--text-on-accent);
+  border-color: transparent;
+}
+
+.acq-mode {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.acq-mode select {
+  width: 100%;
+  font-size: var(--text-sm);
+}
+
+.frame-counter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.frame-counter__value {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}

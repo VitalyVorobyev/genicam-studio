@@ -175,7 +175,16 @@ function AppLayoutInner() {
                 isConnected={isConnected}
               />
             </div>
-            {activeTab === "image" && <ImageViewer streamerInfo={streamerInfo} />}
+            {activeTab === "image" && (
+              <ImageViewer
+                streamerInfo={streamerInfo}
+                isConnected={isConnected}
+                isAcquiring={acqStatus.active}
+                onStartAcq={handleStartAcquisition}
+                onStopAcq={handleStopAcquisition}
+                externalModel={externalModel}
+              />
+            )}
             {activeTab === "diagnostics" && <DiagnosticsTab />}
           </div>
         </main>

@@ -4,9 +4,10 @@ import { fitContain } from "./viewerUtils";
 interface ViewerCanvasProps {
   wsUrl: string;
   onFrameStats: (fps: number) => void;
+  onFrame?: () => void;
 }
 
-export function ViewerCanvas({ wsUrl, onFrameStats }: ViewerCanvasProps) {
+export function ViewerCanvas({ wsUrl, onFrameStats, onFrame }: ViewerCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
@@ -55,6 +56,7 @@ export function ViewerCanvas({ wsUrl, onFrameStats }: ViewerCanvasProps) {
             frameTimes.shift();
           }
           onFrameStats(frameTimes.length);
+          onFrame?.();
         })
         .catch(() => {
           // Ignore individual frame decode errors
@@ -64,7 +66,7 @@ export function ViewerCanvas({ wsUrl, onFrameStats }: ViewerCanvasProps) {
     return () => {
       ws.close();
     };
-  }, [wsUrl, onFrameStats]);
+  }, [wsUrl, onFrameStats, onFrame]);
 
   return (
     <div ref={wrapRef} className="iv-canvas-wrap">
