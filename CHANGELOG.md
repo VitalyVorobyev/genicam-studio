@@ -8,6 +8,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- IV-04: Image Format sidebar section — PixelFormat select, Width/Height/OffsetX/OffsetY integer sliders with dynamic OffsetX/Y max, optional BinningHorizontal/BinningVertical selects
 - IV-03: Add Exposure & Gain sidebar section with sliders, text inputs, and Auto toggles for ExposureTime, Gain, ExposureAuto, GainAuto
 - IV-02: Acquisition control section — Start/Stop button, AcquisitionMode dropdown, and frame counter in Image Viewer sidebar
 - IV-01: Image Viewer layout redesign — split canvas/sidebar layout with collapsible control sidebar, toolbar strip, and status bar

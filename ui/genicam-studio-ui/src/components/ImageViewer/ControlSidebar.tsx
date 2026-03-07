@@ -3,6 +3,7 @@ import type { NodeValueEntry } from "../../device/types";
 import { SidebarSection } from "./SidebarSection";
 import { AcquisitionSection } from "./AcquisitionSection";
 import { ExposureGainSection } from "./ExposureGainSection";
+import { ImageFormatSection } from "./ImageFormatSection";
 
 interface ControlSidebarProps {
   collapsed: boolean;
@@ -87,7 +88,11 @@ export function ControlSidebar({
           </SidebarSection>
 
           <SidebarSection title="Image Format" icon="⊞">
-            <p className="sidebar-placeholder">Available in a future update.</p>
+            <ImageFormatSection
+              isConnected={isConnected}
+              externalModel={externalModel}
+              liveValues={liveValues}
+            />
           </SidebarSection>
 
           <SidebarSection title="Trigger" icon="⚡">
