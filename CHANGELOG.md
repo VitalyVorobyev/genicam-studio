@@ -8,6 +8,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- UX-01: Design system — extract CSS tokens to src/styles/tokens.css, complete token vocabulary (warning/danger borders, kind-badge palette, bg-canvas, shadows, z-index scale, focus ring, font weights, transitions)
 - **MS-13 / ZA-02**: Bulk node read queryable (`nodes/bulk/read`) — batch-read multiple node values in one Zenoh round-trip; added shared `BulkReadRequest` / `BulkReadResponse` types to `genicam_zenoh_api`
 - **MS-12**: Node interdependency simulation (`apps/genicam-mock-service/src/interdependencies.rs`) — Width/Height changes clamp OffsetX/Y and update PayloadSize; PixelFormat change updates PayloadSize
 - **MS-10**: Multi-format synthetic image generators in mock service — Mono16 (16-bit little-endian), BayerRG8 (RGGB mosaic), RGB8 (packed) with independent animated channels
