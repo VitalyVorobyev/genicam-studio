@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import type { StreamerInfo } from "../../device/types";
+import type { StreamerInfo, NodeValueEntry } from "../../device/types";
 import type { ParseXmlResponse, EnumEntry } from "../../xml_model/uigraph";
 import { ViewerToolbar } from "./ViewerToolbar";
 import { ViewerCanvas } from "./ViewerCanvas";
@@ -14,6 +14,7 @@ interface ImageViewerProps {
   onStartAcq: () => Promise<void>;
   onStopAcq: () => Promise<void>;
   externalModel: ParseXmlResponse | null;
+  liveValues: Map<string, NodeValueEntry>;
 }
 
 export function ImageViewer({
@@ -23,6 +24,7 @@ export function ImageViewer({
   onStartAcq,
   onStopAcq,
   externalModel,
+  liveValues,
 }: ImageViewerProps) {
   const [fps, setFps] = useState<number>(0);
   const [frameCount, setFrameCount] = useState<number>(0);
@@ -58,6 +60,8 @@ export function ImageViewer({
           onStartAcq={onStartAcq}
           onStopAcq={onStopAcq}
           acquisitionModeEntries={acquisitionModeEntries}
+          liveValues={liveValues}
+          externalModel={externalModel}
         />
       </div>
     );
@@ -88,6 +92,8 @@ export function ImageViewer({
         onStartAcq={onStartAcq}
         onStopAcq={onStopAcq}
         acquisitionModeEntries={acquisitionModeEntries}
+        liveValues={liveValues}
+        externalModel={externalModel}
       />
     </div>
   );

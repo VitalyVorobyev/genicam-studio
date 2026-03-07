@@ -76,7 +76,7 @@ export function FeatureBrowserPage({
   const [searchFocusIndex, setSearchFocusIndex] = useState(-1);
   // T7.1 — visibility filter
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>("Beginner");
-  const [hideUnknown, setHideUnknown] = useState(false);
+  const [hideUnknown] = useState(false);
   const [status, setStatus] = useState<ParseStatus>({ kind: "idle" });
   const [diags, setDiags] = useState<Diag[]>([]);
   const [summaryOverride, setSummaryOverride] = useState<string | null>(null);

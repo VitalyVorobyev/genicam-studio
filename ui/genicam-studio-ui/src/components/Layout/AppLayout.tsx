@@ -183,6 +183,7 @@ function AppLayoutInner() {
                 onStartAcq={handleStartAcquisition}
                 onStopAcq={handleStopAcquisition}
                 externalModel={externalModel}
+                liveValues={liveValues}
               />
             )}
             {activeTab === "diagnostics" && <DiagnosticsTab />}

@@ -1,6 +1,8 @@
-import type { EnumEntry } from "../../xml_model/uigraph";
+import type { EnumEntry, ParseXmlResponse } from "../../xml_model/uigraph";
+import type { NodeValueEntry } from "../../device/types";
 import { SidebarSection } from "./SidebarSection";
 import { AcquisitionSection } from "./AcquisitionSection";
+import { ExposureGainSection } from "./ExposureGainSection";
 
 interface ControlSidebarProps {
   collapsed: boolean;
@@ -8,9 +10,11 @@ interface ControlSidebarProps {
   isConnected: boolean;
   isAcquiring: boolean;
   frameCount: number;
-  onStartAcq: () => void;
-  onStopAcq: () => void;
+  onStartAcq: () => Promise<void>;
+  onStopAcq: () => Promise<void>;
   acquisitionModeEntries: EnumEntry[];
+  liveValues: Map<string, NodeValueEntry>;
+  externalModel: ParseXmlResponse | null;
 }
 
 const RAIL_SECTIONS = [
@@ -29,6 +33,8 @@ export function ControlSidebar({
   onStartAcq,
   onStopAcq,
   acquisitionModeEntries,
+  liveValues,
+  externalModel,
 }: ControlSidebarProps) {
   return (
     <aside
@@ -73,7 +79,11 @@ export function ControlSidebar({
           </SidebarSection>
 
           <SidebarSection title="Exposure & Gain" icon="☀">
-            <p className="sidebar-placeholder">Available in a future update.</p>
+            <ExposureGainSection
+              isConnected={isConnected}
+              externalModel={externalModel}
+              liveValues={liveValues}
+            />
           </SidebarSection>
 
           <SidebarSection title="Image Format" icon="⊞">

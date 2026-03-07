@@ -8,6 +8,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- IV-03: Add Exposure & Gain sidebar section with sliders, text inputs, and Auto toggles for ExposureTime, Gain, ExposureAuto, GainAuto
 - IV-02: Acquisition control section — Start/Stop button, AcquisitionMode dropdown, and frame counter in Image Viewer sidebar
 - IV-01: Image Viewer layout redesign — split canvas/sidebar layout with collapsible control sidebar, toolbar strip, and status bar
 - UX-01: Design system — extract CSS tokens to src/styles/tokens.css, complete token vocabulary (warning/danger borders, kind-badge palette, bg-canvas, shadows, z-index scale, focus ring, font weights, transitions)
