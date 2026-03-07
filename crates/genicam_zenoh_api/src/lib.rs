@@ -53,6 +53,25 @@ pub struct NodeOpResponse {
     pub error: Option<String>,
 }
 
+// ── Bulk Node Read ────────────────────────────────────────────────────────────
+
+/// Request payload for the `nodes/bulk/read` queryable.
+///
+/// An empty `names` list is valid and returns an empty map.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BulkReadRequest {
+    pub names: Vec<String>,
+}
+
+/// Response to a `nodes/bulk/read` query.
+///
+/// `values` maps each requested node name to its current value + access_mode.
+/// Node names not found in the store are omitted (not an error).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BulkReadResponse {
+    pub values: std::collections::HashMap<String, NodeValueUpdate>,
+}
+
 // ── Acquisition ──────────────────────────────────────────────────────────────
 
 /// Request payload for the `acquisition/control` queryable.
@@ -116,9 +135,7 @@ impl PixelFormat {
     /// Bytes per pixel (or fractional for packed/subsampled formats).
     pub fn bytes_per_pixel(&self) -> f32 {
         match self {
-            Self::Mono8 | Self::BayerRG8 | Self::BayerGR8 | Self::BayerBG8 | Self::BayerGB8 => {
-                1.0
-            }
+            Self::Mono8 | Self::BayerRG8 | Self::BayerGR8 | Self::BayerBG8 | Self::BayerGB8 => 1.0,
             Self::Mono10
             | Self::Mono12
             | Self::Mono16
@@ -185,6 +202,12 @@ pub mod keys {
 
     pub fn node_execute(device_id: &str, node_name: &str) -> String {
         format!("genicam/devices/{device_id}/nodes/{node_name}/execute")
+    }
+
+    /// Key expression for the bulk node read queryable.
+    /// Direction: App → Service (queryable GET).
+    pub fn nodes_bulk_read(device_id: &str) -> String {
+        format!("genicam/devices/{device_id}/nodes/bulk/read")
     }
 
     pub fn acquisition_control(device_id: &str) -> String {

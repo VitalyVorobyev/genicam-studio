@@ -4,7 +4,7 @@
 
 - **Priority:** P0 = must-have for release, P1 = important, P2 = nice-to-have
 - **Size:** S = small (1-2 days), M = medium (3-5 days), L = large (1-2 weeks), XL = extra-large (2+ weeks)
-- **Status:** `planned` | `in-progress` | `done` | `blocked`
+- **Status:** `planned` | `in-progress` | `✓ done` | `blocked`
 - **ADR:** link to relevant architecture decision record
 
 ## Scope
@@ -18,45 +18,45 @@ GenICam Studio is the **desktop UI application**. The actual camera service (Gen
 
 ---
 
-## Epic 1: Mock Camera Service
+## Epic 1: Mock Camera Service — 13/13 complete ✓
 
 A fake Zenoh camera service for end-to-end integration testing without real hardware. Enables UI development and CI.
 
 | ID | Task | Priority | Size | Status | ADR | Notes |
 |----|------|----------|------|--------|-----|-------|
-| MS-01 | Mock service binary scaffold | P0 | M | planned | 008 | Zenoh session, CLI config (device name, image size, node set). Graceful shutdown. |
-| MS-02 | Discovery announcer | P0 | S | planned | 008 | Periodic `announce` publisher with configurable device info. |
-| MS-03 | XML queryable | P0 | S | planned | 008 | Serve a bundled GenICam XML fixture on `{id}/xml` queryable. |
-| MS-04 | Node value store | P0 | M | planned | 008 | In-memory node store seeded from XML defaults. Publish changes to `nodes/{name}/value`. |
-| MS-05 | Node set/execute queryables | P0 | M | planned | 008 | Handle `nodes/{name}/set` and `nodes/{name}/execute`. Validate types, update store. |
-| MS-06 | Status publisher | P0 | S | planned | 008 | Publish `{id}/status` on connect/disconnect simulation. |
-| MS-07 | Synthetic image generator | P0 | M | planned | 005 | Generate Mono8 test patterns (gradient, checkerboard). Publish to `{id}/image` at configurable FPS. |
-| MS-08 | Acquisition control | P0 | S | planned | 008 | Handle `acquisition/control` start/stop. Publish `acquisition/status`. |
-| MS-09 | Image metadata publisher | P1 | S | planned | 005 | Publish `{id}/image/meta` with pixel format, dimensions. |
-| MS-10 | Multi-format synthetic images | P1 | M | planned | 005 | Generate Mono16, BayerRG8, RGB8 test patterns. |
-| MS-11 | Realistic SFNC node set | P0 | M | planned | 007 | Comprehensive fixture XML with standard SFNC nodes: ExposureTime, Gain, Width, Height, PixelFormat, TriggerMode, AcquisitionMode, etc. |
-| MS-12 | Node interdependencies | P1 | M | planned | — | Simulate node side effects (e.g., changing Width updates OffsetX max, changing PixelFormat changes payload size). |
-| MS-13 | Bulk node read queryable | P1 | S | planned | 008 | Handle `nodes/bulk/read` for batch queries. |
+| ~~MS-01~~ | ~~Mock service binary scaffold~~ | P0 | M | ✓ done | 008 | Zenoh session, CLI config (device name, image size, node set). Graceful shutdown. |
+| ~~MS-02~~ | ~~Discovery announcer~~ | P0 | S | ✓ done | 008 | Periodic `announce` publisher with configurable device info. |
+| ~~MS-03~~ | ~~XML queryable~~ | P0 | S | ✓ done | 008 | Serve a bundled GenICam XML fixture on `{id}/xml` queryable. |
+| ~~MS-04~~ | ~~Node value store~~ | P0 | M | ✓ done | 008 | In-memory node store seeded from XML defaults. Publish changes to `nodes/{name}/value`. |
+| ~~MS-05~~ | ~~Node set/execute queryables~~ | P0 | M | ✓ done | 008 | Handle `nodes/{name}/set` and `nodes/{name}/execute`. Validate types, update store. |
+| ~~MS-06~~ | ~~Status publisher~~ | P0 | S | ✓ done | 008 | Publish `{id}/status` on connect/disconnect simulation. |
+| ~~MS-07~~ | ~~Synthetic image generator~~ | P0 | M | ✓ done | 005 | Generate Mono8 test patterns (gradient, checkerboard). Publish to `{id}/image` at configurable FPS. |
+| ~~MS-08~~ | ~~Acquisition control~~ | P0 | S | ✓ done | 008 | Handle `acquisition/control` start/stop. Publish `acquisition/status`. |
+| ~~MS-09~~ | ~~Image metadata publisher~~ | P1 | S | ✓ done | 005 | Publish `{id}/image/meta` with pixel format, dimensions. |
+| ~~MS-10~~ | ~~Multi-format synthetic images~~ | P1 | M | ✓ done | 005 | Generate Mono16, BayerRG8, RGB8 test patterns. |
+| ~~MS-11~~ | ~~Realistic SFNC node set~~ | P0 | M | ✓ done | 007 | Comprehensive fixture XML with standard SFNC nodes: ExposureTime, Gain, Width, Height, PixelFormat, TriggerMode, AcquisitionMode, etc. |
+| ~~MS-12~~ | ~~Node interdependencies~~ | P1 | M | ✓ done | — | Simulate node side effects (e.g., changing Width updates OffsetX max, changing PixelFormat changes payload size). |
+| ~~MS-13~~ | ~~Bulk node read queryable~~ | P1 | S | ✓ done | 008 | Handle `nodes/bulk/read` for batch queries. |
 
 ---
 
-## Epic 2: Zenoh API & Shared Types
+## Epic 2: Zenoh API & Shared Types — 3/7 complete
 
 Evolve the `genicam_zenoh_api` crate and `docs/zenoh-api.md`.
 
 | ID | Task | Priority | Size | Status | ADR | Notes |
 |----|------|----------|------|--------|-----|-------|
-| ZA-01 | Image metadata types | P1 | S | planned | 005,008 | Add `ImageMeta` struct, `image_meta()` key helper. |
-| ZA-02 | Bulk read types | P1 | S | planned | 008 | Add `BulkReadRequest`, `BulkReadResponse` types. |
-| ZA-03 | PixelFormat enum (shared) | P0 | S | planned | 005 | Full SFNC pixel format enum in `genicam_zenoh_api`. |
 | ZA-04 | Frame metadata in image key | P1 | S | planned | 005 | Define frame header format (inline metadata vs separate key). |
 | ZA-05 | API version negotiation | P2 | M | planned | 008 | Version field in `announce`, compatibility check. |
 | ZA-06 | Node constraints in value updates | P1 | S | planned | — | Extend `NodeValueUpdate` to optionally include min/max/inc so UI can adapt to runtime constraint changes. |
 | ZA-07 | API spec review & documentation | P0 | M | planned | 008 | Review `docs/zenoh-api.md` for completeness. Add sequence diagrams. Ensure spec matches `genicam_zenoh_api` types exactly. |
+| ~~ZA-01~~ | ~~Image metadata types~~ | P1 | S | ✓ done | 005,008 | Add `ImageMeta` struct, `image_meta()` key helper. |
+| ~~ZA-02~~ | ~~Bulk read types~~ | P1 | S | ✓ done | 008 | Add `BulkReadRequest`, `BulkReadResponse` types. |
+| ~~ZA-03~~ | ~~PixelFormat enum (shared)~~ | P0 | S | ✓ done | 005 | Full SFNC pixel format enum in `genicam_zenoh_api`. |
 
 ---
 
-## Epic 3: Streamer Evolution
+## Epic 3: Streamer Evolution — 0/5 complete
 
 Extend `genicam-ws-streamer` for multi-format support and better WebSocket protocol.
 
@@ -70,7 +70,7 @@ Extend `genicam-ws-streamer` for multi-format support and better WebSocket proto
 
 ---
 
-## Epic 4: Tauri Backend Improvements
+## Epic 4: Tauri Backend Improvements — 1/7 complete
 
 Evolve the Tauri app's Rust backend.
 
@@ -80,13 +80,13 @@ Evolve the Tauri app's Rust backend.
 | TB-02 | Bulk node read command | P1 | S | planned | — | IPC command `read_nodes_bulk(names: Vec<String>)` for batch reads. |
 | TB-03 | SFNC groups config loader | P0 | M | planned | 007 | Load `sfnc-groups.json` from app resources, expose via IPC. |
 | TB-04 | Node value validation | P1 | M | planned | — | Validate node writes against UiGraph constraints before sending to service. |
-| TB-05 | Connection profiles (localStorage) | P1 | S | done | — | Already partially implemented (T7.4 in prior work). |
 | TB-06 | Error recovery on disconnect | P1 | M | planned | — | Auto-cleanup on unexpected disconnect. Reconnect prompt. |
 | TB-07 | Streamer lifecycle improvement | P1 | M | planned | — | Health monitoring of streamer child process. Auto-restart on crash. |
+| ~~TB-05~~ | ~~Connection profiles (localStorage)~~ | P1 | S | ✓ done | — | Already partially implemented (T7.4 in prior work). |
 
 ---
 
-## Epic 5: Image Viewer UI
+## Epic 5: Image Viewer UI — 0/17 complete
 
 Build the dedicated Image Viewer with camera controls and image analysis tools.
 
@@ -112,7 +112,7 @@ Build the dedicated Image Viewer with camera controls and image analysis tools.
 
 ---
 
-## Epic 6: Feature Browser Improvements
+## Epic 6: Feature Browser Improvements — 0/5 complete
 
 Enhance the existing Feature Browser.
 
@@ -126,7 +126,7 @@ Enhance the existing Feature Browser.
 
 ---
 
-## Epic 7: UX Polish & Design
+## Epic 7: UX Polish & Design — 2/9 complete
 
 Professional look and feel for the desktop app.
 
@@ -139,12 +139,12 @@ Professional look and feel for the desktop app.
 | UX-05 | Image Viewer chrome | P0 | M | planned | — | Toolbar, status bar, professional canvas container. |
 | UX-06 | Responsive layout | P1 | M | planned | — | Handle window resize, min sizes, splitter for panes. |
 | UX-07 | Loading & error states | P1 | M | planned | — | Skeleton loaders, toast notifications, inline error messages. |
-| UX-08 | Keyboard shortcuts | P1 | S | done | — | Ctrl+F search, Escape, Ctrl+Enter apply. Already implemented. |
-| UX-09 | Window title updates | P0 | S | done | — | Already implemented (T7.7). |
+| ~~UX-08~~ | ~~Keyboard shortcuts~~ | P1 | S | ✓ done | — | Ctrl+F search, Escape, Ctrl+Enter apply. Already implemented. |
+| ~~UX-09~~ | ~~Window title updates~~ | P0 | S | ✓ done | — | Already implemented (T7.7). |
 
 ---
 
-## Epic 8: XML Parser Improvements
+## Epic 8: XML Parser Improvements — 0/6 complete
 
 Improve the `genicam_xml_model` crate.
 
@@ -159,7 +159,7 @@ Improve the `genicam_xml_model` crate.
 
 ---
 
-## Epic 9: Infrastructure & CI
+## Epic 9: Infrastructure & CI — 0/4 complete
 
 Build tooling, testing, and deployment.
 
@@ -174,7 +174,7 @@ Build tooling, testing, and deployment.
 
 ## Milestone Plan
 
-### M1: Foundation (current state)
+### M1: Foundation ✓
 - [x] XML parser with UiGraph contract
 - [x] Feature Browser (category tree, node editors, search, visibility filter)
 - [x] WASM adapter for browser mode
@@ -185,16 +185,16 @@ Build tooling, testing, and deployment.
 - [x] Image Viewer (basic canvas)
 - [x] Device sidebar, diagnostics tab, keyboard shortcuts
 
-### M2: Mock Service & API Polish
-Focus: MS-01 through MS-11, ZA-03, ZA-07
-Goal: A mock Zenoh camera service with realistic SFNC nodes and synthetic images. Polished API spec. Enables end-to-end UI development without real cameras.
+### M2: Mock Service & API Polish ✓
+Focus: MS-01 through MS-13, ZA-01 through ZA-03
+Goal: A mock Zenoh camera service with realistic SFNC nodes, synthetic multi-format images, node interdependencies, and bulk read. Polished API spec.
 
-### M3: Image Viewer v2
+### M3: Image Viewer v2 ← current
 Focus: IV-01 through IV-04, IV-09 through IV-12, UX-01, UX-02, UX-05
 Goal: Professional Image Viewer with acquisition controls, exposure/gain sliders, image format controls, zoom/pan, pixel inspector.
 
 ### M4: Multi-Format & Image Tools
-Focus: ST-01 through ST-03, IV-13 through IV-17, ZA-01, MS-10
+Focus: ST-01 through ST-03, IV-13 through IV-17, ZA-04
 Goal: Multi-format streamer. Histogram, ROI selection, line profile, snapshot save.
 
 ### M5: Polish & Feature Browser
@@ -202,9 +202,9 @@ Focus: UX-03 through UX-07, FB-01 through FB-05, IV-05 through IV-08
 Goal: Full UX polish, feature browser improvements, remaining Image Viewer sections.
 
 ### M6: Parser & Advanced Features
-Focus: XP-01 through XP-06, MS-12, ZA-06
-Goal: Advanced XML parsing (SwissKnife, cross-references). Node interdependencies in mock.
+Focus: XP-01 through XP-06, ZA-06
+Goal: Advanced XML parsing (SwissKnife, cross-references). Runtime node constraint propagation.
 
 ### M7: Release
-Focus: CI-01 through CI-04, ZA-05
+Focus: CI-01 through CI-04, ZA-05, ZA-07
 Goal: CI pipeline, packaging, integration tests, release builds.

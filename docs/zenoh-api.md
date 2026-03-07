@@ -99,6 +99,21 @@ opaque string without `/`).
   ```
 - **Semantics:** Executes a GenICam Command node.
 
+### `genicam/devices/{device_id}/nodes/bulk/read`
+
+- **Direction:** App → Service (queryable GET)
+- **Request (JSON):** `{ "names": ["ExposureTime", "Gain", "Width"] }`
+- **Response (JSON):**
+  ```json
+  {
+    "values": {
+      "ExposureTime": { "value": 10000.0, "access_mode": "RW" },
+      "Gain":         { "value": 1.0,     "access_mode": "RW" }
+    }
+  }
+  ```
+- **Semantics:** Batch read of multiple node values in a single round-trip. Unknown node names are silently omitted. An empty `names` list returns an empty `values` map. The per-entry shape is identical to `nodes/{name}/value`.
+
 ---
 
 ## Acquisition

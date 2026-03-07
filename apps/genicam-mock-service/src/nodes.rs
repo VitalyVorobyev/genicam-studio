@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tokio::sync::watch;
 use tracing::{debug, error, info, warn};
 
-use genicam_zenoh_api::{NodeOpResponse, NodeSetRequest};
+use genicam_zenoh_api::{BulkReadRequest, BulkReadResponse, NodeOpResponse, NodeSetRequest};
 
 use crate::config::MockConfig;
 use crate::state::NodeStore;
@@ -72,10 +72,7 @@ pub async fn run_set_queryable(
     store: Arc<NodeStore>,
     mut shutdown: watch::Receiver<bool>,
 ) {
-    let key_pattern = format!(
-        "genicam/devices/{}/nodes/*/set",
-        config.device_id
-    );
+    let key_pattern = format!("genicam/devices/{}/nodes/*/set", config.device_id);
     let queryable = match session.declare_queryable(&key_pattern).await {
         Ok(q) => q,
         Err(e) => {
@@ -144,10 +141,7 @@ pub async fn run_execute_queryable(
     config: MockConfig,
     mut shutdown: watch::Receiver<bool>,
 ) {
-    let key_pattern = format!(
-        "genicam/devices/{}/nodes/*/execute",
-        config.device_id
-    );
+    let key_pattern = format!("genicam/devices/{}/nodes/*/execute", config.device_id);
     let queryable = match session.declare_queryable(&key_pattern).await {
         Ok(q) => q,
         Err(e) => {
@@ -173,6 +167,65 @@ pub async fn run_execute_queryable(
                     }
                     Err(e) => {
                         error!("Execute queryable recv error: {e}");
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub async fn run_bulk_read_queryable(
+    session: Arc<zenoh::Session>,
+    config: MockConfig,
+    store: Arc<NodeStore>,
+    mut shutdown: watch::Receiver<bool>,
+) {
+    let key = genicam_zenoh_api::keys::nodes_bulk_read(&config.device_id);
+    let queryable = match session.declare_queryable(&key).await {
+        Ok(q) => q,
+        Err(e) => {
+            error!("Failed to declare bulk_read queryable: {e}");
+            return;
+        }
+    };
+
+    loop {
+        tokio::select! {
+            _ = shutdown.changed() => {
+                if *shutdown.borrow() { break; }
+            }
+            query = queryable.recv_async() => {
+                match query {
+                    Ok(query) => {
+                        let key_expr = query.key_expr().as_str().to_string();
+                        let payload = query
+                            .payload()
+                            .map(|p| p.to_bytes().to_vec())
+                            .unwrap_or_default();
+                        let request: Result<BulkReadRequest, _> =
+                            serde_json::from_slice(&payload);
+                        let response = match request {
+                            Ok(req) => {
+                                debug!("Bulk read: {} nodes requested", req.names.len());
+                                let mut values = std::collections::HashMap::new();
+                                for name in &req.names {
+                                    if let Some(update) = store.get(name).await {
+                                        values.insert(name.clone(), update);
+                                    }
+                                }
+                                BulkReadResponse { values }
+                            }
+                            Err(e) => {
+                                warn!("Invalid bulk_read request: {e}");
+                                BulkReadResponse { values: std::collections::HashMap::new() }
+                            }
+                        };
+                        let bytes = serde_json::to_vec(&response).unwrap_or_default();
+                        let _ = query.reply(&key_expr, bytes).await;
+                    }
+                    Err(e) => {
+                        error!("Bulk read queryable recv error: {e}");
                         break;
                     }
                 }

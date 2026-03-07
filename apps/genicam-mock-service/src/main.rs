@@ -1,6 +1,7 @@
 mod acquisition;
 mod config;
 mod discovery;
+mod interdependencies;
 mod nodes;
 mod state;
 mod status;
@@ -110,6 +111,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             config.clone(),
             shutdown_rx.clone(),
         )),
+        tokio::spawn(nodes::run_bulk_read_queryable(
+            session.clone(),
+            config.clone(),
+            node_store.clone(),
+            shutdown_rx.clone(),
+        )),
         tokio::spawn(acquisition::run(
             session.clone(),
             config.clone(),
@@ -141,7 +148,9 @@ fn init_tracing() {
     tracing_subscriber::fmt().with_env_filter(filter).init();
 }
 
-fn load_fixture_xml(path: Option<&str>) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+fn load_fixture_xml(
+    path: Option<&str>,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     match path {
         Some(p) => Ok(std::fs::read_to_string(p)?),
         None => Ok(DEFAULT_FIXTURE.to_string()),

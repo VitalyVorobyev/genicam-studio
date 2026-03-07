@@ -49,6 +49,8 @@
     <pFeature>Height</pFeature>
     <pFeature>WidthMax</pFeature>
     <pFeature>HeightMax</pFeature>
+    <pFeature>SensorWidth</pFeature>
+    <pFeature>SensorHeight</pFeature>
     <pFeature>OffsetX</pFeature>
     <pFeature>OffsetY</pFeature>
     <pFeature>PixelFormat</pFeature>
@@ -221,6 +223,20 @@
     <DisplayName>Height Max</DisplayName>
     <Visibility>Expert</Visibility>
     <AccessMode>RO</AccessMode>
+  </Integer>
+
+  <Integer Name="SensorWidth">
+    <DisplayName>Sensor Width</DisplayName>
+    <Visibility>Expert</Visibility>
+    <AccessMode>RO</AccessMode>
+    <Unit>px</Unit>
+  </Integer>
+
+  <Integer Name="SensorHeight">
+    <DisplayName>Sensor Height</DisplayName>
+    <Visibility>Expert</Visibility>
+    <AccessMode>RO</AccessMode>
+    <Unit>px</Unit>
   </Integer>
 
   <Integer Name="OffsetX">
