@@ -1,14 +1,21 @@
 import { useEffect, useRef, useState } from "react";
-import { fitContain } from "./viewerUtils";
+import { fitContain, mouseToImageCoords } from "./viewerUtils";
 import { useZoomPan } from "./useZoomPan";
 import type { ZoomPanState } from "./useZoomPan";
 import { buildTransform } from "./zoomPanUtils";
+import { samplePixel, formatPixelSample } from "./pixelInspectorUtils";
+import type { PixelHoverInfo } from "./pixelInspectorUtils";
+import { CrosshairOverlay } from "./CrosshairOverlay";
+
+export type { PixelHoverInfo };
 
 interface ViewerCanvasProps {
   wsUrl: string;
   onFrameStats: (fps: number) => void;
   onFrame?: () => void;
   onZoomPanChange?: (state: ZoomPanState) => void;
+  pixelFormat?: string;
+  onPixelHover?: (info: PixelHoverInfo | null) => void;
 }
 
 export function ViewerCanvas({
@@ -16,12 +23,18 @@ export function ViewerCanvas({
   onFrameStats,
   onFrame,
   onZoomPanChange,
+  pixelFormat,
+  onPixelHover,
 }: ViewerCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
+  const lastFrameRef = useRef<Uint8Array | null>(null);
 
   const [imgSize, setImgSize] = useState({ w: 0, h: 0 });
   const [boxSize, setBoxSize] = useState({ w: 0, h: 0 });
+  const [wrapMouse, setWrapMouse] = useState<{ x: number; y: number } | null>(
+    null,
+  );
 
   // Track box size via ResizeObserver
   useEffect(() => {
@@ -84,6 +97,9 @@ export function ViewerCanvas({
         return;
       }
 
+      // Store raw bytes for pixel sampling before decoding
+      lastFrameRef.current = new Uint8Array(event.data);
+
       const blob = new Blob([event.data]);
       createImageBitmap(blob)
         .then((bitmap) => {
@@ -143,6 +159,48 @@ export function ViewerCanvas({
     };
   }, [wsUrl, onFrameStats, onFrame]);
 
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setWrapMouse({ x, y });
+
+    if (!onPixelHover) return;
+
+    const { scale, panX, panY, fitScale } = zoomPan.state;
+    const coords = mouseToImageCoords({
+      mouseX: x,
+      mouseY: y,
+      boxW: boxSize.w,
+      boxH: boxSize.h,
+      imgW: imgSize.w,
+      imgH: imgSize.h,
+      scale,
+      fitScale,
+      panX,
+      panY,
+    });
+
+    if (!coords) {
+      onPixelHover(null);
+      return;
+    }
+
+    const frame = lastFrameRef.current;
+    const fmt = pixelFormat ?? "Mono8";
+    const sample =
+      frame
+        ? samplePixel(frame, coords.x, coords.y, imgSize.w, imgSize.h, fmt)
+        : null;
+    const formatted = sample ? formatPixelSample(sample) : "";
+    onPixelHover({ coords, sample, formatted });
+  };
+
+  const handleMouseLeave = () => {
+    setWrapMouse(null);
+    onPixelHover?.(null);
+  };
+
   // Cursor class based on zoom level and drag state
   const isZoomed = imgSize.w > 0 && zoomPan.state.scale > zoomPan.state.fitScale;
   const isDragging = zoomPan.isDraggingRef.current;
@@ -160,8 +218,14 @@ export function ViewerCanvas({
       onPointerMove={zoomPan.onPointerMove}
       onPointerUp={zoomPan.onPointerUp}
       onDoubleClick={zoomPan.onDoubleClick}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
     >
       <canvas ref={canvasRef} />
+      <CrosshairOverlay
+        mouseX={wrapMouse?.x ?? null}
+        mouseY={wrapMouse?.y ?? null}
+      />
     </div>
   );
 }

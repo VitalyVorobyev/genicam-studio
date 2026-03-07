@@ -1,10 +1,12 @@
 import { formatFps, formatResolution } from "./viewerUtils";
+import type { ImageCoords } from "./viewerUtils";
 
 interface ViewerStatusBarProps {
   fps: number;
   width: number;
   height: number;
   pixelFormat: string;
+  pixelInfo?: { coords: ImageCoords; formatted: string } | null;
 }
 
 export function ViewerStatusBar({
@@ -12,6 +14,7 @@ export function ViewerStatusBar({
   width,
   height,
   pixelFormat,
+  pixelInfo,
 }: ViewerStatusBarProps) {
   const resolution = formatResolution(width, height);
   const fpsText = formatFps(fps);
@@ -27,6 +30,14 @@ export function ViewerStatusBar({
       )}
       <span className="iv-statusbar__sep">·</span>
       <span>{fpsText}</span>
+      {pixelInfo && (
+        <>
+          <span className="iv-statusbar__sep">·</span>
+          <span>
+            ({pixelInfo.coords.x}, {pixelInfo.coords.y}) · {pixelInfo.formatted}
+          </span>
+        </>
+      )}
     </div>
   );
 }

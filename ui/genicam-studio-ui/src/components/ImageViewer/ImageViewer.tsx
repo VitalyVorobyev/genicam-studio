@@ -4,6 +4,7 @@ import type { ParseXmlResponse, EnumEntry } from "../../xml_model/uigraph";
 import type { ZoomPanState } from "./useZoomPan";
 import { ViewerToolbar } from "./ViewerToolbar";
 import { ViewerCanvas } from "./ViewerCanvas";
+import type { PixelHoverInfo } from "./ViewerCanvas";
 import { ViewerStatusBar } from "./ViewerStatusBar";
 import { ControlSidebar } from "./ControlSidebar";
 import { useViewerLayout } from "./useViewerLayout";
@@ -30,6 +31,7 @@ export function ImageViewer({
   const [fps, setFps] = useState<number>(0);
   const [frameCount, setFrameCount] = useState<number>(0);
   const [zoomLabel, setZoomLabel] = useState<string>("Fit");
+  const [pixelHover, setPixelHover] = useState<PixelHoverInfo | null>(null);
   const prevAcquiring = useRef<boolean>(false);
   const { sidebarCollapsed, toggleSidebar } = useViewerLayout();
 
@@ -47,6 +49,9 @@ export function ImageViewer({
 
   const acquisitionModeEntries: EnumEntry[] =
     externalModel?.graph.nodes_by_name["AcquisitionMode"]?.enum_entries ?? [];
+
+  const pixelFormat =
+    (liveValues.get("PixelFormat")?.value as string | undefined) ?? "Mono8";
 
   if (!streamerInfo) {
     return (
@@ -82,12 +87,19 @@ export function ImageViewer({
           onFrameStats={setFps}
           onFrame={() => setFrameCount((c) => c + 1)}
           onZoomPanChange={handleZoomPanChange}
+          pixelFormat={pixelFormat}
+          onPixelHover={setPixelHover}
         />
         <ViewerStatusBar
           fps={fps}
           width={streamerInfo.width}
           height={streamerInfo.height}
-          pixelFormat=""
+          pixelFormat={pixelFormat}
+          pixelInfo={
+            pixelHover
+              ? { coords: pixelHover.coords, formatted: pixelHover.formatted }
+              : null
+          }
         />
       </div>
       <ControlSidebar

@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { fitContain, formatFps, formatResolution, formatFrameCount } from "./viewerUtils";
+import {
+  fitContain,
+  formatFps,
+  formatResolution,
+  formatFrameCount,
+  mouseToImageCoords,
+} from "./viewerUtils";
 
 describe("fitContain", () => {
   it("test_fitContain_landscape_smaller_than_container", () => {
@@ -87,5 +93,98 @@ describe("formatFrameCount", () => {
 
   it("test_formatFrameCount_large", () => {
     expect(formatFrameCount(1234)).toBe("1,234 frames");
+  });
+});
+
+describe("mouseToImageCoords", () => {
+  // Base params: 100×100 image, 100×100 box, fitScale=1, scale=1, no pan
+  const base = {
+    boxW: 100,
+    boxH: 100,
+    imgW: 100,
+    imgH: 100,
+    scale: 1,
+    fitScale: 1,
+    panX: 0,
+    panY: 0,
+  };
+
+  it("test_mouseToImageCoords_center_no_pan_no_zoom", () => {
+    // Mouse at wrap center → center pixel (50, 50)
+    const result = mouseToImageCoords({ ...base, mouseX: 50, mouseY: 50 });
+    expect(result).toEqual({ x: 50, y: 50 });
+  });
+
+  it("test_mouseToImageCoords_top_left_corner", () => {
+    // Mouse at top-left of wrap → pixel (0, 0)
+    const result = mouseToImageCoords({ ...base, mouseX: 0, mouseY: 0 });
+    expect(result).toEqual({ x: 0, y: 0 });
+  });
+
+  it("test_mouseToImageCoords_out_of_bounds_returns_null", () => {
+    // Mouse outside the image (negative offset from center, past left edge)
+    const result = mouseToImageCoords({ ...base, mouseX: -10, mouseY: 50 });
+    expect(result).toBeNull();
+  });
+
+  it("test_mouseToImageCoords_fit_scaled_image", () => {
+    // 200×200 image fit into 100×100 box → fitScale=0.5
+    // Mouse at center (50,50) of box → center pixel (100,100)
+    const result = mouseToImageCoords({
+      boxW: 100,
+      boxH: 100,
+      imgW: 200,
+      imgH: 200,
+      scale: 0.5,
+      fitScale: 0.5,
+      panX: 0,
+      panY: 0,
+      mouseX: 50,
+      mouseY: 50,
+    });
+    expect(result).toEqual({ x: 100, y: 100 });
+  });
+
+  it("test_mouseToImageCoords_zoomed_in", () => {
+    // Zoomed to 2× with no pan; center mouse still gives center pixel
+    const result = mouseToImageCoords({
+      ...base,
+      scale: 2,
+      fitScale: 1,
+      mouseX: 50,
+      mouseY: 50,
+    });
+    expect(result).toEqual({ x: 50, y: 50 });
+  });
+
+  it("test_mouseToImageCoords_zero_fitScale_returns_null", () => {
+    // fitScale=0 must not divide by zero, returns null
+    const result = mouseToImageCoords({
+      ...base,
+      fitScale: 0,
+      mouseX: 50,
+      mouseY: 50,
+    });
+    expect(result).toBeNull();
+  });
+
+  it("test_mouseToImageCoords_panX_shifts_result", () => {
+    // panX=10 shifts canvas right by 10px → for the same wrap-relative x,
+    // the image x coordinate decreases by 10 pixels.
+    const withPan = mouseToImageCoords({
+      ...base,
+      panX: 10,
+      mouseX: 50,
+      mouseY: 50,
+    });
+    const noPan = mouseToImageCoords({
+      ...base,
+      panX: 0,
+      mouseX: 50,
+      mouseY: 50,
+    });
+    expect(withPan).not.toBeNull();
+    expect(noPan).not.toBeNull();
+    expect(withPan!.x).toBe(noPan!.x - 10);
   });
 });

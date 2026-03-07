@@ -55,3 +55,48 @@ export function formatFrameCount(n: number): string {
   const formatted = new Intl.NumberFormat("en-US").format(n);
   return n === 1 ? `${formatted} frame` : `${formatted} frames`;
 }
+
+/** Parameters for converting a wrap-relative mouse position to image-space pixel coordinates. */
+export interface MouseToImageCoordsParams {
+  mouseX: number;
+  mouseY: number; // wrap-relative
+  boxW: number;
+  boxH: number;
+  imgW: number;
+  imgH: number;
+  scale: number;
+  fitScale: number;
+  panX: number;
+  panY: number;
+}
+
+/** Image-space pixel coordinates (integer, zero-based). */
+export interface ImageCoords {
+  x: number;
+  y: number;
+}
+
+/**
+ * Convert a wrap-relative mouse position to image-space pixel coordinates.
+ *
+ * The canvas is center-anchored (CSS left:50%; top:50%) and scaled by scale/fitScale
+ * relative to the fit-to-contain size. The canvas itself is drawn at fitScale of the
+ * original image dimensions. Inversion:
+ *   imageX = (mouseX - boxW/2 - panX) / (scale/fitScale) / fitScale + imgW/2
+ *
+ * Returns null when the coordinates fall outside the image bounds or inputs are invalid.
+ */
+export function mouseToImageCoords(
+  p: MouseToImageCoordsParams,
+): ImageCoords | null {
+  if (p.fitScale <= 0 || p.imgW <= 0 || p.imgH <= 0) return null;
+  const s = p.scale / p.fitScale;
+  const pixX = Math.floor(
+    ((p.mouseX - p.boxW / 2 - p.panX) / s / p.fitScale) + p.imgW / 2,
+  );
+  const pixY = Math.floor(
+    ((p.mouseY - p.boxH / 2 - p.panY) / s / p.fitScale) + p.imgH / 2,
+  );
+  if (pixX < 0 || pixX >= p.imgW || pixY < 0 || pixY >= p.imgH) return null;
+  return { x: pixX, y: pixY };
+}
