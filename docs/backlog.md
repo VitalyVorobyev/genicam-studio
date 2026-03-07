@@ -102,7 +102,7 @@ Build the dedicated Image Viewer with camera controls and image analysis tools.
 | IV-08 | Color Processing section | P1 | M | planned | 006,007 | White balance, gamma, LUT (when camera supports it). |
 | IV-09 | SFNC groups runtime mapping | P0 | M | planned | 007 | Load `sfnc-groups.json`, match against UiGraph, show/hide sections. |
 | IV-10 | Section persistence | P1 | S | planned | 006 | Save expand/collapse state per camera model in localStorage. |
-| IV-11 | Zoom and pan | P0 | M | planned | — | Mouse wheel zoom, click-drag pan on the canvas. |
+| ~~IV-11~~ | ~~Zoom and pan~~ | P0 | M | ✓ done | — | Mouse wheel zoom, click-drag pan on the canvas. |
 | IV-12 | Pixel inspector (crosshair) | P0 | M | planned | — | Hover crosshair showing pixel coordinates and value(s). |
 | IV-13 | Histogram | P1 | L | planned | — | Live histogram (grayscale or per-channel). Overlay or sidebar panel. |
 | IV-14 | ROI selection tool | P1 | M | planned | — | Drag-to-select ROI on canvas. Button to apply as Width/Height/OffsetX/OffsetY. |
