@@ -132,7 +132,7 @@ Professional look and feel for the desktop app.
 
 | ID | Task | Priority | Size | Status | ADR | Notes |
 |----|------|----------|------|--------|-----|-------|
-| UX-02 | App header & navigation | P0 | M | planned | — | Clean header with device status, tabs, acquisition controls. |
+| ~~UX-02~~ | ~~App header & navigation~~ | P0 | M | ✓ done | — | Clean header with device status, tabs, acquisition controls. |
 | UX-03 | Device sidebar polish | P1 | M | planned | — | Connection state badges, device cards, loading states. |
 | UX-04 | Feature Browser polish | P1 | M | planned | — | Tree styling, kind badges, better search UX. |
 | UX-05 | Image Viewer chrome | P0 | M | planned | — | Toolbar, status bar, professional canvas container. |
