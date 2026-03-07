@@ -94,7 +94,7 @@ Build the dedicated Image Viewer with camera controls and image analysis tools.
 |----|------|----------|------|--------|-----|-------|
 | ~~IV-01~~ | ~~Image Viewer layout redesign~~ | P0 | M | ✓ done | 006 | Split layout: canvas area + collapsible control sidebar. Replace current minimal viewer. |
 | ~~IV-02~~ | ~~Acquisition control section~~ | P0 | M | ✓ done | 006 | Start/Stop, AcquisitionMode enum, frame counter display. |
-| IV-03 | Exposure & Gain section | P0 | M | planned | 006,007 | Slider controls for ExposureTime, Gain. Auto toggles for ExposureAuto, GainAuto. |
+| ~~IV-03~~ | ~~Exposure & Gain section~~ | P0 | M | ✓ done | 006,007 | Slider controls for ExposureTime, Gain. Auto toggles for ExposureAuto, GainAuto. |
 | IV-04 | Image Format section | P0 | M | planned | 006,007 | Width, Height, OffsetX, OffsetY, PixelFormat, Binning/Decimation controls. |
 | IV-05 | Trigger Configuration section | P1 | M | planned | 006,007 | TriggerMode, TriggerSource, TriggerActivation, TriggerDelay. |
 | IV-06 | Transport Layer section | P1 | S | planned | 006,007 | GevSCPSPacketSize, GevSCPD (GigE), or relevant USB3 settings. |
