@@ -145,4 +145,14 @@
   --tab-h:         36px;
   --toolbar-h:     40px;
   --header-h:      44px;
+
+  /* Image Viewer v2 layout */
+  --iv-sidebar-width:      280px;
+  --iv-sidebar-rail-width:  40px;
+  --iv-toolbar-h:           36px;
+  --iv-statusbar-h:         28px;
+
+  /* Typography alias for viewer status bar */
+  --fs-xs: var(--text-xs);
+  --space-3: var(--sp-3);
 }

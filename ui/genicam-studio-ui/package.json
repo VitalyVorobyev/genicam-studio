@@ -9,7 +9,8 @@
     "wasm:build": "wasm-pack build ../../crates/genicam_xml_model_wasm --target web --out-dir ../../ui/genicam-studio-ui/src/wasm/genicam_xml_model_wasm --out-name genicam_xml_model_wasm",
     "prebuild": "bun run wasm:build",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.10.1",
@@ -21,6 +22,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.4",
     "typescript": "^5.9.3",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "vitest": "^4.0.18"
   }
 }
