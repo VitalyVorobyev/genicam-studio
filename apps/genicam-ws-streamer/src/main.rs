@@ -1,17 +1,20 @@
 mod bmp;
 mod error;
+mod meta;
 mod ws;
 mod zenoh_source;
 
+use std::sync::Arc;
+
 use clap::Parser;
 use std::net::SocketAddr;
-use tokio::sync::watch;
+use tokio::sync::{watch, RwLock};
 use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 
 use crate::error::StreamerError;
 use crate::ws::{AppState, StreamInfo};
-use crate::zenoh_source::{FrameEncoder, PixelFormat, StreamSpec, ZenohSourceConfig};
+use crate::zenoh_source::ZenohSourceConfig;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -23,12 +26,12 @@ struct Cli {
     #[arg(long, value_name = "KEYEXPR")]
     image_key: String,
 
-    /// Image width in pixels
-    #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
+    /// Initial image width hint in pixels (overridden by image/meta subscription)
+    #[arg(long, value_parser = clap::value_parser!(u32).range(1..), default_value_t = 640)]
     width: u32,
 
-    /// Image height in pixels
-    #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
+    /// Initial image height hint in pixels (overridden by image/meta subscription)
+    #[arg(long, value_parser = clap::value_parser!(u32).range(1..), default_value_t = 480)]
     height: u32,
 
     /// Bind address for the WebSocket server
@@ -61,24 +64,19 @@ async fn main() -> Result<(), StreamerError> {
 
     let config = load_zenoh_config(cli.zenoh_config.as_deref())?;
 
-    let spec = StreamSpec {
-        width: cli.width,
-        height: cli.height,
-        pixel_format: PixelFormat::Mono8,
-    };
-    let encoder = FrameEncoder::new(spec);
+    let shared_meta = Arc::new(RwLock::new(meta::default_image_meta(cli.width, cli.height)));
+    let meta_key = meta::derive_meta_key(&cli.image_key);
+
+    // TODO(ST-03): StreamInfo is built from CLI hints here and is not updated when
+    // image/meta changes dimensions. Dynamic info frames will be added in ST-03.
     let info = StreamInfo::mono8_bmp(cli.width, cli.height);
 
     let (frame_tx, _frame_rx) = watch::channel(bytes::Bytes::new());
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
 
     info!(
-        "Starting streamer: {}x{} {} -> ws://{}{}",
-        cli.width,
-        cli.height,
-        spec.pixel_format.as_str(),
-        bind,
-        path
+        "Starting streamer: initial {}x{} Mono8 -> ws://{}{} (meta key: {})",
+        cli.width, cli.height, bind, path, meta_key
     );
 
     let ws_state = AppState {
@@ -94,12 +92,14 @@ async fn main() -> Result<(), StreamerError> {
 
     let source_config = ZenohSourceConfig {
         key_expr: cli.image_key,
+        meta_key,
         fps_limit: cli.fps_limit,
     };
     let zenoh_shutdown = shutdown_rx.clone();
+    let zenoh_meta = Arc::clone(&shared_meta);
     let zenoh_task = tokio::spawn(async move {
         if let Err(err) =
-            zenoh_source::run(config, source_config, encoder, frame_tx, zenoh_shutdown).await
+            zenoh_source::run(config, source_config, zenoh_meta, frame_tx, zenoh_shutdown).await
         {
             error!("Zenoh source error: {err}");
         }

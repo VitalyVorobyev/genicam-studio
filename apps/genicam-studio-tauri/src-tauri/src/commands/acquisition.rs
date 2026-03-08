@@ -47,6 +47,9 @@ pub async fn start_acquisition(
     let ws_port: u16 = 8081;
     let ws_url = format!("ws://127.0.0.1:{ws_port}/ws");
 
+    // --width / --height are initial hints only. The streamer self-configures
+    // by subscribing to the image/meta Zenoh key (ST-01), so these values are
+    // only used for the very first frame before metadata arrives.
     let child = tokio::process::Command::new(&streamer_path)
         .args([
             "--image-key",
