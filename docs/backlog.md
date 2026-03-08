@@ -101,7 +101,7 @@ Build the dedicated Image Viewer with camera controls and image analysis tools.
 | IV-13 | Histogram | P1 | L | planned | — | Live histogram (grayscale or per-channel). Overlay or sidebar panel. |
 | IV-14 | ROI selection tool | P1 | M | planned | — | Drag-to-select ROI on canvas. Button to apply as Width/Height/OffsetX/OffsetY. |
 | IV-15 | Line profile | P1 | L | planned | — | Draw a line on the canvas, show intensity profile plot. |
-| IV-16 | Snapshot save | P1 | S | planned | — | Save current frame as PNG/TIFF. File dialog. |
+| ~~IV-16~~ | ~~Snapshot save~~ | P1 | S | ✓ done | — | Save current frame as PNG/TIFF. File dialog. |
 | IV-17 | Multi-format rendering | P1 | L | planned | 005 | Adapt canvas rendering for different pixel formats from streamer info frame. |
 | ~~IV-01~~ | ~~Image Viewer layout redesign~~ | P0 | M | ✓ done | 006 | Split layout: canvas area + collapsible control sidebar. Replace current minimal viewer. |
 | ~~IV-02~~ | ~~Acquisition control section~~ | P0 | M | ✓ done | 006 | Start/Stop, AcquisitionMode enum, frame counter display. |
