@@ -70,18 +70,18 @@ Extend `genicam-ws-streamer` for multi-format support and better WebSocket proto
 
 ---
 
-## Epic 4: Tauri Backend Improvements — 1/7 complete
+## Epic 4: Tauri Backend Improvements — 4/7 complete
 
 Evolve the Tauri app's Rust backend.
 
 | ID | Task | Priority | Size | Status | ADR | Notes |
 |----|------|----------|------|--------|-----|-------|
-| ~~TB-01~~ | ~~Image metadata event~~ | P1 | S | ✓ done | 005 | Subscribe to `image/meta`, emit `image-meta-changed` to frontend. |
-| ~~TB-02~~ | ~~Bulk node read command~~ | P1 | S | ✓ done | — | IPC command `read_nodes_bulk(names: Vec<String>)` for batch reads. |
-| ~~TB-03~~ | ~~SFNC groups config loader~~ | P0 | M | ✓ done | 007 | Load `sfnc-groups.json` from app resources, expose via IPC. |
 | TB-04 | Node value validation | P1 | M | planned | — | Validate node writes against UiGraph constraints before sending to service. |
 | TB-06 | Error recovery on disconnect | P1 | M | planned | — | Auto-cleanup on unexpected disconnect. Reconnect prompt. |
 | TB-07 | Streamer lifecycle improvement | P1 | M | planned | — | Health monitoring of streamer child process. Auto-restart on crash. |
+| ~~TB-01~~ | ~~Image metadata event~~ | P1 | S | ✓ done | 005 | Subscribe to `image/meta`, emit `image-meta-changed` to frontend. |
+| ~~TB-02~~ | ~~Bulk node read command~~ | P1 | S | ✓ done | — | IPC command `read_nodes_bulk(names: Vec<String>)` for batch reads. |
+| ~~TB-03~~ | ~~SFNC groups config loader~~ | P0 | M | ✓ done | 007 | Load `sfnc-groups.json` from app resources, expose via IPC. |
 | ~~TB-05~~ | ~~Connection profiles (localStorage)~~ | P1 | S | ✓ done | — | Already partially implemented (T7.4 in prior work). |
 
 ---
@@ -96,7 +96,7 @@ Build the dedicated Image Viewer with camera controls and image analysis tools.
 | IV-06 | Transport Layer section | P1 | S | planned | 006,007 | GevSCPSPacketSize, GevSCPD (GigE), or relevant USB3 settings. |
 | IV-07 | Auto Functions section | P1 | S | planned | 006,007 | Auto-exposure, auto-gain, auto-white-balance settings. |
 | IV-08 | Color Processing section | P1 | M | planned | 006,007 | White balance, gamma, LUT (when camera supports it). |
-| IV-09 | SFNC groups runtime mapping | P0 | M | planned | 007 | Load `sfnc-groups.json`, match against UiGraph, show/hide sections. |
+| ~~IV-09~~ | ~~SFNC groups runtime mapping~~ | P0 | M | ✓ done | 007 | Load `sfnc-groups.json`, match against UiGraph, show/hide sections. |
 | IV-10 | Section persistence | P1 | S | planned | 006 | Save expand/collapse state per camera model in localStorage. |
 | IV-13 | Histogram | P1 | L | planned | — | Live histogram (grayscale or per-channel). Overlay or sidebar panel. |
 | IV-14 | ROI selection tool | P1 | M | planned | — | Drag-to-select ROI on canvas. Button to apply as Width/Height/OffsetX/OffsetY. |
