@@ -93,8 +93,8 @@ Build the dedicated Image Viewer with camera controls and image analysis tools.
 | ID | Task | Priority | Size | Status | ADR | Notes |
 |----|------|----------|------|--------|-----|-------|
 | ~~IV-05~~ | ~~Trigger Configuration section~~ | P1 | M | ✓ done | 006,007 | TriggerMode, TriggerSource, TriggerActivation, TriggerDelay. |
-| IV-06 | Transport Layer section | P1 | S | planned | 006,007 | GevSCPSPacketSize, GevSCPD (GigE), or relevant USB3 settings. |
-| IV-07 | Auto Functions section | P1 | S | planned | 006,007 | Auto-exposure, auto-gain, auto-white-balance settings. |
+| ~~IV-06~~ | ~~Transport Layer section~~ | P1 | S | ✓ done | 006,007 | GevSCPSPacketSize, GevSCPD (GigE), or relevant USB3 settings. |
+| ~~IV-07~~ | ~~Auto Functions section~~ | P1 | S | ✓ done | 006,007 | Auto-exposure, auto-gain, auto-white-balance settings. |
 | IV-08 | Color Processing section | P1 | M | planned | 006,007 | White balance, gamma, LUT (when camera supports it). |
 | ~~IV-09~~ | ~~SFNC groups runtime mapping~~ | P0 | M | ✓ done | 007 | Load `sfnc-groups.json`, match against UiGraph, show/hide sections. |
 | ~~IV-10~~ | ~~Section persistence~~ | P1 | S | ✓ done | 006 | Save expand/collapse state per camera model in localStorage. |
