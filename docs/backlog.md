@@ -62,7 +62,7 @@ Extend `genicam-ws-streamer` for multi-format support and better WebSocket proto
 
 | ID | Task | Priority | Size | Status | ADR | Notes |
 |----|------|----------|------|--------|-----|-------|
-| ST-01 | Image metadata subscription | P1 | M | planned | 005 | Subscribe to `image/meta` to auto-configure encoder. Removes need for `--width`/`--height` CLI args. |
+| ~~ST-01~~ | ~~Image metadata subscription~~ | P1 | M | ✓ done | 005 | Subscribe to `image/meta` to auto-configure encoder. Removes need for `--width`/`--height` CLI args. |
 | ST-02 | Multi-format BMP encoder | P1 | L | planned | 005 | Extend BMP encoder for Mono10-16 (downscale), RGB8, Bayer (debayer+encode). |
 | ST-03 | WebSocket info frame protocol | P1 | M | planned | — | Send JSON info frame on connect with pixel format, dimensions. Client uses this to configure renderer. |
 | ST-04 | PNG/JPEG encoding option | P2 | M | planned | — | Add `--format bmp|png|jpeg` for compression. Useful for remote/slow connections. |
