@@ -76,7 +76,7 @@ Evolve the Tauri app's Rust backend.
 
 | ID | Task | Priority | Size | Status | ADR | Notes |
 |----|------|----------|------|--------|-----|-------|
-| TB-01 | Image metadata event | P1 | S | planned | 005 | Subscribe to `image/meta`, emit `image-meta-changed` to frontend. |
+| ~~TB-01~~ | ~~Image metadata event~~ | P1 | S | ✓ done | 005 | Subscribe to `image/meta`, emit `image-meta-changed` to frontend. |
 | TB-02 | Bulk node read command | P1 | S | planned | — | IPC command `read_nodes_bulk(names: Vec<String>)` for batch reads. |
 | TB-03 | SFNC groups config loader | P0 | M | planned | 007 | Load `sfnc-groups.json` from app resources, expose via IPC. |
 | TB-04 | Node value validation | P1 | M | planned | — | Validate node writes against UiGraph constraints before sending to service. |
@@ -86,29 +86,29 @@ Evolve the Tauri app's Rust backend.
 
 ---
 
-## Epic 5: Image Viewer UI — 0/17 complete
+## Epic 5: Image Viewer UI — 6/17 complete
 
 Build the dedicated Image Viewer with camera controls and image analysis tools.
 
 | ID | Task | Priority | Size | Status | ADR | Notes |
 |----|------|----------|------|--------|-----|-------|
-| ~~IV-01~~ | ~~Image Viewer layout redesign~~ | P0 | M | ✓ done | 006 | Split layout: canvas area + collapsible control sidebar. Replace current minimal viewer. |
-| ~~IV-02~~ | ~~Acquisition control section~~ | P0 | M | ✓ done | 006 | Start/Stop, AcquisitionMode enum, frame counter display. |
-| ~~IV-03~~ | ~~Exposure & Gain section~~ | P0 | M | ✓ done | 006,007 | Slider controls for ExposureTime, Gain. Auto toggles for ExposureAuto, GainAuto. |
-| ~~IV-04~~ | ~~Image Format section~~ | P0 | M | ✓ done | 006,007 | Width, Height, OffsetX, OffsetY, PixelFormat, Binning/Decimation controls. |
 | IV-05 | Trigger Configuration section | P1 | M | planned | 006,007 | TriggerMode, TriggerSource, TriggerActivation, TriggerDelay. |
 | IV-06 | Transport Layer section | P1 | S | planned | 006,007 | GevSCPSPacketSize, GevSCPD (GigE), or relevant USB3 settings. |
 | IV-07 | Auto Functions section | P1 | S | planned | 006,007 | Auto-exposure, auto-gain, auto-white-balance settings. |
 | IV-08 | Color Processing section | P1 | M | planned | 006,007 | White balance, gamma, LUT (when camera supports it). |
 | IV-09 | SFNC groups runtime mapping | P0 | M | planned | 007 | Load `sfnc-groups.json`, match against UiGraph, show/hide sections. |
 | IV-10 | Section persistence | P1 | S | planned | 006 | Save expand/collapse state per camera model in localStorage. |
-| ~~IV-11~~ | ~~Zoom and pan~~ | P0 | M | ✓ done | — | Mouse wheel zoom, click-drag pan on the canvas. |
-| ~~IV-12~~ | ~~Pixel inspector (crosshair)~~ | P0 | M | ✓ done | — | Hover crosshair showing pixel coordinates and value(s). |
 | IV-13 | Histogram | P1 | L | planned | — | Live histogram (grayscale or per-channel). Overlay or sidebar panel. |
 | IV-14 | ROI selection tool | P1 | M | planned | — | Drag-to-select ROI on canvas. Button to apply as Width/Height/OffsetX/OffsetY. |
 | IV-15 | Line profile | P1 | L | planned | — | Draw a line on the canvas, show intensity profile plot. |
 | IV-16 | Snapshot save | P1 | S | planned | — | Save current frame as PNG/TIFF. File dialog. |
 | IV-17 | Multi-format rendering | P1 | L | planned | 005 | Adapt canvas rendering for different pixel formats from streamer info frame. |
+| ~~IV-01~~ | ~~Image Viewer layout redesign~~ | P0 | M | ✓ done | 006 | Split layout: canvas area + collapsible control sidebar. Replace current minimal viewer. |
+| ~~IV-02~~ | ~~Acquisition control section~~ | P0 | M | ✓ done | 006 | Start/Stop, AcquisitionMode enum, frame counter display. |
+| ~~IV-03~~ | ~~Exposure & Gain section~~ | P0 | M | ✓ done | 006,007 | Slider controls for ExposureTime, Gain. Auto toggles for ExposureAuto, GainAuto. |
+| ~~IV-04~~ | ~~Image Format section~~ | P0 | M | ✓ done | 006,007 | Width, Height, OffsetX, OffsetY, PixelFormat, Binning/Decimation controls. |
+| ~~IV-11~~ | ~~Zoom and pan~~ | P0 | M | ✓ done | — | Mouse wheel zoom, click-drag pan on the canvas. |
+| ~~IV-12~~ | ~~Pixel inspector (crosshair)~~ | P0 | M | ✓ done | — | Hover crosshair showing pixel coordinates and value(s). |
 
 ---
 
@@ -126,19 +126,19 @@ Enhance the existing Feature Browser.
 
 ---
 
-## Epic 7: UX Polish & Design — 3/9 complete
+## Epic 7: UX Polish & Design — 5/9 complete
 
 Professional look and feel for the desktop app.
 
 | ID | Task | Priority | Size | Status | ADR | Notes |
 |----|------|----------|------|--------|-----|-------|
-| ~~UX-02~~ | ~~App header & navigation~~ | P0 | M | ✓ done | — | Clean header with device status, tabs, acquisition controls. |
 | UX-03 | Device sidebar polish | P1 | M | planned | — | Connection state badges, device cards, loading states. |
 | UX-04 | Feature Browser polish | P1 | M | planned | — | Tree styling, kind badges, better search UX. |
-| ~~UX-05~~ | ~~Image Viewer chrome~~ | P0 | M | ✓ done | — | Toolbar, status bar, professional canvas container. |
 | UX-06 | Responsive layout | P1 | M | planned | — | Handle window resize, min sizes, splitter for panes. |
 | UX-07 | Loading & error states | P1 | M | planned | — | Skeleton loaders, toast notifications, inline error messages. |
 | ~~UX-01~~ | ~~Design system (tokens, theme)~~ | P0 | L | ✓ done | — | Dark theme, CSS custom properties, consistent spacing/typography. "Dark Instrument" aesthetic. |
+| ~~UX-02~~ | ~~App header & navigation~~ | P0 | M | ✓ done | — | Clean header with device status, tabs, acquisition controls. |
+| ~~UX-05~~ | ~~Image Viewer chrome~~ | P0 | M | ✓ done | — | Toolbar, status bar, professional canvas container. |
 | ~~UX-08~~ | ~~Keyboard shortcuts~~ | P1 | S | ✓ done | — | Ctrl+F search, Escape, Ctrl+Enter apply. Already implemented. |
 | ~~UX-09~~ | ~~Window title updates~~ | P0 | S | ✓ done | — | Already implemented (T7.7). |
 
