@@ -9,6 +9,8 @@ import { AcquisitionSection } from "./AcquisitionSection";
 import { ExposureGainSection } from "./ExposureGainSection";
 import { ImageFormatSection } from "./ImageFormatSection";
 import { TriggerSection } from "./TriggerSection";
+import { TransportLayerSection } from "./TransportLayerSection";
+import { AutoFunctionsSection } from "./AutoFunctionsSection";
 
 interface ControlSidebarProps {
   collapsed: boolean;
@@ -74,6 +76,22 @@ export function ControlSidebar({
       case "trigger":
         return (
           <TriggerSection
+            isConnected={isConnected}
+            externalModel={externalModel}
+            liveValues={liveValues}
+          />
+        );
+      case "transport_layer":
+        return (
+          <TransportLayerSection
+            isConnected={isConnected}
+            externalModel={externalModel}
+            liveValues={liveValues}
+          />
+        );
+      case "auto_functions":
+        return (
+          <AutoFunctionsSection
             isConnected={isConnected}
             externalModel={externalModel}
             liveValues={liveValues}

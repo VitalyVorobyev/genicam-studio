@@ -53,6 +53,16 @@
       ]
     },
     {
+      "id": "transport_layer",
+      "title": "Transport Layer",
+      "icon": "⇌",
+      "default_open": false,
+      "features": [
+        { "node": "GevSCPSPacketSize", "widget": "int_slider" },
+        { "node": "GevSCPD", "widget": "int_slider" }
+      ]
+    },
+    {
       "id": "auto_functions",
       "title": "Auto Functions",
       "icon": "⚙",

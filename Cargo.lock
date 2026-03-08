@@ -901,6 +901,8 @@ dependencies = [
  "axum",
  "bytes",
  "clap",
+ "genicam_zenoh_api",
+ "serde_json",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
