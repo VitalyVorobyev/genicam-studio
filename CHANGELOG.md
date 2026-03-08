@@ -8,6 +8,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- IV-05: Add TriggerSection to Image Viewer ControlSidebar (TriggerMode, TriggerSource, TriggerActivation, TriggerDelay)
 - ZA-07: Zenoh API spec reviewed; added image/meta section, sequence diagrams, Rust type references, and corrected image payload description
 - ST-01: genicam-ws-streamer subscribes to image/meta to self-configure width/height; --width/--height become optional hints (default 640x480)
 - IV-16: Add snapshot save (PNG) with native file dialog in Tauri and download fallback in browser mode

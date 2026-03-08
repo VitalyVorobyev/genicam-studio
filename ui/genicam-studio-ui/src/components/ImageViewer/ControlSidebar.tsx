@@ -8,6 +8,7 @@ import { useSectionPersistence } from "./useSectionPersistence";
 import { AcquisitionSection } from "./AcquisitionSection";
 import { ExposureGainSection } from "./ExposureGainSection";
 import { ImageFormatSection } from "./ImageFormatSection";
+import { TriggerSection } from "./TriggerSection";
 
 interface ControlSidebarProps {
   collapsed: boolean;
@@ -65,6 +66,14 @@ export function ControlSidebar({
       case "image_format":
         return (
           <ImageFormatSection
+            isConnected={isConnected}
+            externalModel={externalModel}
+            liveValues={liveValues}
+          />
+        );
+      case "trigger":
+        return (
+          <TriggerSection
             isConnected={isConnected}
             externalModel={externalModel}
             liveValues={liveValues}
