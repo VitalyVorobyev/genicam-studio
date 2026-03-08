@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { isTauri } from "../tauri";
 import type { NodeValueEntry } from "./types";
 
@@ -59,5 +59,13 @@ export function useNodeValues() {
     };
   }, []);
 
-  return { liveValues };
+  const seedValues = useCallback((bulk: Map<string, NodeValueEntry>) => {
+    setLiveValues((prev) => {
+      const next = new Map(prev);
+      bulk.forEach((v, k) => next.set(k, v));
+      return next;
+    });
+  }, []);
+
+  return { liveValues, seedValues };
 }

@@ -8,6 +8,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- TB-02: Add read_nodes_bulk IPC command and useNodeBulkRead hook for bulk cache pre-population on connect
 - TB-01: Tauri backend subscribes to image/meta and emits image-meta-changed event; UI useImageMeta hook replaces PixelFormat workaround
 - UX-05: Image Viewer chrome polish — device name in toolbar, fit-to-window button, clickable zoom badge, snapshot placeholder, fps warning color, distinct status bar surface, idle/active canvas border states
 - UX-02: Professional three-zone app header with device-status chip and inline acquisition indicator

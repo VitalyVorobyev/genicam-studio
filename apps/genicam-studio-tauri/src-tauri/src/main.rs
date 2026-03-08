@@ -59,6 +59,7 @@ fn main() {
             commands::nodes::get_node_value,
             commands::nodes::write_node,
             commands::nodes::execute_command,
+            commands::nodes::read_nodes_bulk,
             // Acquisition
             commands::acquisition::get_acquisition_status,
             commands::acquisition::start_acquisition,

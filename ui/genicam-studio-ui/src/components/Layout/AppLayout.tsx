@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { isTauri } from "../../tauri";
 import { useDevice } from "../../device/useDevice";
+import { useNodeBulkRead } from "../../device/useNodeBulkRead";
 import { useNodeValues } from "../../device/useNodeValues";
 import { useAcquisition } from "../../device/useAcquisition";
 import { useImageMeta } from "../../device/useImageMeta";
@@ -29,7 +30,8 @@ function AppLayoutInner() {
   const [connectError, setConnectError] = useState<string>("");
 
   const { devices, connectionState, connect, disconnect } = useDevice();
-  const { liveValues } = useNodeValues();
+  const { liveValues, seedValues } = useNodeValues();
+  const { readBulk } = useNodeBulkRead();
   const { status: acqStatus, streamerInfo, start: startAcq, stop: stopAcq } = useAcquisition();
   const { imageMeta } = useImageMeta();
   const { log } = useAppLog();
@@ -54,6 +56,11 @@ function AppLayoutInner() {
         setExternalModel(response);
         setActiveTab("features");
         log("success", `Connected`, deviceId);
+        // Pre-populate live value cache with a single bulk read so controls
+        // render with real values from the first render rather than waiting
+        // for individual node-value-changed events.
+        const bulk = await readBulk(Object.keys(response.graph.nodes_by_name));
+        seedValues(bulk);
       } catch (e) {
         const msg =
           typeof e === "object" && e !== null && "message" in e
@@ -63,7 +70,7 @@ function AppLayoutInner() {
         log("error", `Connection failed: ${msg}`, deviceId);
       }
     },
-    [connect, log]
+    [connect, log, readBulk, seedValues]
   );
 
   const handleDisconnect = useCallback(async () => {
