@@ -4,6 +4,7 @@ import type { NodeValueEntry, SfncGroup } from "../../device/types";
 import { useSfncGroups } from "../../device/useSfncGroups";
 import { isSectionApplicable } from "./sfncGroupUtils";
 import { SidebarSection } from "./SidebarSection";
+import { useSectionPersistence } from "./useSectionPersistence";
 import { AcquisitionSection } from "./AcquisitionSection";
 import { ExposureGainSection } from "./ExposureGainSection";
 import { ImageFormatSection } from "./ImageFormatSection";
@@ -19,6 +20,7 @@ interface ControlSidebarProps {
   acquisitionModeEntries: EnumEntry[];
   liveValues: Map<string, NodeValueEntry>;
   externalModel: ParseXmlResponse | null;
+  cameraModel: string | null;
 }
 
 export function ControlSidebar({
@@ -32,8 +34,10 @@ export function ControlSidebar({
   acquisitionModeEntries,
   liveValues,
   externalModel,
+  cameraModel,
 }: ControlSidebarProps) {
   const groups = useSfncGroups();
+  const sectionPersistence = useSectionPersistence(cameraModel);
   const nodesById = externalModel?.graph.nodes_by_name ?? {};
   const visibleGroups = groups.filter((g) => isSectionApplicable(g, nodesById));
 
@@ -111,7 +115,8 @@ export function ControlSidebar({
                 key={group.id}
                 title={group.title}
                 icon={group.icon}
-                defaultOpen={group.default_open}
+                defaultOpen={sectionPersistence.isOpen(group.id, group.default_open)}
+                onToggle={(open) => sectionPersistence.setOpen(group.id, open)}
               >
                 {renderSectionContent(group)}
               </SidebarSection>

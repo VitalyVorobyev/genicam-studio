@@ -6,6 +6,7 @@ interface SidebarSectionProps {
   icon: string;
   children: ReactNode;
   defaultOpen?: boolean;
+  onToggle?: (open: boolean) => void;
 }
 
 export function SidebarSection({
@@ -13,6 +14,7 @@ export function SidebarSection({
   icon,
   children,
   defaultOpen = false,
+  onToggle,
 }: SidebarSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
 
@@ -22,7 +24,11 @@ export function SidebarSection({
         type="button"
         className="sidebar-section__header"
         aria-expanded={open}
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => {
+          const next = !open;
+          onToggle?.(next);
+          setOpen(next);
+        }}
       >
         <span className="sidebar-section__icon" aria-hidden="true">
           {icon}

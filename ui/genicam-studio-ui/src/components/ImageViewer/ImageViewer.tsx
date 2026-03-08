@@ -18,6 +18,7 @@ interface ImageViewerProps {
   externalModel: ParseXmlResponse | null;
   liveValues: Map<string, NodeValueEntry>;
   deviceName?: string;
+  cameraModel?: string;
   imageMeta: ImageMeta | null;
 }
 
@@ -30,6 +31,7 @@ export function ImageViewer({
   externalModel,
   liveValues,
   deviceName,
+  cameraModel,
   imageMeta,
 }: ImageViewerProps) {
   const [fps, setFps] = useState<number>(0);
@@ -81,6 +83,7 @@ export function ImageViewer({
           acquisitionModeEntries={acquisitionModeEntries}
           liveValues={liveValues}
           externalModel={externalModel}
+          cameraModel={cameraModel ?? null}
         />
       </div>
     );
@@ -123,6 +126,7 @@ export function ImageViewer({
         acquisitionModeEntries={acquisitionModeEntries}
         liveValues={liveValues}
         externalModel={externalModel}
+        cameraModel={cameraModel ?? null}
       />
     </div>
   );

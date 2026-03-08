@@ -39,6 +39,8 @@ function AppLayoutInner() {
   const isConnected = connectionState.kind === "connected";
   const connectedDeviceName =
     connectionState.kind === "connected" ? connectionState.device_name : null;
+  const connectedModel =
+    connectionState.kind === "connected" ? connectionState.model : null;
 
   // T7.7 — keep document.title in sync with connection state
   useEffect(() => {
@@ -218,6 +220,7 @@ function AppLayoutInner() {
                 externalModel={externalModel}
                 liveValues={liveValues}
                 deviceName={connectedDeviceName ?? undefined}
+                cameraModel={connectedModel ?? undefined}
                 imageMeta={imageMeta}
               />
             )}
