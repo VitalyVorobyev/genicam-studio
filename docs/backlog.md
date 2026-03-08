@@ -97,7 +97,7 @@ Build the dedicated Image Viewer with camera controls and image analysis tools.
 | IV-07 | Auto Functions section | P1 | S | planned | 006,007 | Auto-exposure, auto-gain, auto-white-balance settings. |
 | IV-08 | Color Processing section | P1 | M | planned | 006,007 | White balance, gamma, LUT (when camera supports it). |
 | ~~IV-09~~ | ~~SFNC groups runtime mapping~~ | P0 | M | ✓ done | 007 | Load `sfnc-groups.json`, match against UiGraph, show/hide sections. |
-| IV-10 | Section persistence | P1 | S | planned | 006 | Save expand/collapse state per camera model in localStorage. |
+| ~~IV-10~~ | ~~Section persistence~~ | P1 | S | ✓ done | 006 | Save expand/collapse state per camera model in localStorage. |
 | IV-13 | Histogram | P1 | L | planned | — | Live histogram (grayscale or per-channel). Overlay or sidebar panel. |
 | IV-14 | ROI selection tool | P1 | M | planned | — | Drag-to-select ROI on canvas. Button to apply as Width/Height/OffsetX/OffsetY. |
 | IV-15 | Line profile | P1 | L | planned | — | Draw a line on the canvas, show intensity profile plot. |
