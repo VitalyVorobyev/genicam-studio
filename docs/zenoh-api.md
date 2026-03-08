@@ -26,6 +26,7 @@ opaque string without `/`).
     "serial": "SN12345678"
   }
   ```
+- **Rust type:** `DeviceAnnounce` in `genicam_zenoh_api`
 - **Semantics:** The app subscribes to `genicam/devices/*/announce`. Any device not seen
   for more than 6 seconds is considered lost and removed from the discovered list.
 
@@ -41,6 +42,7 @@ opaque string without `/`).
   ```json
   { "xml": "<RegisterDescription>...</RegisterDescription>" }
   ```
+- **Rust type:** `DeviceXmlResponse` in `genicam_zenoh_api`
 - **Semantics:** Full GenICam XML string. The app parses this into the UiGraph model on
   connect. Response should be stable during a session.
 
@@ -53,6 +55,7 @@ opaque string without `/`).
   { "connected": true, "error": null }
   { "connected": false, "error": "USB link lost" }
   ```
+- **Rust type:** `DeviceStatus` in `genicam_zenoh_api`
 - **Semantics:** App subscribes on connect. Loss of connection triggers
   `connection-state-changed` Tauri event.
 
@@ -70,6 +73,7 @@ opaque string without `/`).
   { "value": "Continuous", "access_mode": "RW" }
   { "value": true, "access_mode": "RO" }
   ```
+- **Rust type:** `NodeValueUpdate` in `genicam_zenoh_api`
 - **Semantics:** The app maintains a local `NodeValueCache` updated by these messages.
   `access_mode` is one of `RO`, `WO`, `RW`, `NA`.
 
@@ -86,6 +90,7 @@ opaque string without `/`).
   { "ok": true, "error": null }
   { "ok": false, "error": "Value out of range" }
   ```
+- **Rust type:** request: `NodeSetRequest`; response: `NodeOpResponse` — both in `genicam_zenoh_api`
 - **Semantics:** Synchronous write. On success the service publishes the new value to
   `nodes/{name}/value`.
 
@@ -97,6 +102,7 @@ opaque string without `/`).
   ```json
   { "ok": true, "error": null }
   ```
+- **Rust type:** `NodeOpResponse` in `genicam_zenoh_api`
 - **Semantics:** Executes a GenICam Command node.
 
 ### `genicam/devices/{device_id}/nodes/bulk/read`
@@ -112,6 +118,7 @@ opaque string without `/`).
     }
   }
   ```
+- **Rust type:** request: `BulkReadRequest`; response: `BulkReadResponse` — both in `genicam_zenoh_api`
 - **Semantics:** Batch read of multiple node values in a single round-trip. Unknown node names are silently omitted. An empty `names` list returns an empty `values` map. The per-entry shape is identical to `nodes/{name}/value`.
 
 ---
@@ -131,6 +138,7 @@ opaque string without `/`).
   ```json
   { "ok": true, "error": null }
   ```
+- **Rust type:** request: `AcquisitionControlRequest { command: AcquisitionCommand }`; response: `NodeOpResponse` — both in `genicam_zenoh_api`. `AcquisitionCommand` serializes as `"start"` or `"stop"` (`#[serde(rename_all = "lowercase")]`).
 - **Semantics:** Start/stop hardware acquisition. On success the service begins/stops
   publishing to `image`.
 
@@ -143,14 +151,40 @@ opaque string without `/`).
   { "active": true, "fps": 29.97, "dropped": 0 }
   { "active": false, "fps": null, "dropped": 0 }
   ```
+- **Rust type:** `AcquisitionStatus` in `genicam_zenoh_api`
 
 ### `genicam/devices/{device_id}/image`
 
 - **Direction:** Service → Streamer (NOT consumed by Tauri directly)
 - **Mechanism:** `put` per frame
-- **Payload:** Raw binary Mono8 image (`width × height` bytes, row-major)
+- **Payload:** Raw binary pixel data, row-major. Format and dimensions are described by the
+  co-published `image/meta` key. Currently generated formats: Mono8 (1 byte/px), Mono16
+  (2 bytes/px, little-endian), BayerRG8 (1 byte/px), RGB8 (3 bytes/px). Not JSON — no
+  encoding wrapper.
 - **Consumer:** `genicam-ws-streamer` subscribes to this key and broadcasts BMP-encoded
   frames over WebSocket. The Tauri app does **not** subscribe to this key directly.
+
+### `genicam/devices/{device_id}/image/meta`
+
+- **Direction:** Service → App and Streamer
+- **Mechanism:** `put` on acquisition start; re-published whenever Width, Height, or
+  PixelFormat node values change while acquisition is active
+- **Consumers:**
+  - **genicam-ws-streamer** (ST-01): subscribes to reconfigure its BMP encoder when
+    dimensions or format change.
+  - **Tauri app** (TB-01): subscribes and stores the latest value in
+    `AcquisitionInner.image_meta`; emits `image-meta-changed` event to the frontend.
+- **Payload (JSON):**
+  ```json
+  { "pixel_format": "Mono8", "width": 1920, "height": 1080, "payload_size": 2073600 }
+  ```
+- **Rust type:** `ImageMeta` in `genicam_zenoh_api`
+- **Field notes:**
+  - `pixel_format` — SFNC format string (e.g. `"Mono8"`, `"Mono16"`, `"BayerRG8"`,
+    `"RGB8"`). Full variant list: `genicam_zenoh_api::PixelFormat`. Unknown strings
+    deserialize as `PixelFormat::Unknown`.
+  - `payload_size` — `width × height × bytes_per_pixel` for the given format.
+    See `PixelFormat::bytes_per_pixel()` for the authoritative mapping.
 
 ---
 
@@ -162,6 +196,7 @@ opaque string without `/`).
 | `nodes/*/value` | On parameter change (up to ~100 Hz for fast nodes) |
 | `acquisition/status` | On change |
 | `image` | At acquisition frame rate |
+| `image/meta` | On acquisition start; on Width, Height, or PixelFormat change during active acquisition |
 
 Device is considered lost if `announce` is not received for 6 seconds.
 
@@ -173,6 +208,55 @@ Device is considered lost if `announce` is not received for 6 seconds.
 - Timeout or Zenoh-level error → surfaced as `"Zenoh timeout or error"`.
 - Service-level error → returned in `{ "ok": false, "error": "..." }` response body.
 - The app never puts to `image` or `nodes/*/value` — those are service-owned.
+
+---
+
+## Sequence Diagrams
+
+### Device Connect
+
+```mermaid
+sequenceDiagram
+    participant App as Tauri App
+    participant Z as Zenoh
+    participant Svc as Camera Service
+
+    Svc->>Z: put(announce) every 2 s
+    Z-->>App: device-discovered event
+    App->>Z: get(xml)
+    Z->>Svc: query forwarded
+    Svc-->>Z: reply DeviceXmlResponse
+    Z-->>App: ParseXmlResponse (UiGraph)
+    App->>Z: subscribe(nodes/*/value)
+    App->>Z: subscribe(status)
+    App->>Z: subscribe(acquisition/status)
+    App->>Z: subscribe(image/meta)
+```
+
+### Acquisition
+
+```mermaid
+sequenceDiagram
+    participant UI as Frontend
+    participant App as Tauri App
+    participant Str as Streamer
+    participant Z as Zenoh
+    participant Svc as Camera Service
+
+    UI->>App: start_acquisition()
+    App->>Z: get(acquisition/control) {command:"start"}
+    Svc-->>Z: reply {ok:true}
+    Svc->>Z: put(acquisition/status) {active:true}
+    Svc->>Z: put(image/meta) {pixel_format,width,height,payload_size}
+    App->>Str: spawn genicam-ws-streamer
+    Str->>Z: subscribe(image)
+    Str->>Z: subscribe(image/meta)
+    Z-->>App: image-meta-changed → UI
+    loop per frame
+        Svc->>Z: put(image) [raw pixels]
+        Z-->>Str: encode BMP → WebSocket → UI
+    end
+```
 
 ---
 
@@ -200,3 +284,4 @@ Device is considered lost if `announce` is not received for 6 seconds.
 | `node-value-changed` | `{ node_name, value, access_mode }` | Live node update |
 | `acquisition-status` | `AcquisitionStatus` | Acquisition state change |
 | `connection-state-changed` | `ConnectionState` | Connect/disconnect/error |
+| `image-meta-changed` | `ImageMeta` | Image format or dimension change; emitted by TB-01 on each image/meta Zenoh update |
