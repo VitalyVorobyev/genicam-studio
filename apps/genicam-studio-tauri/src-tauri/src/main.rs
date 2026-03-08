@@ -25,6 +25,8 @@ fn main() {
         Arc::new(RwLock::new(None::<Vec<commands::sfnc_groups::SfncGroup>>));
 
     if let Err(err) = tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .manage(model_state)
         .manage(zenoh_state)
         .manage(sfnc_groups_state)

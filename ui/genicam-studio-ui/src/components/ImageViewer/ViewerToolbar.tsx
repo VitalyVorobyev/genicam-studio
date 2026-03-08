@@ -2,9 +2,10 @@ interface ViewerToolbarProps {
   zoomLabel?: string;
   deviceName?: string;
   onResetZoom: () => void;
+  onSnapshot?: () => void;
 }
 
-export function ViewerToolbar({ zoomLabel, deviceName, onResetZoom }: ViewerToolbarProps) {
+export function ViewerToolbar({ zoomLabel, deviceName, onResetZoom, onSnapshot }: ViewerToolbarProps) {
   const titleClass = deviceName
     ? "iv-toolbar__title iv-toolbar__title--connected"
     : "iv-toolbar__title";
@@ -36,8 +37,9 @@ export function ViewerToolbar({ zoomLabel, deviceName, onResetZoom }: ViewerTool
       <button
         type="button"
         className="iv-toolbar__btn"
-        disabled
-        title="Save snapshot (coming soon)"
+        disabled={!onSnapshot}
+        onClick={onSnapshot}
+        title="Save snapshot"
         aria-label="Save snapshot"
       >
         ⊙

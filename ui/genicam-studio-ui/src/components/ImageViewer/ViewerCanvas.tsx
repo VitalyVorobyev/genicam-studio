@@ -18,6 +18,7 @@ interface ViewerCanvasProps {
   onPixelHover?: (info: PixelHoverInfo | null) => void;
   resetZoomRef?: React.RefObject<(() => void) | null>;
   isStreaming?: boolean;
+  snapshotRef?: React.RefObject<Uint8Array | null>;
 }
 
 export function ViewerCanvas({
@@ -29,6 +30,7 @@ export function ViewerCanvas({
   onPixelHover,
   resetZoomRef,
   isStreaming,
+  snapshotRef,
 }: ViewerCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -112,6 +114,7 @@ export function ViewerCanvas({
 
       // Store raw bytes for pixel sampling before decoding
       lastFrameRef.current = new Uint8Array(event.data);
+      if (snapshotRef) snapshotRef.current = lastFrameRef.current;
 
       const blob = new Blob([event.data]);
       createImageBitmap(blob)

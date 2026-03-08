@@ -8,6 +8,8 @@ import type { PixelHoverInfo } from "./ViewerCanvas";
 import { ViewerStatusBar } from "./ViewerStatusBar";
 import { ControlSidebar } from "./ControlSidebar";
 import { useViewerLayout } from "./useViewerLayout";
+import { frameToImageData, encodeImageDataToPng, suggestFilename } from "./snapshotUtils";
+import { saveSnapshot } from "./snapshotSave";
 
 interface ImageViewerProps {
   streamerInfo: StreamerInfo | null;
@@ -38,7 +40,9 @@ export function ImageViewer({
   const [frameCount, setFrameCount] = useState<number>(0);
   const [zoomLabel, setZoomLabel] = useState<string>("Fit");
   const [pixelHover, setPixelHover] = useState<PixelHoverInfo | null>(null);
+  const [isSnapshotBusy, setIsSnapshotBusy] = useState<boolean>(false);
   const prevAcquiring = useRef<boolean>(false);
+  const snapshotRef = useRef<Uint8Array | null>(null);
   const { sidebarCollapsed, toggleSidebar } = useViewerLayout();
   const resetZoomRef = useRef<(() => void) | null>(null);
 
@@ -58,10 +62,36 @@ export function ImageViewer({
     resetZoomRef.current?.();
   }, []);
 
+  const pixelFormat = imageMeta?.pixel_format ?? "Mono8";
+
+  const handleSnapshot = useCallback(async () => {
+    if (isSnapshotBusy) return;
+    const bytes = snapshotRef.current;
+    if (!bytes) return;
+
+    const width = imageMeta?.width ?? streamerInfo?.width ?? 0;
+    const height = imageMeta?.height ?? streamerInfo?.height ?? 0;
+    const imageData = frameToImageData(bytes, width, height, pixelFormat);
+    if (!imageData) {
+      // Unsupported format or truncated buffer — silent no-op
+      return;
+    }
+
+    setIsSnapshotBusy(true);
+    try {
+      const blob = await encodeImageDataToPng(imageData);
+      if (!blob) return;
+      const filename = suggestFilename(pixelFormat, width, height);
+      await saveSnapshot(blob, filename);
+    } catch (err) {
+      console.error("Snapshot save failed:", err);
+    } finally {
+      setIsSnapshotBusy(false);
+    }
+  }, [isSnapshotBusy, imageMeta, streamerInfo, pixelFormat]);
+
   const acquisitionModeEntries: EnumEntry[] =
     externalModel?.graph.nodes_by_name["AcquisitionMode"]?.enum_entries ?? [];
-
-  const pixelFormat = imageMeta?.pixel_format ?? "Mono8";
 
   if (!streamerInfo) {
     return (
@@ -92,7 +122,12 @@ export function ImageViewer({
   return (
     <div className="image-viewer-v2">
       <div className="iv-canvas-column">
-        <ViewerToolbar zoomLabel={zoomLabel} deviceName={deviceName} onResetZoom={handleResetZoom} />
+        <ViewerToolbar
+          zoomLabel={zoomLabel}
+          deviceName={deviceName}
+          onResetZoom={handleResetZoom}
+          onSnapshot={isSnapshotBusy ? undefined : handleSnapshot}
+        />
         <ViewerCanvas
           wsUrl={streamerInfo.ws_url}
           onFrameStats={setFps}
@@ -102,6 +137,7 @@ export function ImageViewer({
           onPixelHover={setPixelHover}
           resetZoomRef={resetZoomRef}
           isStreaming={true}
+          snapshotRef={snapshotRef}
         />
         <ViewerStatusBar
           fps={fps}

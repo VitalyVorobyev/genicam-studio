@@ -8,6 +8,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- IV-16: Add snapshot save (PNG) with native file dialog in Tauri and download fallback in browser mode
 - IV-10: Persist sidebar section expand/collapse state per camera model in localStorage
 - IV-09: ControlSidebar sections are now driven by sfnc-groups.json order and filtered by UiGraph applicability
 - TB-03: Add sfnc-groups.json config file and get_sfnc_groups IPC command with caching; add useSfncGroups React hook

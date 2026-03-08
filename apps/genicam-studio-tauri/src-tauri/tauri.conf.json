@@ -12,6 +12,11 @@
   "bundle": {
     "resources": ["resources/sfnc-groups.json"]
   },
+  "plugins": {
+    "fs": {
+      "scope": ["$DESKTOP/**", "$DOCUMENT/**", "$DOWNLOAD/**"]
+    }
+  },
   "app": {
     "security": {
       "csp": null
