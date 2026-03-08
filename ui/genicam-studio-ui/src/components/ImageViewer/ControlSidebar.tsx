@@ -1,5 +1,8 @@
+import type { ReactNode } from "react";
 import type { EnumEntry, ParseXmlResponse } from "../../xml_model/uigraph";
-import type { NodeValueEntry } from "../../device/types";
+import type { NodeValueEntry, SfncGroup } from "../../device/types";
+import { useSfncGroups } from "../../device/useSfncGroups";
+import { isSectionApplicable } from "./sfncGroupUtils";
 import { SidebarSection } from "./SidebarSection";
 import { AcquisitionSection } from "./AcquisitionSection";
 import { ExposureGainSection } from "./ExposureGainSection";
@@ -18,13 +21,6 @@ interface ControlSidebarProps {
   externalModel: ParseXmlResponse | null;
 }
 
-const RAIL_SECTIONS = [
-  { title: "Acquisition Control", icon: "▶" },
-  { title: "Exposure & Gain", icon: "☀" },
-  { title: "Image Format", icon: "⊞" },
-  { title: "Trigger", icon: "⚡" },
-] as const;
-
 export function ControlSidebar({
   collapsed,
   onToggle,
@@ -37,6 +33,44 @@ export function ControlSidebar({
   liveValues,
   externalModel,
 }: ControlSidebarProps) {
+  const groups = useSfncGroups();
+  const nodesById = externalModel?.graph.nodes_by_name ?? {};
+  const visibleGroups = groups.filter((g) => isSectionApplicable(g, nodesById));
+
+  function renderSectionContent(group: SfncGroup): ReactNode {
+    switch (group.id) {
+      case "acquisition_control":
+        return (
+          <AcquisitionSection
+            isConnected={isConnected}
+            isAcquiring={isAcquiring}
+            frameCount={frameCount}
+            onStartAcq={onStartAcq}
+            onStopAcq={onStopAcq}
+            acquisitionModeEntries={acquisitionModeEntries}
+          />
+        );
+      case "exposure_gain":
+        return (
+          <ExposureGainSection
+            isConnected={isConnected}
+            externalModel={externalModel}
+            liveValues={liveValues}
+          />
+        );
+      case "image_format":
+        return (
+          <ImageFormatSection
+            isConnected={isConnected}
+            externalModel={externalModel}
+            liveValues={liveValues}
+          />
+        );
+      default:
+        return <p className="sidebar-placeholder">Available in a future update.</p>;
+    }
+  }
+
   return (
     <aside
       className={`iv-sidebar${collapsed ? " iv-sidebar--collapsed" : ""}`}
@@ -53,51 +87,36 @@ export function ControlSidebar({
 
       {collapsed ? (
         <div className="iv-sidebar__rail">
-          {RAIL_SECTIONS.map((section) => (
+          {visibleGroups.map((group) => (
             <button
-              key={section.title}
+              key={group.id}
               type="button"
               className="iv-sidebar__rail-icon"
-              aria-label={section.title}
+              title={group.title}
               onClick={onToggle}
-              title={section.title}
             >
-              {section.icon}
+              {group.icon}
             </button>
           ))}
         </div>
       ) : (
         <>
-          <SidebarSection title="Acquisition Control" icon="▶">
-            <AcquisitionSection
-              isConnected={isConnected}
-              isAcquiring={isAcquiring}
-              frameCount={frameCount}
-              onStartAcq={onStartAcq}
-              onStopAcq={onStopAcq}
-              acquisitionModeEntries={acquisitionModeEntries}
-            />
-          </SidebarSection>
-
-          <SidebarSection title="Exposure & Gain" icon="☀">
-            <ExposureGainSection
-              isConnected={isConnected}
-              externalModel={externalModel}
-              liveValues={liveValues}
-            />
-          </SidebarSection>
-
-          <SidebarSection title="Image Format" icon="⊞">
-            <ImageFormatSection
-              isConnected={isConnected}
-              externalModel={externalModel}
-              liveValues={liveValues}
-            />
-          </SidebarSection>
-
-          <SidebarSection title="Trigger" icon="⚡">
-            <p className="sidebar-placeholder">Available in a future update.</p>
-          </SidebarSection>
+          {groups.length === 0 ? (
+            <p className="sidebar-placeholder">Loading controls…</p>
+          ) : visibleGroups.length === 0 ? (
+            <p className="sidebar-placeholder">No applicable sections for this device.</p>
+          ) : (
+            visibleGroups.map((group) => (
+              <SidebarSection
+                key={group.id}
+                title={group.title}
+                icon={group.icon}
+                defaultOpen={group.default_open}
+              >
+                {renderSectionContent(group)}
+              </SidebarSection>
+            ))
+          )}
         </>
       )}
     </aside>

@@ -8,6 +8,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- IV-09: ControlSidebar sections are now driven by sfnc-groups.json order and filtered by UiGraph applicability
 - TB-03: Add sfnc-groups.json config file and get_sfnc_groups IPC command with caching; add useSfncGroups React hook
 - TB-02: Add read_nodes_bulk IPC command and useNodeBulkRead hook for bulk cache pre-population on connect
 - TB-01: Tauri backend subscribes to image/meta and emits image-meta-changed event; UI useImageMeta hook replaces PixelFormat workaround
