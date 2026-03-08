@@ -9,6 +9,9 @@
     "devUrl": "http://localhost:5173",
     "frontendDist": "../../../ui/genicam-studio-ui/dist"
   },
+  "bundle": {
+    "resources": ["resources/sfnc-groups.json"]
+  },
   "app": {
     "security": {
       "csp": null

@@ -37,3 +37,16 @@ export interface ImageMeta {
   height: number;
   payload_size: number;
 }
+
+export interface SfncFeature {
+  node: string;
+  widget: "float_slider" | "int_slider" | "int_select" | "enum_select" | "bool_toggle" | "command_button" | string;
+}
+
+export interface SfncGroup {
+  id: string;
+  title: string;
+  icon: string;
+  default_open: boolean;
+  features: SfncFeature[];
+}

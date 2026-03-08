@@ -20,9 +20,14 @@ fn main() {
     let zenoh_state = Arc::new(state::ZenohState::new());
     let zenoh_for_setup = zenoh_state.clone();
 
+    // SfncGroupsState: cached SFNC group config loaded once from the bundled JSON.
+    let sfnc_groups_state: commands::sfnc_groups::SfncGroupsState =
+        Arc::new(RwLock::new(None::<Vec<commands::sfnc_groups::SfncGroup>>));
+
     if let Err(err) = tauri::Builder::default()
         .manage(model_state)
         .manage(zenoh_state)
+        .manage(sfnc_groups_state)
         .setup(move |app| {
             let app_handle = app.handle().clone();
             let zenoh = zenoh_for_setup.clone();
@@ -64,6 +69,8 @@ fn main() {
             commands::acquisition::get_acquisition_status,
             commands::acquisition::start_acquisition,
             commands::acquisition::stop_acquisition,
+            // SFNC groups config
+            commands::sfnc_groups::get_sfnc_groups,
         ])
         .run(tauri::generate_context!())
     {
