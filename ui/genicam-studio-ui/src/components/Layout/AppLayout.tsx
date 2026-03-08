@@ -3,6 +3,7 @@ import { isTauri } from "../../tauri";
 import { useDevice } from "../../device/useDevice";
 import { useNodeValues } from "../../device/useNodeValues";
 import { useAcquisition } from "../../device/useAcquisition";
+import { useImageMeta } from "../../device/useImageMeta";
 import { AppLogProvider, useAppLog } from "../../context/AppLogContext";
 import { DeviceSidebar } from "../DeviceSidebar/DeviceSidebar";
 import { FeatureBrowserPage } from "../FeatureBrowser/FeatureBrowserPage";
@@ -30,6 +31,7 @@ function AppLayoutInner() {
   const { devices, connectionState, connect, disconnect } = useDevice();
   const { liveValues } = useNodeValues();
   const { status: acqStatus, streamerInfo, start: startAcq, stop: stopAcq } = useAcquisition();
+  const { imageMeta } = useImageMeta();
   const { log } = useAppLog();
 
   const isConnected = connectionState.kind === "connected";
@@ -209,6 +211,7 @@ function AppLayoutInner() {
                 externalModel={externalModel}
                 liveValues={liveValues}
                 deviceName={connectedDeviceName ?? undefined}
+                imageMeta={imageMeta}
               />
             )}
             {activeTab === "diagnostics" && <DiagnosticsTab />}

@@ -30,3 +30,10 @@ export interface NodeValueEntry {
   value: number | string | boolean;
   access_mode: string;
 }
+
+export interface ImageMeta {
+  pixel_format: string;
+  width: number;
+  height: number;
+  payload_size: number;
+}

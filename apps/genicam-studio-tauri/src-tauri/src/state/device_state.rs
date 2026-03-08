@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 
-use genicam_zenoh_api::AcquisitionStatus;
+use genicam_zenoh_api::{AcquisitionStatus, ImageMeta};
 use serde::{Deserialize, Serialize};
 
 // ── Types exposed to the UI via Tauri IPC ───────────────────────────────────
@@ -109,6 +109,7 @@ pub struct AcquisitionInner {
     pub status: AcquisitionStatus,
     pub width: u32,
     pub height: u32,
+    pub image_meta: Option<ImageMeta>,
 }
 
 impl AcquisitionInner {
@@ -123,6 +124,7 @@ impl AcquisitionInner {
             },
             width: 640,
             height: 480,
+            image_meta: None,
         }
     }
 }

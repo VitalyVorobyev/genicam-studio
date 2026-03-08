@@ -7,7 +7,7 @@ use crate::commands::xml_model::{ModelSummary, ParseXmlResponse};
 use crate::state::device_state::{ConnectionState, DeviceInfo, NodeValueEntry, ZenohState};
 use crate::state::ModelState;
 use genicam_xml_model::parse_genicam_xml;
-use genicam_zenoh_api::{DeviceAnnounce, DeviceXmlResponse};
+use genicam_zenoh_api::{DeviceAnnounce, DeviceXmlResponse, ImageMeta};
 
 // ── IPC Commands ──────────────────────────────────────────────────────────────
 
@@ -93,6 +93,7 @@ pub async fn connect_device(
         spawn_node_value_sub(session.clone(), device_id.clone(), z.clone(), app.clone()),
         spawn_status_sub(session.clone(), device_id.clone(), z.clone(), app.clone()),
         spawn_acq_status_sub(session.clone(), device_id.clone(), z.clone(), app.clone()),
+        spawn_image_meta_sub(session.clone(), device_id.clone(), z.clone(), app.clone()),
     ];
     zenoh.sub_tasks.lock().await.extend(tasks);
 
@@ -283,6 +284,31 @@ fn spawn_acq_status_sub(
             {
                 zenoh.acquisition.lock().await.status = status.clone();
                 let _ = app.emit("acquisition-status", status);
+            }
+        }
+    })
+}
+
+fn spawn_image_meta_sub(
+    session: Arc<zenoh::Session>,
+    device_id: String,
+    zenoh: Arc<ZenohState>,
+    app: AppHandle,
+) -> tauri::async_runtime::JoinHandle<()> {
+    tauri::async_runtime::spawn(async move {
+        let key = genicam_zenoh_api::keys::image_meta(&device_id);
+        let sub = match session.declare_subscriber(&key).await {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("Image meta subscriber error: {e}");
+                return;
+            }
+        };
+        while let Ok(sample) = sub.recv_async().await {
+            let bytes = sample.payload().to_bytes();
+            if let Ok(meta) = serde_json::from_slice::<ImageMeta>(&bytes) {
+                zenoh.acquisition.lock().await.image_meta = Some(meta.clone());
+                let _ = app.emit("image-meta-changed", meta);
             }
         }
     })

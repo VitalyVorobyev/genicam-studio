@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import type { StreamerInfo, NodeValueEntry } from "../../device/types";
+import type { StreamerInfo, NodeValueEntry, ImageMeta } from "../../device/types";
 import type { ParseXmlResponse, EnumEntry } from "../../xml_model/uigraph";
 import type { ZoomPanState } from "./useZoomPan";
 import { ViewerToolbar } from "./ViewerToolbar";
@@ -18,6 +18,7 @@ interface ImageViewerProps {
   externalModel: ParseXmlResponse | null;
   liveValues: Map<string, NodeValueEntry>;
   deviceName?: string;
+  imageMeta: ImageMeta | null;
 }
 
 export function ImageViewer({
@@ -29,6 +30,7 @@ export function ImageViewer({
   externalModel,
   liveValues,
   deviceName,
+  imageMeta,
 }: ImageViewerProps) {
   const [fps, setFps] = useState<number>(0);
   const [frameCount, setFrameCount] = useState<number>(0);
@@ -57,8 +59,7 @@ export function ImageViewer({
   const acquisitionModeEntries: EnumEntry[] =
     externalModel?.graph.nodes_by_name["AcquisitionMode"]?.enum_entries ?? [];
 
-  const pixelFormat =
-    (liveValues.get("PixelFormat")?.value as string | undefined) ?? "Mono8";
+  const pixelFormat = imageMeta?.pixel_format ?? "Mono8";
 
   if (!streamerInfo) {
     return (
@@ -101,8 +102,8 @@ export function ImageViewer({
         />
         <ViewerStatusBar
           fps={fps}
-          width={streamerInfo.width}
-          height={streamerInfo.height}
+          width={imageMeta?.width ?? streamerInfo.width}
+          height={imageMeta?.height ?? streamerInfo.height}
           pixelFormat={pixelFormat}
           pixelInfo={
             pixelHover
