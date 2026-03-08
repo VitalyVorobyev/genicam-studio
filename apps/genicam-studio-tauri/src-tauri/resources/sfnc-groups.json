@@ -72,6 +72,19 @@
         { "node": "GainAuto", "widget": "enum_select" },
         { "node": "BalanceWhiteAuto", "widget": "enum_select" }
       ]
+    },
+    {
+      "id": "color_processing",
+      "title": "Color Processing",
+      "icon": "◈",
+      "default_open": false,
+      "features": [
+        { "node": "BalanceRatioSelector", "widget": "enum_select" },
+        { "node": "BalanceRatio", "widget": "float_slider" },
+        { "node": "Gamma", "widget": "float_slider" },
+        { "node": "LUTEnable", "widget": "bool_toggle" },
+        { "node": "LUTSelector", "widget": "enum_select" }
+      ]
     }
   ]
 }

@@ -8,6 +8,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- IV-08: Add Color Processing sidebar section (BalanceRatio, Gamma, LUT controls)
 - IV-07: Add Auto Functions section (ExposureAuto, GainAuto, BalanceWhiteAuto enum selects) to Image Viewer sidebar
 - IV-06: Add Transport Layer section (GevSCPSPacketSize, GevSCPD integer sliders) to Image Viewer sidebar
 - IV-05: Add TriggerSection to Image Viewer ControlSidebar (TriggerMode, TriggerSource, TriggerActivation, TriggerDelay)

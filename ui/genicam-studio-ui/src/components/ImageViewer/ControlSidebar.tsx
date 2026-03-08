@@ -11,6 +11,7 @@ import { ImageFormatSection } from "./ImageFormatSection";
 import { TriggerSection } from "./TriggerSection";
 import { TransportLayerSection } from "./TransportLayerSection";
 import { AutoFunctionsSection } from "./AutoFunctionsSection";
+import { ColorProcessingSection } from "./ColorProcessingSection";
 
 interface ControlSidebarProps {
   collapsed: boolean;
@@ -92,6 +93,14 @@ export function ControlSidebar({
       case "auto_functions":
         return (
           <AutoFunctionsSection
+            isConnected={isConnected}
+            externalModel={externalModel}
+            liveValues={liveValues}
+          />
+        );
+      case "color_processing":
+        return (
+          <ColorProcessingSection
             isConnected={isConnected}
             externalModel={externalModel}
             liveValues={liveValues}
