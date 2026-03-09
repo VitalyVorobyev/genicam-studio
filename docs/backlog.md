@@ -150,13 +150,12 @@ Enhance the existing Feature Browser.
 
 ---
 
-## Epic 7: UX Polish & Design — 5/9 complete
+## Epic 7: UX Polish & Design — 6/9 complete
 
 Professional look and feel for the desktop app.
 
 | ID | Task | Priority | Size | Status | ADR | Notes |
 |----|------|----------|------|--------|-----|-------|
-| UX-03 | Device sidebar polish | P1 | M | planned | — | Connection state badges, device cards, loading states. |
 | UX-04 | Feature Browser polish | P1 | M | planned | — | Tree styling, kind badges, better search UX. |
 | UX-06 | Responsive layout | P1 | M | planned | — | Handle window resize, min sizes, splitter for panes. |
 | UX-07 | Loading & error states | P1 | M | planned | — | Skeleton loaders, toast notifications, inline error messages. |
@@ -165,6 +164,7 @@ Professional look and feel for the desktop app.
 | ~~UX-05~~ | ~~Image Viewer chrome~~ | P0 | M | ✓ done | — | Toolbar, status bar, professional canvas container. |
 | ~~UX-08~~ | ~~Keyboard shortcuts~~ | P1 | S | ✓ done | — | Ctrl+F search, Escape, Ctrl+Enter apply. Already implemented. |
 | ~~UX-09~~ | ~~Window title updates~~ | P0 | S | ✓ done | — | Already implemented (T7.7). |
+| ~~UX-03~~ | ~~Device sidebar polish~~ | P1 | M | ✓ done | — | Per-card state dots, connecting animation, animated scan indicator, device count badge. |
 
 ---
 
