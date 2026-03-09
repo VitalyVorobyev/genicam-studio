@@ -280,8 +280,9 @@ input[type="checkbox"] {
 }
 
 .device-sidebar-wrapper {
-  width: var(--sidebar-width);
-  min-width: var(--sidebar-width);
+  /* Width driven by useSplitter state via inline style; fallback here */
+  min-width: 160px;
+  max-width: 420px;
   border-right: 1px solid var(--border);
   overflow-y: auto;
   background: var(--bg-surface);
@@ -681,10 +682,40 @@ input[type="checkbox"] {
   overflow: hidden;
 }
 
-.pane--left  { border-right: 1px solid var(--border); background: var(--bg-surface); }
+.pane--left  { border-right: none; background: var(--bg-surface); }
 .pane--right { background: var(--bg-base); }
 
 .pane__scroll { flex: 1; overflow-y: auto; min-height: 0; }
+
+/* ── Pane splitter ─────────────────────────────────────────── */
+
+.pane-splitter {
+  flex-shrink: 0;
+  width: 8px;
+  background: transparent;
+  cursor: col-resize;
+  position: relative;
+  user-select: none;
+  touch-action: none;
+  z-index: var(--z-base);
+  outline: none;
+}
+
+.pane-splitter::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--border);
+  transition: background var(--transition-fast);
+}
+
+.pane-splitter:hover::after,
+.pane-splitter:focus-visible::after {
+  background: var(--accent);
+}
 
 /* ── Category tree ───────────────────────────────────────────── */
 

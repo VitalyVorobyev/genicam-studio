@@ -8,6 +8,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- UX-06: Drag-to-resize splitters for device sidebar and feature browser tree pane, with min/max sizes and localStorage persistence
 - UX-04: Feature Browser polish — kind-colored tree icons, search clear button, kind indicator in search results, category row distinction
 - UX-03: Device sidebar polish — per-card state dots, connecting animation, animated scan indicator, device count badge
 - IV-15: Line profile tool — drag a line on the canvas, floating panel shows per-pixel intensity plot

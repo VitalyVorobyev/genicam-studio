@@ -13,6 +13,7 @@ import { TauriProvider, WebWasmProvider, type XmlModelProvider } from "../../xml
 import { isUnknownKind, nodeDisplayName, nodeKindCssKey, nodeKindIcon } from "../../xml_model/helpers";
 import { isTauri } from "../../tauri";
 import { useDraftValues } from "../../state/useDraftValues";
+import { useSplitter } from "../Layout/useSplitter";
 import { CategoryTree } from "./CategoryTree";
 import { FeaturePanel } from "./FeaturePanel";
 
@@ -84,6 +85,13 @@ export function FeatureBrowserPage({
   const [selectedFixture, setSelectedFixture] = useState<string>("");
 
   const { drafts, errors, setDraft, resetDraft, clearAllDrafts } = useDraftValues();
+
+  const { size: treeWidth, handleProps: treeSplitterProps } = useSplitter({
+    storageKey: "genicam-studio:feature-browser-tree-width",
+    defaultSize: 280,
+    minSize: 160,
+    maxSize: 600,
+  });
 
   const applyResponse = useCallback(
     (response: ParseXmlResponse, fileName: string) => {
@@ -503,8 +511,11 @@ export function FeatureBrowserPage({
         </div>
       )}
 
-      {/* Two-pane body */}
-      <div className="feature-browser__body">
+      {/* Two-pane body with drag splitter */}
+      <div
+        className="feature-browser__body"
+        style={{ gridTemplateColumns: `${treeWidth}px 8px 1fr` }}
+      >
         <aside className="pane pane--left">
           <div className="pane__scroll">
             {searchText.trim().length > 0 ? (
@@ -526,6 +537,8 @@ export function FeatureBrowserPage({
             )}
           </div>
         </aside>
+
+        <div {...treeSplitterProps} />
 
         <section className="pane pane--right">
           <FeaturePanel

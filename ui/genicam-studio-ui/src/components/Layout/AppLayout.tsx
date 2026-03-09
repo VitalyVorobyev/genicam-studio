@@ -11,6 +11,7 @@ import { FeatureBrowserPage } from "../FeatureBrowser/FeatureBrowserPage";
 import { ImageViewer } from "../ImageViewer/ImageViewer";
 import { DiagnosticsTab } from "../Diagnostics/DiagnosticsTab";
 import { formatDeviceChip } from "./headerUtils";
+import { useSplitter } from "./useSplitter";
 import type { ParseXmlResponse } from "../../xml_model/uigraph";
 
 type MainTab = "features" | "image" | "diagnostics";
@@ -123,6 +124,13 @@ function AppLayoutInner() {
 
   const chip = formatDeviceChip(connectionState);
 
+  const { size: sidebarWidth, handleProps: sidebarSplitterProps } = useSplitter({
+    storageKey: "genicam-studio:device-sidebar-width",
+    defaultSize: 220,
+    minSize: 160,
+    maxSize: 420,
+  });
+
   return (
     <div className="app-layout">
       <header className="app-header">
@@ -205,16 +213,19 @@ function AppLayoutInner() {
 
       <div className="app-body">
         {isTauri() && (
-          <aside className="device-sidebar-wrapper">
-            <DeviceSidebar
-              devices={devices}
-              connectionState={connectionState}
-              disconnectReason={disconnectReason}
-              lastConnectedDeviceId={lastConnectedDeviceId}
-              onConnect={handleConnect}
-              onDisconnect={handleDisconnect}
-            />
-          </aside>
+          <>
+            <aside className="device-sidebar-wrapper" style={{ width: sidebarWidth }}>
+              <DeviceSidebar
+                devices={devices}
+                connectionState={connectionState}
+                disconnectReason={disconnectReason}
+                lastConnectedDeviceId={lastConnectedDeviceId}
+                onConnect={handleConnect}
+                onDisconnect={handleDisconnect}
+              />
+            </aside>
+            <div {...sidebarSplitterProps} />
+          </>
         )}
 
         <main className="main-area">
