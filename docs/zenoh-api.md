@@ -332,3 +332,4 @@ sequenceDiagram
 | `acquisition-status` | `AcquisitionStatus` | Acquisition state change |
 | `connection-state-changed` | `ConnectionState` | Connect/disconnect/error |
 | `image-meta-changed` | `ImageMeta` | Image format or dimension change; emitted by TB-01 on each image/meta Zenoh update |
+| `streamer-status` | `StreamerStatus` | Streamer process lifecycle event: started, crashed (with restart), stopped. Fields: `running: bool`, `error: string \| null`, `restart_count: number`. |

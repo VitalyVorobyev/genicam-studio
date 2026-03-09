@@ -330,9 +330,13 @@ async fn abort_sub_tasks(zenoh: &ZenohState) {
 
 pub async fn stop_acquisition_child(zenoh: &ZenohState) {
     let mut acq = zenoh.acquisition.lock().await;
-    if let Some(mut child) = acq.child.take() {
-        let _ = child.kill().await;
+    // Signal the monitor task to kill the child and exit.
+    if let Some(tx) = acq.stop_tx.take() {
+        let _ = tx.send(true);
+        // Drop `tx` so the monitor task sees the channel close even if send was missed.
     }
+    // Drop the handle (task will complete on its own after receiving the stop signal).
+    acq.monitor_handle.take();
     acq.ws_url = None;
     acq.status.active = false;
 }

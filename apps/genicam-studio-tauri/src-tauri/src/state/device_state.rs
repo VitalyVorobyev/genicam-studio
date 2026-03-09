@@ -5,6 +5,20 @@ use std::time::Instant;
 use genicam_zenoh_api::{AcquisitionStatus, ImageMeta};
 use serde::{Deserialize, Serialize};
 
+// ── Streamer lifecycle event ─────────────────────────────────────────────────
+
+/// Emitted as `streamer-status` Tauri event on every lifecycle transition of the
+/// `genicam-ws-streamer` child process (started, crashed, restarted, stopped).
+#[derive(Debug, Clone, Serialize)]
+pub struct StreamerStatus {
+    /// Whether the streamer process is currently running.
+    pub running: bool,
+    /// Error message if the streamer exited unexpectedly, otherwise `None`.
+    pub error: Option<String>,
+    /// Number of times the streamer has been restarted since acquisition started.
+    pub restart_count: u32,
+}
+
 // ── Types exposed to the UI via Tauri IPC ───────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -104,7 +118,12 @@ impl DeviceRegistry {
 // ── Acquisition inner state ──────────────────────────────────────────────────
 
 pub struct AcquisitionInner {
-    pub child: Option<tokio::process::Child>,
+    /// Channel sender used to signal the monitor task to stop the streamer.
+    /// Sending `true` causes the monitor task to kill the child and exit.
+    pub stop_tx: Option<tokio::sync::watch::Sender<bool>>,
+    /// Handle to the streamer monitor background task.
+    /// Dropping this handle does NOT cancel the task; the channel is the primary stop mechanism.
+    pub monitor_handle: Option<tauri::async_runtime::JoinHandle<()>>,
     pub ws_url: Option<String>,
     pub status: AcquisitionStatus,
     pub width: u32,
@@ -115,7 +134,8 @@ pub struct AcquisitionInner {
 impl AcquisitionInner {
     pub fn new() -> Self {
         Self {
-            child: None,
+            stop_tx: None,
+            monitor_handle: None,
             ws_url: None,
             status: AcquisitionStatus {
                 active: false,
