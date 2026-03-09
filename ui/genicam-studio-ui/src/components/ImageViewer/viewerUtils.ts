@@ -100,3 +100,30 @@ export function mouseToImageCoords(
   if (pixX < 0 || pixX >= p.imgW || pixY < 0 || pixY >= p.imgH) return null;
   return { x: pixX, y: pixY };
 }
+
+/**
+ * Variant of `mouseToImageCoords` that clamps out-of-bounds coordinates to the
+ * image edges instead of returning null.
+ *
+ * Useful for ROI selection where the user may drag beyond the image boundary —
+ * the selection is clamped to the nearest valid pixel rather than being discarded.
+ *
+ * Returns null only when the transform parameters are invalid (fitScale ≤ 0 or
+ * zero image dimensions).
+ */
+export function mouseToImageCoordsClamped(
+  p: MouseToImageCoordsParams,
+): ImageCoords | null {
+  if (p.fitScale <= 0 || p.imgW <= 0 || p.imgH <= 0) return null;
+  const s = p.scale / p.fitScale;
+  const pixX = Math.floor(
+    ((p.mouseX - p.boxW / 2 - p.panX) / s / p.fitScale) + p.imgW / 2,
+  );
+  const pixY = Math.floor(
+    ((p.mouseY - p.boxH / 2 - p.panY) / s / p.fitScale) + p.imgH / 2,
+  );
+  return {
+    x: Math.max(0, Math.min(p.imgW - 1, pixX)),
+    y: Math.max(0, Math.min(p.imgH - 1, pixY)),
+  };
+}

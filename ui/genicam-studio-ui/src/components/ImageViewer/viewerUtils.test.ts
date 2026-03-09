@@ -5,6 +5,7 @@ import {
   formatResolution,
   formatFrameCount,
   mouseToImageCoords,
+  mouseToImageCoordsClamped,
 } from "./viewerUtils";
 
 describe("fitContain", () => {
@@ -186,5 +187,48 @@ describe("mouseToImageCoords", () => {
     expect(withPan).not.toBeNull();
     expect(noPan).not.toBeNull();
     expect(withPan!.x).toBe(noPan!.x - 10);
+  });
+});
+
+describe("mouseToImageCoordsClamped", () => {
+  const base = {
+    boxW: 640,
+    boxH: 480,
+    imgW: 640,
+    imgH: 480,
+    scale: 1,
+    fitScale: 1,
+    panX: 0,
+    panY: 0,
+  };
+
+  it("test_mouseToImageCoordsClamped_in_bounds", () => {
+    // Centre of canvas → centre of image (same as mouseToImageCoords).
+    const result = mouseToImageCoordsClamped({ ...base, mouseX: 320, mouseY: 240 });
+    expect(result).not.toBeNull();
+    expect(result!.x).toBe(320);
+    expect(result!.y).toBe(240);
+  });
+
+  it("test_mouseToImageCoordsClamped_out_of_bounds_clamps", () => {
+    // Mouse far to the right (off-image) → clamped to imgW-1.
+    const result = mouseToImageCoordsClamped({ ...base, mouseX: 9999, mouseY: 240 });
+    expect(result).not.toBeNull();
+    expect(result!.x).toBe(639); // imgW - 1
+    expect(result!.y).toBe(240);
+  });
+
+  it("test_mouseToImageCoordsClamped_top_left_corner", () => {
+    // Mouse at top-left of wrap → pixel (0,0) (no pan, no zoom, wrap == image).
+    const result = mouseToImageCoordsClamped({ ...base, mouseX: 0, mouseY: 0 });
+    expect(result).not.toBeNull();
+    expect(result!.x).toBe(0);
+    expect(result!.y).toBe(0);
+  });
+
+  it("test_mouseToImageCoordsClamped_invalid_fitscale", () => {
+    // Invalid fitScale → null (same guard as mouseToImageCoords).
+    const result = mouseToImageCoordsClamped({ ...base, fitScale: 0, mouseX: 320, mouseY: 240 });
+    expect(result).toBeNull();
   });
 });

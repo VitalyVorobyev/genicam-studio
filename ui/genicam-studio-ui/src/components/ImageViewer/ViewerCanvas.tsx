@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { fitContain, mouseToImageCoords } from "./viewerUtils";
+import { fitContain, mouseToImageCoords, mouseToImageCoordsClamped } from "./viewerUtils";
 import { useZoomPan } from "./useZoomPan";
 import type { ZoomPanState } from "./useZoomPan";
 import { buildTransform } from "./zoomPanUtils";
@@ -7,6 +7,10 @@ import { samplePixel, formatPixelSample } from "./pixelInspectorUtils";
 import type { PixelHoverInfo } from "./pixelInspectorUtils";
 import { CrosshairOverlay } from "./CrosshairOverlay";
 import { HistogramOverlay } from "./HistogramOverlay";
+import { RoiOverlay } from "./RoiOverlay";
+import type { ScreenRect } from "./RoiOverlay";
+import { buildImageRect, clampRoiToImage } from "./roiUtils";
+import type { ImageRect } from "./roiUtils";
 
 export type { PixelHoverInfo };
 
@@ -30,6 +34,8 @@ interface ViewerCanvasProps {
   snapshotRef?: React.RefObject<Uint8Array | null>;
   onStreamInfoChange?: (info: StreamInfoFrame) => void;
   showHistogram?: boolean;
+  roiMode?: boolean;
+  onRoiSelect?: (roi: ImageRect | null) => void;
 }
 
 export function ViewerCanvas({
@@ -44,6 +50,8 @@ export function ViewerCanvas({
   snapshotRef,
   onStreamInfoChange,
   showHistogram,
+  roiMode,
+  onRoiSelect,
 }: ViewerCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -54,6 +62,17 @@ export function ViewerCanvas({
   const [wrapMouse, setWrapMouse] = useState<{ x: number; y: number } | null>(
     null,
   );
+
+  // ── ROI drag state ───────────────────────────────────────────────────────────
+  const roiDragRef = useRef({ active: false, startX: 0, startY: 0 });
+  const [roiOverlayRect, setRoiOverlayRect] = useState<ScreenRect | null>(null);
+
+  // Clear overlay when ROI mode is turned off
+  useEffect(() => {
+    if (!roiMode) {
+      setRoiOverlayRect(null);
+    }
+  }, [roiMode]);
 
   // Track box size via ResizeObserver
   useEffect(() => {
@@ -238,32 +257,116 @@ export function ViewerCanvas({
     onPixelHover?.(null);
   };
 
-  // Cursor class based on zoom level and drag state
+  // ── ROI pointer handlers ─────────────────────────────────────────────────────
+
+  const handleRoiPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const bRect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - bRect.left;
+    const y = e.clientY - bRect.top;
+    roiDragRef.current = { active: true, startX: x, startY: y };
+    setRoiOverlayRect({ x1: x, y1: y, x2: x, y2: y });
+    // Clear the previous selection in the parent
+    onRoiSelect?.(null);
+  };
+
+  const handleRoiPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!roiDragRef.current.active) return;
+    const bRect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - bRect.left;
+    const y = e.clientY - bRect.top;
+    setRoiOverlayRect({
+      x1: roiDragRef.current.startX,
+      y1: roiDragRef.current.startY,
+      x2: x,
+      y2: y,
+    });
+  };
+
+  const handleRoiPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!roiDragRef.current.active) return;
+    roiDragRef.current.active = false;
+
+    const bRect = e.currentTarget.getBoundingClientRect();
+    const endX = e.clientX - bRect.left;
+    const endY = e.clientY - bRect.top;
+
+    // Keep overlay visible after release
+    setRoiOverlayRect({
+      x1: roiDragRef.current.startX,
+      y1: roiDragRef.current.startY,
+      x2: endX,
+      y2: endY,
+    });
+
+    const { scale, panX, panY, fitScale } = zoomPan.state;
+    const params = {
+      boxW: boxSize.w,
+      boxH: boxSize.h,
+      imgW: imgSize.w,
+      imgH: imgSize.h,
+      scale,
+      fitScale,
+      panX,
+      panY,
+    };
+
+    const startPt = mouseToImageCoordsClamped({
+      ...params,
+      mouseX: roiDragRef.current.startX,
+      mouseY: roiDragRef.current.startY,
+    });
+    const endPt = mouseToImageCoordsClamped({ ...params, mouseX: endX, mouseY: endY });
+
+    if (startPt && endPt) {
+      const raw = buildImageRect(startPt, endPt);
+      const clamped = clampRoiToImage(raw, imgSize.w, imgSize.h);
+      onRoiSelect?.(clamped);
+    }
+  };
+
+  // ── Cursor and class derivation ─────────────────────────────────────────────
+
   const isZoomed = imgSize.w > 0 && zoomPan.state.scale > zoomPan.state.fitScale;
   const isDragging = zoomPan.isDraggingRef.current;
-  const cursorClass = isZoomed
-    ? isDragging
-      ? "iv-canvas-wrap--grabbing"
-      : "iv-canvas-wrap--grab"
-    : "";
+  let cursorClass = "";
+  if (roiMode) {
+    cursorClass = "iv-canvas-wrap--crosshair";
+  } else if (isZoomed) {
+    cursorClass = isDragging ? "iv-canvas-wrap--grabbing" : "iv-canvas-wrap--grab";
+  }
   const streamClass = isStreaming ? "iv-canvas-wrap--active" : "iv-canvas-wrap--idle";
+
+  // Choose pointer handlers based on mode
+  const pointerHandlers = roiMode
+    ? {
+        onPointerDown: handleRoiPointerDown,
+        onPointerMove: handleRoiPointerMove,
+        onPointerUp: handleRoiPointerUp,
+        onDoubleClick: undefined,
+      }
+    : {
+        onPointerDown: zoomPan.onPointerDown,
+        onPointerMove: zoomPan.onPointerMove,
+        onPointerUp: zoomPan.onPointerUp,
+        onDoubleClick: zoomPan.onDoubleClick,
+      };
 
   return (
     <div
       ref={wrapRef}
       className={`iv-canvas-wrap ${streamClass}${cursorClass ? ` ${cursorClass}` : ""}`}
-      onPointerDown={zoomPan.onPointerDown}
-      onPointerMove={zoomPan.onPointerMove}
-      onPointerUp={zoomPan.onPointerUp}
-      onDoubleClick={zoomPan.onDoubleClick}
+      {...pointerHandlers}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
       <canvas ref={canvasRef} />
       <CrosshairOverlay
-        mouseX={wrapMouse?.x ?? null}
-        mouseY={wrapMouse?.y ?? null}
+        mouseX={roiMode ? null : (wrapMouse?.x ?? null)}
+        mouseY={roiMode ? null : (wrapMouse?.y ?? null)}
       />
+      <RoiOverlay rect={roiMode ? roiOverlayRect : null} />
       {snapshotRef && (
         <HistogramOverlay
           frameRef={snapshotRef}

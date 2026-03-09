@@ -8,6 +8,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- IV-14: ROI selection tool — drag to select on canvas, Apply ROI writes Width/Height/OffsetX/OffsetY
 - IV-13: Live histogram overlay (grayscale / per-channel RGB) with toolbar toggle
 - TB-06: Auto-cleanup and reconnect prompt on unexpected device disconnect
 - TB-07: Streamer lifecycle improvement — monitor task with auto-restart (≤5 retries) and streamer-status Tauri event

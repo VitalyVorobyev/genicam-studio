@@ -1704,6 +1704,38 @@ input[type="checkbox"] {
   overflow: visible;
 }
 
+/* ── ROI Overlay ── */
+.iv-roi-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+/* Crosshair cursor when ROI tool is active */
+.iv-canvas-wrap--crosshair { cursor: crosshair; }
+
+/* Apply ROI button in the toolbar */
+.iv-toolbar__roi-apply {
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  font-weight: var(--fw-semibold);
+  padding: var(--sp-1) var(--sp-5);
+  border-radius: var(--radius-pill);
+  background: var(--accent-muted);
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+  white-space: nowrap;
+}
+
+.iv-toolbar__roi-apply:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  border-color: transparent;
+}
+
 /* ── Histogram Overlay ── */
 .iv-histogram {
   position: absolute;

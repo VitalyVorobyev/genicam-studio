@@ -10,6 +10,8 @@ import { ControlSidebar } from "./ControlSidebar";
 import { useViewerLayout } from "./useViewerLayout";
 import { frameToImageData, encodeImageDataToPng, suggestFilename } from "./snapshotUtils";
 import { saveSnapshot } from "./snapshotSave";
+import { isTauri } from "../../tauri";
+import type { ImageRect } from "./roiUtils";
 
 interface ImageViewerProps {
   streamerInfo: StreamerInfo | null;
@@ -22,6 +24,16 @@ interface ImageViewerProps {
   deviceName?: string;
   cameraModel?: string;
   imageMeta: ImageMeta | null;
+}
+
+async function writeNode(nodeName: string, value: number): Promise<void> {
+  if (!isTauri()) return;
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    await invoke("write_node", { nodeName, value });
+  } catch (err) {
+    console.error(`write_node(${nodeName}) failed:`, err);
+  }
 }
 
 export function ImageViewer({
@@ -42,6 +54,8 @@ export function ImageViewer({
   const [pixelHover, setPixelHover] = useState<PixelHoverInfo | null>(null);
   const [isSnapshotBusy, setIsSnapshotBusy] = useState<boolean>(false);
   const [showHistogram, setShowHistogram] = useState<boolean>(false);
+  const [showRoiTool, setShowRoiTool] = useState<boolean>(false);
+  const [roiRect, setRoiRect] = useState<ImageRect | null>(null);
   const [wsStreamInfo, setWsStreamInfo] = useState<{
     pixel_format: string;
     width: number;
@@ -59,6 +73,13 @@ export function ImageViewer({
     }
     prevAcquiring.current = isAcquiring;
   }, [isAcquiring]);
+
+  // Clear ROI when tool is turned off
+  useEffect(() => {
+    if (!showRoiTool) {
+      setRoiRect(null);
+    }
+  }, [showRoiTool]);
 
   const handleZoomPanChange = (s: ZoomPanState) => {
     setZoomLabel(s.zoomLabel);
@@ -104,6 +125,18 @@ export function ImageViewer({
     }
   }, [isSnapshotBusy, imageMeta, wsStreamInfo, streamerInfo, pixelFormat]);
 
+  const handleApplyRoi = useCallback(async () => {
+    if (!roiRect) return;
+    // Write Width and Height before Offsets to avoid transient invalid states
+    await writeNode("Width", roiRect.w);
+    await writeNode("Height", roiRect.h);
+    await writeNode("OffsetX", roiRect.x);
+    await writeNode("OffsetY", roiRect.y);
+    // Clear selection after applying
+    setRoiRect(null);
+    setShowRoiTool(false);
+  }, [roiRect]);
+
   const acquisitionModeEntries: EnumEntry[] =
     externalModel?.graph.nodes_by_name["AcquisitionMode"]?.enum_entries ?? [];
 
@@ -143,6 +176,10 @@ export function ImageViewer({
           onSnapshot={isSnapshotBusy ? undefined : handleSnapshot}
           showHistogram={showHistogram}
           onToggleHistogram={() => setShowHistogram((v) => !v)}
+          showRoiTool={showRoiTool}
+          onToggleRoiTool={() => setShowRoiTool((v) => !v)}
+          roiRect={roiRect}
+          onApplyRoi={isConnected ? handleApplyRoi : undefined}
         />
         <ViewerCanvas
           wsUrl={streamerInfo.ws_url}
@@ -156,6 +193,8 @@ export function ImageViewer({
           snapshotRef={snapshotRef}
           onStreamInfoChange={handleStreamInfoChange}
           showHistogram={showHistogram}
+          roiMode={showRoiTool}
+          onRoiSelect={setRoiRect}
         />
         <ViewerStatusBar
           fps={fps}
