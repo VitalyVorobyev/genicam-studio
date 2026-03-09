@@ -1,73 +1,207 @@
 import { describe, it, expect } from "vitest";
 import { samplePixel, formatPixelSample } from "./pixelInspectorUtils";
 
-// Helper: create a flat Uint8Array of given length, filled with zeros,
-// then write specific values at specified byte offsets.
-function makeBytes(length: number, patches: Record<number, number> = {}): Uint8Array {
-  const arr = new Uint8Array(length);
-  for (const [idx, val] of Object.entries(patches)) {
-    arr[Number(idx)] = val;
+// ── BMP builder helpers ────────────────────────────────────────────────────────
+
+/**
+ * Build a minimal 8bpp grayscale BMP byte buffer.
+ * Row stride is padded to 4 bytes.
+ */
+function makeGray8Bmp(
+  width: number,
+  height: number,
+  pixelFn: (x: number, y: number) => number,
+): Uint8Array {
+  const rowStride = (width + 3) & ~3;
+  const paletteSize = 256 * 4; // BGRA quads
+  const dataOffset = 14 + 40 + paletteSize;
+  const imageSize = rowStride * height;
+  const fileSize = dataOffset + imageSize;
+
+  const buf = new Uint8Array(fileSize);
+
+  // BITMAPFILEHEADER (14 bytes)
+  buf[0] = 0x42; buf[1] = 0x4d; // "BM"
+  writeU32LE(buf, 2, fileSize);
+  writeU32LE(buf, 10, dataOffset);
+
+  // BITMAPINFOHEADER (40 bytes, starting at offset 14)
+  writeU32LE(buf, 14, 40);           // header size
+  writeU32LE(buf, 18, width);        // width
+  writeI32LE(buf, 22, -height);      // negative = top-down
+  writeU16LE(buf, 26, 1);            // planes
+  writeU16LE(buf, 28, 8);            // bits per pixel
+  writeU32LE(buf, 30, 0);            // compression (BI_RGB)
+  writeU32LE(buf, 34, imageSize);    // image size
+  writeU32LE(buf, 46, 256);          // colors used
+
+  // Palette: identity grayscale (B=G=R=i, A=0)
+  for (let i = 0; i < 256; i++) {
+    const base = 54 + i * 4;
+    buf[base] = i; buf[base + 1] = i; buf[base + 2] = i; buf[base + 3] = 0;
   }
-  return arr;
+
+  // Pixel data
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      buf[dataOffset + y * rowStride + x] = pixelFn(x, y);
+    }
+  }
+
+  return buf;
 }
 
-describe("samplePixel", () => {
-  it("test_samplePixel_mono8_center", () => {
-    // 3×3 Mono8 image; pixel at (1,1) is at byte index 1*3+1=4
-    const bytes = makeBytes(9, { 4: 128 });
-    const result = samplePixel(bytes, 1, 1, 3, 3, "Mono8");
+/**
+ * Build a minimal 24bpp RGB BMP byte buffer.
+ * Pixels are written BGR as required by BMP; row stride padded to 4 bytes.
+ * `pixelFn` returns [R, G, B].
+ */
+function makeRgb24Bmp(
+  width: number,
+  height: number,
+  pixelFn: (x: number, y: number) => [number, number, number],
+): Uint8Array {
+  const rowStride = ((width * 3) + 3) & ~3;
+  const dataOffset = 14 + 40; // no palette
+  const imageSize = rowStride * height;
+  const fileSize = dataOffset + imageSize;
+
+  const buf = new Uint8Array(fileSize);
+
+  // BITMAPFILEHEADER
+  buf[0] = 0x42; buf[1] = 0x4d; // "BM"
+  writeU32LE(buf, 2, fileSize);
+  writeU32LE(buf, 10, dataOffset);
+
+  // BITMAPINFOHEADER
+  writeU32LE(buf, 14, 40);
+  writeU32LE(buf, 18, width);
+  writeI32LE(buf, 22, -height);
+  writeU16LE(buf, 26, 1);
+  writeU16LE(buf, 28, 24); // bits per pixel
+  writeU32LE(buf, 34, imageSize);
+
+  // Pixel data (BGR order)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const [r, g, b] = pixelFn(x, y);
+      const base = dataOffset + y * rowStride + x * 3;
+      buf[base] = b; buf[base + 1] = g; buf[base + 2] = r;
+    }
+  }
+
+  return buf;
+}
+
+function writeU32LE(buf: Uint8Array, offset: number, value: number): void {
+  buf[offset]     = value & 0xff;
+  buf[offset + 1] = (value >> 8) & 0xff;
+  buf[offset + 2] = (value >> 16) & 0xff;
+  buf[offset + 3] = (value >> 24) & 0xff;
+}
+
+function writeI32LE(buf: Uint8Array, offset: number, value: number): void {
+  // For signed values, use DataView for correct two's-complement encoding.
+  const view = new DataView(buf.buffer, buf.byteOffset + offset, 4);
+  view.setInt32(0, value, true);
+}
+
+function writeU16LE(buf: Uint8Array, offset: number, value: number): void {
+  buf[offset]     = value & 0xff;
+  buf[offset + 1] = (value >> 8) & 0xff;
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+describe("samplePixel (BMP-aware)", () => {
+  it("test_samplePixel_gray8_bmp_center", () => {
+    // 3×3 gray BMP; pixel at (1,1) = 128
+    const bmp = makeGray8Bmp(3, 3, (x, y) => (x === 1 && y === 1 ? 128 : 0));
+    const result = samplePixel(bmp, 1, 1, 3, 3, "Mono8");
     expect(result).toEqual({ kind: "mono", value: 128 });
   });
 
-  it("test_samplePixel_mono16_little_endian", () => {
-    // 2×1 Mono16 image; pixel at (1,0) occupies bytes [2,3]
-    // value = 0x01 | (0x02 << 8) = 513
-    const bytes = makeBytes(4, { 2: 0x01, 3: 0x02 });
-    const result = samplePixel(bytes, 1, 0, 2, 1, "Mono16");
-    expect(result).toEqual({ kind: "mono", value: 513 });
+  it("test_samplePixel_gray8_bmp_origin", () => {
+    // Pixel at (0,0) = 255
+    const bmp = makeGray8Bmp(2, 2, (x, y) => (x === 0 && y === 0 ? 255 : 0));
+    const result = samplePixel(bmp, 0, 0, 2, 2, "Mono8");
+    expect(result).toEqual({ kind: "mono", value: 255 });
   });
 
-  it("test_samplePixel_rgb8", () => {
-    // 2×1 RGB8 image; pixel at (1,0) occupies bytes [3,4,5]
-    const bytes = makeBytes(6, { 3: 10, 4: 20, 5: 30 });
-    const result = samplePixel(bytes, 1, 0, 2, 1, "RGB8");
+  it("test_samplePixel_gray8_bmp_bottom_right", () => {
+    // 4×2 image; pixel at (3,1) = 77; tests row-stride padding
+    const bmp = makeGray8Bmp(4, 2, (x, y) => (x === 3 && y === 1 ? 77 : 0));
+    const result = samplePixel(bmp, 3, 1, 4, 2, "Mono8");
+    expect(result).toEqual({ kind: "mono", value: 77 });
+  });
+
+  it("test_samplePixel_rgb24_bmp_center", () => {
+    // 3×3 RGB BMP; pixel at (1,1) = R=10 G=20 B=30
+    const bmp = makeRgb24Bmp(3, 3, (x, y) =>
+      x === 1 && y === 1 ? [10, 20, 30] : [0, 0, 0],
+    );
+    const result = samplePixel(bmp, 1, 1, 3, 3, "RGB8");
     expect(result).toEqual({ kind: "rgb", r: 10, g: 20, b: 30 });
   });
 
-  it("test_samplePixel_bayerrg8", () => {
-    // BayerRG8 is raw Bayer — no debayer, treated as mono
-    // 2×2 image; pixel at (0,1) is at byte index 1*2+0=2
-    const bytes = makeBytes(4, { 2: 200 });
-    const result = samplePixel(bytes, 0, 1, 2, 2, "BayerRG8");
-    expect(result).toEqual({ kind: "mono", value: 200 });
+  it("test_samplePixel_rgb24_bmp_origin", () => {
+    // Single-pixel 1×1 BMP; R=255, G=0, B=0
+    const bmp = makeRgb24Bmp(1, 1, () => [255, 0, 0]);
+    const result = samplePixel(bmp, 0, 0, 1, 1, "RGB8");
+    expect(result).toEqual({ kind: "rgb", r: 255, g: 0, b: 0 });
   });
 
-  it("test_samplePixel_out_of_bounds", () => {
-    // x < 0 → null
-    const bytes = makeBytes(9);
-    const result = samplePixel(bytes, -1, 0, 3, 3, "Mono8");
-    expect(result).toBeNull();
+  it("test_samplePixel_rgb24_bmp_row_padding", () => {
+    // 1-pixel-wide 2-row image; second row pixel = G=200
+    const bmp = makeRgb24Bmp(1, 2, (_, y) => (y === 1 ? [0, 200, 0] : [0, 0, 0]));
+    const result = samplePixel(bmp, 0, 1, 1, 2, "RGB8");
+    expect(result).toEqual({ kind: "rgb", r: 0, g: 200, b: 0 });
+  });
+
+  it("test_samplePixel_out_of_bounds_negative_x", () => {
+    const bmp = makeGray8Bmp(3, 3, () => 0);
+    expect(samplePixel(bmp, -1, 0, 3, 3, "Mono8")).toBeNull();
   });
 
   it("test_samplePixel_out_of_bounds_right", () => {
-    // x >= imgW → null
-    const bytes = makeBytes(9);
-    const result = samplePixel(bytes, 3, 0, 3, 3, "Mono8");
-    expect(result).toBeNull();
+    const bmp = makeGray8Bmp(3, 3, () => 0);
+    expect(samplePixel(bmp, 3, 0, 3, 3, "Mono8")).toBeNull();
   });
 
-  it("test_samplePixel_unknown_format", () => {
-    // Unrecognized format → null
-    const bytes = makeBytes(4);
-    const result = samplePixel(bytes, 0, 0, 2, 2, "YUV422");
-    expect(result).toBeNull();
+  it("test_samplePixel_out_of_bounds_bottom", () => {
+    const bmp = makeGray8Bmp(3, 3, () => 0);
+    expect(samplePixel(bmp, 0, 3, 3, 3, "Mono8")).toBeNull();
   });
 
-  it("test_samplePixel_bgr8", () => {
-    // 1×1 BGR8; bytes at [0,1,2] are B=5, G=10, R=15; r/g/b should be swapped
-    const bytes = makeBytes(3, { 0: 5, 1: 10, 2: 15 });
-    const result = samplePixel(bytes, 0, 0, 1, 1, "BGR8");
-    expect(result).toEqual({ kind: "rgb", r: 15, g: 10, b: 5 });
+  it("test_samplePixel_buffer_too_short", () => {
+    // Less than 54 bytes → null immediately
+    const tiny = new Uint8Array(10);
+    expect(samplePixel(tiny, 0, 0, 1, 1, "Mono8")).toBeNull();
+  });
+
+  it("test_samplePixel_unsupported_bpp_returns_null", () => {
+    // Build a fake 32bpp BMP header (not generated by our encoder)
+    const buf = makeGray8Bmp(1, 1, () => 0);
+    // Overwrite bits-per-pixel field at bytes 28-29 to 32
+    buf[28] = 32; buf[29] = 0;
+    expect(samplePixel(buf, 0, 0, 1, 1, "Mono8")).toBeNull();
+  });
+
+  it("test_samplePixel_mono16_encoded_as_gray8_bmp", () => {
+    // Mono16 is downscaled to 8-bit gray before BMP encoding; the BMP
+    // is 8bpp. The inspector returns the downscaled 8-bit value.
+    const bmp = makeGray8Bmp(2, 2, (x, y) => (x === 0 && y === 0 ? 200 : 0));
+    const result = samplePixel(bmp, 0, 0, 2, 2, "Mono16");
+    expect(result).toEqual({ kind: "mono", value: 200 });
+  });
+
+  it("test_samplePixel_bayerrg8_encoded_as_rgb24_bmp", () => {
+    // BayerRG8 is debayered to RGB → 24bpp BMP.
+    const bmp = makeRgb24Bmp(2, 2, (x, y) =>
+      x === 1 && y === 1 ? [50, 100, 150] : [0, 0, 0],
+    );
+    const result = samplePixel(bmp, 1, 1, 2, 2, "BayerRG8");
+    expect(result).toEqual({ kind: "rgb", r: 50, g: 100, b: 150 });
   });
 });
 
@@ -77,17 +211,18 @@ describe("formatPixelSample", () => {
   });
 
   it("test_formatPixelSample_mono16_max", () => {
-    expect(formatPixelSample({ kind: "mono", value: 65535 })).toBe("65535");
+    // After ST-02, Mono16 is downscaled to 8-bit, so inspector shows 0-255.
+    expect(formatPixelSample({ kind: "mono", value: 255 })).toBe("255");
   });
 
   it("test_formatPixelSample_rgb", () => {
-    expect(
-      formatPixelSample({ kind: "rgb", r: 255, g: 128, b: 0 }),
-    ).toBe("R:255 G:128 B:0");
+    expect(formatPixelSample({ kind: "rgb", r: 255, g: 128, b: 0 })).toBe("R:255 G:128 B:0");
   });
 
-  it("test_formatPixelSample_bayer", () => {
-    // Bayer formats produce mono samples — same formatting as Mono8
-    expect(formatPixelSample({ kind: "mono", value: 200 })).toBe("200");
+  it("test_formatPixelSample_bayer_encoded_as_rgb", () => {
+    // After debayer, Bayer formats produce RGB samples.
+    expect(formatPixelSample({ kind: "rgb", r: 200, g: 150, b: 100 })).toBe(
+      "R:200 G:150 B:100",
+    );
   });
 });
