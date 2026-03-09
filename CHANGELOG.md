@@ -8,6 +8,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- UX-03: Device sidebar polish — per-card state dots, connecting animation, animated scan indicator, device count badge
 - IV-15: Line profile tool — drag a line on the canvas, floating panel shows per-pixel intensity plot
 - IV-14: ROI selection tool — drag to select on canvas, Apply ROI writes Width/Height/OffsetX/OffsetY
 - IV-13: Live histogram overlay (grayscale / per-channel RGB) with toolbar toggle

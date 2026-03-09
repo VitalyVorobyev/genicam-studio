@@ -17,9 +17,25 @@ export function DeviceCard({ device, connectionState, onConnect, onDisconnect }:
   const isBusy =
     connectionState.kind === "connecting" || connectionState.kind === "connected";
 
+  const dotState = isConnected
+    ? "connected"
+    : isConnecting
+    ? "connecting"
+    : "disconnected";
+
+  let cardClass = "device-card";
+  if (isConnected) cardClass += " device-card--connected";
+  if (isConnecting) cardClass += " device-card--connecting";
+
   return (
-    <div className={`device-card${isConnected ? " device-card--connected" : ""}`}>
-      <div className="device-card__name">{device.name}</div>
+    <div className={cardClass}>
+      <div className="device-card__header">
+        <span className="device-card__name">{device.name}</span>
+        <span
+          className={`device-card__status-dot device-card__status-dot--${dotState}`}
+          aria-label={dotState}
+        />
+      </div>
       <div className="device-card__meta">
         {device.model && <span>{device.model}</span>}
         {device.serial && <span className="muted">{device.serial}</span>}

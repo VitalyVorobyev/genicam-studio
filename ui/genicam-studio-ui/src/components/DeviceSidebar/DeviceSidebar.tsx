@@ -92,7 +92,12 @@ export function DeviceSidebar({
   return (
     <div className="device-sidebar">
       <div className="device-sidebar__section-header">
-        <span>Devices</span>
+        <span>
+          Devices
+          {devices.length > 0 && (
+            <span className="device-sidebar__count">{devices.length}</span>
+          )}
+        </span>
         <span className={`conn-badge conn-badge--${statusClass}`}>{statusLabel}</span>
       </div>
 
@@ -116,7 +121,14 @@ export function DeviceSidebar({
       {/* Live discovered devices */}
       <div className="device-sidebar__list">
         {devices.length === 0 ? (
-          <div className="device-sidebar__empty">Scanning for devices…</div>
+          <div className="device-sidebar__scanning">
+            <div className="device-sidebar__scanning-dots" aria-hidden="true">
+              <span className="device-sidebar__scanning-dot" />
+              <span className="device-sidebar__scanning-dot" />
+              <span className="device-sidebar__scanning-dot" />
+            </div>
+            <span>Scanning for devices…</span>
+          </div>
         ) : (
           devices.map((device) => (
             <DeviceCard
@@ -135,12 +147,21 @@ export function DeviceSidebar({
         <>
           <div className="device-sidebar__divider" />
           <div className="device-sidebar__section-header">
-            <span>Recent</span>
+            <span>
+              Recent
+              <span className="device-sidebar__count">{recentOnly.length}</span>
+            </span>
           </div>
           <div className="device-sidebar__list">
             {recentOnly.map((recent) => (
               <div key={recent.id} className="device-card device-card--recent">
-                <div className="device-card__name">{recent.name}</div>
+                <div className="device-card__header">
+                  <span className="device-card__name">{recent.name}</span>
+                  <span
+                    className="device-card__status-dot device-card__status-dot--disconnected"
+                    aria-label="offline"
+                  />
+                </div>
                 {recent.model && (
                   <div className="device-card__meta">
                     <span>{recent.model}</span>
