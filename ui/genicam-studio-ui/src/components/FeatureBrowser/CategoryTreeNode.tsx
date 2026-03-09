@@ -1,4 +1,5 @@
 import type { UiGraph, UiNode } from "../../xml_model/uigraph";
+import type { NodeValueEntry } from "../../device/types";
 import {
   isUnknownKind,
   nodeDisplayName,
@@ -7,6 +8,7 @@ import {
   nodeKindIcon,
 } from "../../xml_model/helpers";
 import { visibilityPassesFilter, type VisibilityFilter } from "./FeatureBrowserPage";
+import { formatLiveValue } from "./treeUtils";
 
 interface CategoryTreeNodeProps {
   categoryName: string;
@@ -19,6 +21,7 @@ interface CategoryTreeNodeProps {
   onSelectNode: (name: string) => void;
   depth: number;
   path?: Set<string>;
+  liveValues?: Map<string, NodeValueEntry>;
 }
 
 export function CategoryTreeNode({
@@ -32,6 +35,7 @@ export function CategoryTreeNode({
   onSelectNode,
   depth,
   path,
+  liveValues,
 }: CategoryTreeNodeProps) {
   const category = graph.categories[categoryName];
   const isExpanded = expanded.has(categoryName);
@@ -121,6 +125,7 @@ export function CategoryTreeNode({
                     onSelectNode={onSelectNode}
                     depth={depth + 1}
                     path={nextPath}
+                    liveValues={liveValues}
                   />
                 </li>
               );
@@ -130,6 +135,8 @@ export function CategoryTreeNode({
             const kindLabel = nodeKindLabel(node.kind);
             const kindKey = nodeKindCssKey(node.kind);
             const icon = nodeKindIcon(node.kind);
+            const liveEntry = liveValues?.get(featureName);
+            const liveText = liveEntry !== undefined ? formatLiveValue(liveEntry) : null;
 
             return (
               <li key={featureName}>
@@ -141,7 +148,7 @@ export function CategoryTreeNode({
                       : "tree-item"
                   }
                   style={{ paddingLeft: `${8 + (depth + 1) * 16}px` }}
-                  title={nodeTitle}
+                  title={liveText !== null ? `${nodeTitle} = ${liveText}` : nodeTitle}
                   onClick={() => onSelectNode(featureName)}
                 >
                   <span className="tree-item__caret" />
@@ -149,7 +156,11 @@ export function CategoryTreeNode({
                     {icon}
                   </span>
                   <span className="tree-item__label">{nodeDisplayName(node)}</span>
-                  <span className="tree-item__meta">{kindLabel}</span>
+                  {liveText !== null ? (
+                    <span className="tree-item__live" title={liveText}>{liveText}</span>
+                  ) : (
+                    <span className="tree-item__meta">{kindLabel}</span>
+                  )}
                 </button>
               </li>
             );

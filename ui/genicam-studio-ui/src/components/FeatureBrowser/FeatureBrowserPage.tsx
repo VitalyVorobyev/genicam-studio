@@ -15,6 +15,7 @@ import { isTauri } from "../../tauri";
 import { useDraftValues } from "../../state/useDraftValues";
 import { useSplitter } from "../Layout/useSplitter";
 import { CategoryTree } from "./CategoryTree";
+import { formatLiveValue } from "./treeUtils";
 import { FeaturePanel } from "./FeaturePanel";
 
 // T7.1 — visibility levels; rank determines filtering inclusivity
@@ -525,6 +526,7 @@ export function FeatureBrowserPage({
                 selectedNodeName={selectedNodeName}
                 focusIndex={searchFocusIndex}
                 onSelectNode={onSelectNode}
+                liveValues={liveValues}
               />
             ) : (
               <CategoryTree
@@ -533,6 +535,7 @@ export function FeatureBrowserPage({
                 visibilityFilter={visibilityFilter}
                 selectedNodeName={selectedNodeName}
                 onSelectNode={onSelectNode}
+                liveValues={liveValues}
               />
             )}
           </div>
@@ -573,6 +576,7 @@ interface SearchResultsProps {
   selectedNodeName: string | null;
   focusIndex: number;
   onSelectNode: (name: string) => void;
+  liveValues?: Map<string, NodeValueEntry>;
 }
 
 function SearchResults({
@@ -581,6 +585,7 @@ function SearchResults({
   selectedNodeName,
   focusIndex,
   onSelectNode,
+  liveValues,
 }: SearchResultsProps) {
   return (
     <div className="search-results">
@@ -607,6 +612,8 @@ function SearchResults({
 
             const kindKey = nodeKindCssKey(node.kind);
             const icon = nodeKindIcon(node.kind);
+            const liveEntry = liveValues?.get(node.name);
+            const liveText = liveEntry !== undefined ? formatLiveValue(liveEntry) : null;
 
             return (
               <li key={node.name}>
@@ -621,9 +628,13 @@ function SearchResults({
                   <span className="tree-item__label">
                     {highlightMatch(displayName, query)}
                   </span>
-                  <span className="tree-item__meta">
-                    {highlightMatch(node.name, query)}
-                  </span>
+                  {liveText !== null ? (
+                    <span className="tree-item__live">{liveText}</span>
+                  ) : (
+                    <span className="tree-item__meta">
+                      {highlightMatch(node.name, query)}
+                    </span>
+                  )}
                 </button>
               </li>
             );
