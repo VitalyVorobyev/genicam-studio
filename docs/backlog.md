@@ -12,13 +12,13 @@ M3 is complete ✓. M4 focuses on multi-format image support, image analysis too
 
 | # | ID | Task | Epic | Size | Rationale |
 |---|----|------|------|------|-----------|
-| 1 | TB-06 | Error recovery on disconnect | Tauri Backend | M | Auto-cleanup + reconnect prompt; pairs with TB-07 |
-| 2 | IV-13 | Histogram | Image Viewer | L | Live grayscale/per-channel histogram; after multi-format so it handles all formats |
-| 3 | IV-14 | ROI selection tool | Image Viewer | M | Drag-to-select on canvas; applies to Width/Height/OffsetX/OffsetY |
-| 4 | IV-15 | Line profile | Image Viewer | L | Intensity profile plot; benefits from IV-14 canvas interaction infrastructure |
+| 1 | IV-13 | Histogram | Image Viewer | L | Live grayscale/per-channel histogram; after multi-format so it handles all formats |
+| 2 | IV-14 | ROI selection tool | Image Viewer | M | Drag-to-select on canvas; applies to Width/Height/OffsetX/OffsetY |
+| 3 | IV-15 | Line profile | Image Viewer | L | Intensity profile plot; benefits from IV-14 canvas interaction infrastructure |
 | — | ~~ZA-04~~ | ~~Inline frame header in image payload~~ | Zenoh API | S | ✓ done |
 | — | ~~ST-02 + IV-17~~ | ~~Multi-format encoder + renderer~~ | Streamer + IV | XL | ✓ done |
 | — | ~~TB-07~~ | ~~Streamer lifecycle improvement~~ | Tauri Backend | M | ✓ done |
+| — | ~~TB-06~~ | ~~Error recovery on disconnect~~ | Tauri Backend | M | ✓ done |
 
 **Not in M4 (deferred to M5+):** UX polish (UX-03/04/06/07), Feature Browser (FB-01–05), XML parser (XP-01–06).
 
@@ -101,7 +101,7 @@ Evolve the Tauri app's Rust backend.
 | ID | Task | Priority | Size | Status | ADR | Notes |
 |----|------|----------|------|--------|-----|-------|
 | TB-04 | Node value validation | P1 | M | planned | — | Validate node writes against UiGraph constraints before sending to service. |
-| TB-06 | Error recovery on disconnect | P1 | M | planned | — | Auto-cleanup on unexpected disconnect. Reconnect prompt. |
+| ~~TB-06~~ | ~~Error recovery on disconnect~~ | P1 | M | ✓ done | — | Auto-cleanup on unexpected disconnect. Reconnect prompt. |
 | ~~TB-07~~ | ~~Streamer lifecycle improvement~~ | P1 | M | ✓ done | — | Health monitoring of streamer child process. Auto-restart on crash. |
 | ~~TB-01~~ | ~~Image metadata event~~ | P1 | S | ✓ done | 005 | Subscribe to `image/meta`, emit `image-meta-changed` to frontend. |
 | ~~TB-02~~ | ~~Bulk node read command~~ | P1 | S | ✓ done | — | IPC command `read_nodes_bulk(names: Vec<String>)` for batch reads. |
