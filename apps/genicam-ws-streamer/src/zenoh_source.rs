@@ -32,6 +32,7 @@ pub async fn run(
     source: ZenohSourceConfig,
     shared_meta: Arc<RwLock<ImageMeta>>,
     frame_tx: watch::Sender<Bytes>,
+    info_tx: watch::Sender<crate::ws::StreamInfo>,
     mut shutdown: watch::Receiver<bool>,
 ) -> Result<(), StreamerError> {
     let min_interval = source
@@ -109,7 +110,12 @@ pub async fn run(
                     encoder = BmpEncoder::new(meta.width, meta.height);
                 }
 
+                let stream_info = crate::ws::StreamInfo::from_image_meta(&meta);
                 *shared_meta.write().await = meta;
+
+                if info_tx.send(stream_info).is_err() {
+                    warn!("No WS clients subscribed to info updates");
+                }
             }
 
             // ── Frame subscriber ──────────────────────────────────────────

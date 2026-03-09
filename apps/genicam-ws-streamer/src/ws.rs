@@ -10,6 +10,7 @@ use axum::{
     Router,
 };
 use bytes::Bytes;
+use serde::Serialize;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tokio::sync::watch;
@@ -17,36 +18,45 @@ use tracing::{info, warn};
 
 use crate::error::StreamerError;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct StreamInfo {
     pub width: u32,
     pub height: u32,
-    pub pixel_format: &'static str,
+    pub pixel_format: String,
     pub encoding: &'static str,
+    #[serde(rename = "type")]
+    pub frame_type: &'static str,
 }
 
 impl StreamInfo {
-    pub fn mono8_bmp(width: u32, height: u32) -> Self {
+    pub fn from_image_meta(meta: &genicam_zenoh_api::ImageMeta) -> Self {
+        let pixel_format = serde_json::to_string(&meta.pixel_format)
+            .unwrap_or_else(|_| "\"Unknown\"".to_owned())
+            .trim_matches('"')
+            .to_owned();
         Self {
-            width,
-            height,
-            pixel_format: "Mono8",
+            width: meta.width,
+            height: meta.height,
+            pixel_format,
             encoding: "BMP",
+            frame_type: "info",
         }
     }
 
     pub fn to_json(&self) -> String {
-        format!(
-            r#"{{"type":"info","width":{},"height":{},"pixel_format":"{}","encoding":"{}"}}"#,
-            self.width, self.height, self.pixel_format, self.encoding
-        )
+        serde_json::to_string(self).unwrap_or_else(|_| {
+            format!(
+                r#"{{"type":"info","width":{},"height":{},"pixel_format":"{}","encoding":"{}"}}"#,
+                self.width, self.height, self.pixel_format, self.encoding
+            )
+        })
     }
 }
 
 #[derive(Clone)]
 pub struct AppState {
     pub frame_tx: watch::Sender<Bytes>,
-    pub info: StreamInfo,
+    pub info_tx: watch::Sender<StreamInfo>,
 }
 
 pub async fn run_server(
@@ -86,15 +96,17 @@ async fn ws_handler(State(state): State<AppState>, upgrade: WebSocketUpgrade) ->
 }
 
 async fn handle_socket(mut socket: WebSocket, state: AppState) {
-    let mut rx = state.frame_tx.subscribe();
-    let info_json = state.info.to_json();
+    let mut frame_rx = state.frame_tx.subscribe();
+    let mut info_rx = state.info_tx.subscribe();
 
+    // Send the current info frame immediately on connect.
+    let info_json = info_rx.borrow().to_json();
     if socket.send(Message::Text(info_json)).await.is_err() {
         return;
     }
 
     // If a frame is already available, send it immediately.
-    let initial = rx.borrow().clone();
+    let initial = frame_rx.borrow().clone();
     if !initial.is_empty()
         && socket
             .send(Message::Binary(initial.to_vec()))
@@ -105,16 +117,97 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
     }
 
     loop {
-        if rx.changed().await.is_err() {
-            break;
+        tokio::select! {
+            result = frame_rx.changed() => {
+                if result.is_err() {
+                    break;
+                }
+                let frame = frame_rx.borrow().clone();
+                if frame.is_empty() {
+                    continue;
+                }
+                if socket.send(Message::Binary(frame.to_vec())).await.is_err() {
+                    warn!("WebSocket client disconnected");
+                    break;
+                }
+            }
+
+            result = info_rx.changed() => {
+                if result.is_err() {
+                    break;
+                }
+                let info_json = info_rx.borrow().to_json();
+                if socket.send(Message::Text(info_json)).await.is_err() {
+                    warn!("WebSocket client disconnected while sending info frame");
+                    break;
+                }
+            }
         }
-        let frame = rx.borrow().clone();
-        if frame.is_empty() {
-            continue;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use genicam_zenoh_api::{ImageMeta, PixelFormat};
+
+    fn make_meta(pixel_format: PixelFormat, width: u32, height: u32) -> ImageMeta {
+        ImageMeta {
+            pixel_format,
+            width,
+            height,
+            payload_size: (width as u64) * (height as u64),
         }
-        if socket.send(Message::Binary(frame.to_vec())).await.is_err() {
-            warn!("WebSocket client disconnected");
-            break;
-        }
+    }
+
+    #[test]
+    fn test_stream_info_to_json_mono8() {
+        let meta = make_meta(PixelFormat::Mono8, 640, 480);
+        let info = StreamInfo::from_image_meta(&meta);
+        let json = info.to_json();
+        assert!(
+            json.contains("\"type\":\"info\""),
+            "type field missing: {json}"
+        );
+        assert!(
+            json.contains("\"pixel_format\":\"Mono8\""),
+            "pixel_format wrong: {json}"
+        );
+        assert!(json.contains("\"width\":640"), "width wrong: {json}");
+        assert!(json.contains("\"height\":480"), "height wrong: {json}");
+        assert!(
+            json.contains("\"encoding\":\"BMP\""),
+            "encoding wrong: {json}"
+        );
+    }
+
+    #[test]
+    fn test_stream_info_to_json_rgb8() {
+        let meta = make_meta(PixelFormat::RGB8, 1920, 1080);
+        let info = StreamInfo::from_image_meta(&meta);
+        let json = info.to_json();
+        assert!(
+            json.contains("\"pixel_format\":\"RGB8\""),
+            "pixel_format wrong: {json}"
+        );
+        assert!(json.contains("\"width\":1920"), "width wrong: {json}");
+        assert!(json.contains("\"height\":1080"), "height wrong: {json}");
+    }
+
+    #[test]
+    fn test_stream_info_to_json_unknown() {
+        let meta = make_meta(PixelFormat::Unknown, 320, 240);
+        // Must not panic — serialisation of Unknown variant falls back gracefully.
+        let info = StreamInfo::from_image_meta(&meta);
+        let json = info.to_json();
+        // The pixel_format field should be present and non-empty.
+        assert!(
+            json.contains("\"pixel_format\":"),
+            "pixel_format field missing: {json}"
+        );
+        assert!(
+            json.contains("\"type\":\"info\""),
+            "type field missing: {json}"
+        );
     }
 }

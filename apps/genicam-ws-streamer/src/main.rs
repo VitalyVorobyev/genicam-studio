@@ -67,11 +67,16 @@ async fn main() -> Result<(), StreamerError> {
     let shared_meta = Arc::new(RwLock::new(meta::default_image_meta(cli.width, cli.height)));
     let meta_key = meta::derive_meta_key(&cli.image_key);
 
-    // TODO(ST-03): StreamInfo is built from CLI hints here and is not updated when
-    // image/meta changes dimensions. Dynamic info frames will be added in ST-03.
-    let info = StreamInfo::mono8_bmp(cli.width, cli.height);
+    let initial_info = StreamInfo {
+        width: cli.width,
+        height: cli.height,
+        pixel_format: "Mono8".to_owned(),
+        encoding: "BMP",
+        frame_type: "info",
+    };
 
     let (frame_tx, _frame_rx) = watch::channel(bytes::Bytes::new());
+    let (info_tx, _info_rx) = watch::channel(initial_info);
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
 
     info!(
@@ -81,7 +86,7 @@ async fn main() -> Result<(), StreamerError> {
 
     let ws_state = AppState {
         frame_tx: frame_tx.clone(),
-        info: info.clone(),
+        info_tx: info_tx.clone(),
     };
     let ws_shutdown = shutdown_rx.clone();
     let ws_task = tokio::spawn(async move {
@@ -98,8 +103,15 @@ async fn main() -> Result<(), StreamerError> {
     let zenoh_shutdown = shutdown_rx.clone();
     let zenoh_meta = Arc::clone(&shared_meta);
     let zenoh_task = tokio::spawn(async move {
-        if let Err(err) =
-            zenoh_source::run(config, source_config, zenoh_meta, frame_tx, zenoh_shutdown).await
+        if let Err(err) = zenoh_source::run(
+            config,
+            source_config,
+            zenoh_meta,
+            frame_tx,
+            info_tx,
+            zenoh_shutdown,
+        )
+        .await
         {
             error!("Zenoh source error: {err}");
         }

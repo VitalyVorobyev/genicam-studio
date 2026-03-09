@@ -4,7 +4,7 @@ import type { ParseXmlResponse, EnumEntry } from "../../xml_model/uigraph";
 import type { ZoomPanState } from "./useZoomPan";
 import { ViewerToolbar } from "./ViewerToolbar";
 import { ViewerCanvas } from "./ViewerCanvas";
-import type { PixelHoverInfo } from "./ViewerCanvas";
+import type { PixelHoverInfo, StreamInfoFrame } from "./ViewerCanvas";
 import { ViewerStatusBar } from "./ViewerStatusBar";
 import { ControlSidebar } from "./ControlSidebar";
 import { useViewerLayout } from "./useViewerLayout";
@@ -41,6 +41,11 @@ export function ImageViewer({
   const [zoomLabel, setZoomLabel] = useState<string>("Fit");
   const [pixelHover, setPixelHover] = useState<PixelHoverInfo | null>(null);
   const [isSnapshotBusy, setIsSnapshotBusy] = useState<boolean>(false);
+  const [wsStreamInfo, setWsStreamInfo] = useState<{
+    pixel_format: string;
+    width: number;
+    height: number;
+  } | null>(null);
   const prevAcquiring = useRef<boolean>(false);
   const snapshotRef = useRef<Uint8Array | null>(null);
   const { sidebarCollapsed, toggleSidebar } = useViewerLayout();
@@ -62,15 +67,23 @@ export function ImageViewer({
     resetZoomRef.current?.();
   }, []);
 
-  const pixelFormat = imageMeta?.pixel_format ?? "Mono8";
+  const handleStreamInfoChange = useCallback((info: StreamInfoFrame) => {
+    setWsStreamInfo({
+      pixel_format: info.pixel_format,
+      width: info.width,
+      height: info.height,
+    });
+  }, []);
+
+  const pixelFormat = imageMeta?.pixel_format ?? wsStreamInfo?.pixel_format ?? "Mono8";
 
   const handleSnapshot = useCallback(async () => {
     if (isSnapshotBusy) return;
     const bytes = snapshotRef.current;
     if (!bytes) return;
 
-    const width = imageMeta?.width ?? streamerInfo?.width ?? 0;
-    const height = imageMeta?.height ?? streamerInfo?.height ?? 0;
+    const width = imageMeta?.width ?? wsStreamInfo?.width ?? streamerInfo?.width ?? 0;
+    const height = imageMeta?.height ?? wsStreamInfo?.height ?? streamerInfo?.height ?? 0;
     const imageData = frameToImageData(bytes, width, height, pixelFormat);
     if (!imageData) {
       // Unsupported format or truncated buffer — silent no-op
@@ -88,7 +101,7 @@ export function ImageViewer({
     } finally {
       setIsSnapshotBusy(false);
     }
-  }, [isSnapshotBusy, imageMeta, streamerInfo, pixelFormat]);
+  }, [isSnapshotBusy, imageMeta, wsStreamInfo, streamerInfo, pixelFormat]);
 
   const acquisitionModeEntries: EnumEntry[] =
     externalModel?.graph.nodes_by_name["AcquisitionMode"]?.enum_entries ?? [];
@@ -138,11 +151,12 @@ export function ImageViewer({
           resetZoomRef={resetZoomRef}
           isStreaming={true}
           snapshotRef={snapshotRef}
+          onStreamInfoChange={handleStreamInfoChange}
         />
         <ViewerStatusBar
           fps={fps}
-          width={imageMeta?.width ?? streamerInfo.width}
-          height={imageMeta?.height ?? streamerInfo.height}
+          width={imageMeta?.width ?? wsStreamInfo?.width ?? streamerInfo.width}
+          height={imageMeta?.height ?? wsStreamInfo?.height ?? streamerInfo.height}
           pixelFormat={pixelFormat}
           pixelInfo={
             pixelHover

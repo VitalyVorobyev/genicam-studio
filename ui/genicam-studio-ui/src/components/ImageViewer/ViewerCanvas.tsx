@@ -9,6 +9,14 @@ import { CrosshairOverlay } from "./CrosshairOverlay";
 
 export type { PixelHoverInfo };
 
+export interface StreamInfoFrame {
+  type: "info";
+  width: number;
+  height: number;
+  pixel_format: string;
+  encoding: string;
+}
+
 interface ViewerCanvasProps {
   wsUrl: string;
   onFrameStats: (fps: number) => void;
@@ -19,6 +27,7 @@ interface ViewerCanvasProps {
   resetZoomRef?: React.RefObject<(() => void) | null>;
   isStreaming?: boolean;
   snapshotRef?: React.RefObject<Uint8Array | null>;
+  onStreamInfoChange?: (info: StreamInfoFrame) => void;
 }
 
 export function ViewerCanvas({
@@ -31,6 +40,7 @@ export function ViewerCanvas({
   resetZoomRef,
   isStreaming,
   snapshotRef,
+  onStreamInfoChange,
 }: ViewerCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -109,6 +119,14 @@ export function ViewerCanvas({
 
     ws.onmessage = (event) => {
       if (typeof event.data === "string") {
+        try {
+          const parsed = JSON.parse(event.data) as StreamInfoFrame;
+          if (parsed.type === "info") {
+            onStreamInfoChange?.(parsed);
+          }
+        } catch {
+          // ignore malformed text messages
+        }
         return;
       }
 
@@ -173,7 +191,7 @@ export function ViewerCanvas({
     return () => {
       ws.close();
     };
-  }, [wsUrl, onFrameStats, onFrame]);
+  }, [wsUrl, onFrameStats, onFrame, onStreamInfoChange]);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();

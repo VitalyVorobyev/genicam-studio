@@ -902,6 +902,7 @@ dependencies = [
  "bytes",
  "clap",
  "genicam_zenoh_api",
+ "serde",
  "serde_json",
  "thiserror 1.0.69",
  "tokio",

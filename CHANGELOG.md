@@ -8,6 +8,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- ST-03: WebSocket info frame broadcast on meta change; ViewerCanvas propagates pixel_format/dimensions from info frame
 - IV-08: Add Color Processing sidebar section (BalanceRatio, Gamma, LUT controls)
 - IV-07: Add Auto Functions section (ExposureAuto, GainAuto, BalanceWhiteAuto enum selects) to Image Viewer sidebar
 - IV-06: Add Transport Layer section (GevSCPSPacketSize, GevSCPD integer sliders) to Image Viewer sidebar
