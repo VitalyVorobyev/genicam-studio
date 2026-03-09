@@ -150,13 +150,12 @@ Enhance the existing Feature Browser.
 
 ---
 
-## Epic 7: UX Polish & Design — 7/9 complete
+## Epic 7: UX Polish & Design — 8/9 complete
 
 Professional look and feel for the desktop app.
 
 | ID | Task | Priority | Size | Status | ADR | Notes |
 |----|------|----------|------|--------|-----|-------|
-| UX-06 | Responsive layout | P1 | M | planned | — | Handle window resize, min sizes, splitter for panes. |
 | UX-07 | Loading & error states | P1 | M | planned | — | Skeleton loaders, toast notifications, inline error messages. |
 | ~~UX-01~~ | ~~Design system (tokens, theme)~~ | P0 | L | ✓ done | — | Dark theme, CSS custom properties, consistent spacing/typography. "Dark Instrument" aesthetic. |
 | ~~UX-02~~ | ~~App header & navigation~~ | P0 | M | ✓ done | — | Clean header with device status, tabs, acquisition controls. |
@@ -165,6 +164,7 @@ Professional look and feel for the desktop app.
 | ~~UX-09~~ | ~~Window title updates~~ | P0 | S | ✓ done | — | Already implemented (T7.7). |
 | ~~UX-03~~ | ~~Device sidebar polish~~ | P1 | M | ✓ done | — | Per-card state dots, connecting animation, animated scan indicator, device count badge. |
 | ~~UX-04~~ | ~~Feature Browser polish~~ | P1 | M | ✓ done | — | Kind-colored tree icons, search clear button, kind indicator in search results, category row distinction. |
+| ~~UX-06~~ | ~~Responsive layout~~ | P1 | M | ✓ done | — | Drag-to-resize splitters for device sidebar and feature browser tree pane; min/max sizes; localStorage persistence. |
 
 ---
 
