@@ -12,6 +12,7 @@ import { frameToImageData, encodeImageDataToPng, suggestFilename } from "./snaps
 import { saveSnapshot } from "./snapshotSave";
 import { isTauri } from "../../tauri";
 import type { ImageRect } from "./roiUtils";
+import type { LineSegment } from "./lineProfileUtils";
 
 interface ImageViewerProps {
   streamerInfo: StreamerInfo | null;
@@ -56,6 +57,8 @@ export function ImageViewer({
   const [showHistogram, setShowHistogram] = useState<boolean>(false);
   const [showRoiTool, setShowRoiTool] = useState<boolean>(false);
   const [roiRect, setRoiRect] = useState<ImageRect | null>(null);
+  const [showLineTool, setShowLineTool] = useState<boolean>(false);
+  const [lineSegment, setLineSegment] = useState<LineSegment | null>(null);
   const [wsStreamInfo, setWsStreamInfo] = useState<{
     pixel_format: string;
     width: number;
@@ -80,6 +83,13 @@ export function ImageViewer({
       setRoiRect(null);
     }
   }, [showRoiTool]);
+
+  // Clear line segment when line tool is turned off
+  useEffect(() => {
+    if (!showLineTool) {
+      setLineSegment(null);
+    }
+  }, [showLineTool]);
 
   const handleZoomPanChange = (s: ZoomPanState) => {
     setZoomLabel(s.zoomLabel);
@@ -177,9 +187,17 @@ export function ImageViewer({
           showHistogram={showHistogram}
           onToggleHistogram={() => setShowHistogram((v) => !v)}
           showRoiTool={showRoiTool}
-          onToggleRoiTool={() => setShowRoiTool((v) => !v)}
+          onToggleRoiTool={() => {
+            setShowRoiTool((v) => !v);
+            setShowLineTool(false);
+          }}
           roiRect={roiRect}
           onApplyRoi={isConnected ? handleApplyRoi : undefined}
+          showLineTool={showLineTool}
+          onToggleLineTool={() => {
+            setShowLineTool((v) => !v);
+            setShowRoiTool(false);
+          }}
         />
         <ViewerCanvas
           wsUrl={streamerInfo.ws_url}
@@ -195,6 +213,9 @@ export function ImageViewer({
           showHistogram={showHistogram}
           roiMode={showRoiTool}
           onRoiSelect={setRoiRect}
+          lineMode={showLineTool}
+          onLineSelect={setLineSegment}
+          lineSegment={lineSegment}
         />
         <ViewerStatusBar
           fps={fps}

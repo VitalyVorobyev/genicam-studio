@@ -1736,6 +1736,25 @@ input[type="checkbox"] {
   border-color: transparent;
 }
 
+/* ── Line Profile Panel ── */
+.iv-line-profile {
+  position: absolute;
+  bottom: var(--sp-5);
+  left: var(--sp-5);
+  background: rgba(13, 17, 23, 0.82);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--sp-2);
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: var(--z-base);
+}
+
+.iv-line-profile__canvas {
+  display: block;
+}
+
 /* ── Histogram Overlay ── */
 .iv-histogram {
   position: absolute;

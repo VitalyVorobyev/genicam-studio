@@ -12,6 +12,8 @@ interface ViewerToolbarProps {
   onToggleRoiTool?: () => void;
   roiRect?: ImageRect | null;
   onApplyRoi?: () => void;
+  showLineTool?: boolean;
+  onToggleLineTool?: () => void;
 }
 
 export function ViewerToolbar({
@@ -25,6 +27,8 @@ export function ViewerToolbar({
   onToggleRoiTool,
   roiRect,
   onApplyRoi,
+  showLineTool,
+  onToggleLineTool,
 }: ViewerToolbarProps) {
   const titleClass = deviceName
     ? "iv-toolbar__title iv-toolbar__title--connected"
@@ -46,6 +50,18 @@ export function ViewerToolbar({
           aria-label="Apply selected ROI"
         >
           Apply {roiRect!.w}×{roiRect!.h}
+        </button>
+      )}
+      {onToggleLineTool !== undefined && (
+        <button
+          type="button"
+          className={`iv-toolbar__btn${showLineTool ? " iv-toolbar__btn--active" : ""}`}
+          onClick={onToggleLineTool}
+          title="Line profile tool"
+          aria-label="Toggle line profile tool"
+          aria-pressed={showLineTool}
+        >
+          ╱
         </button>
       )}
       {onToggleRoiTool !== undefined && (

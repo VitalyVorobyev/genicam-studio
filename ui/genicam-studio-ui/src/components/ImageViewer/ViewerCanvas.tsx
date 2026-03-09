@@ -11,6 +11,10 @@ import { RoiOverlay } from "./RoiOverlay";
 import type { ScreenRect } from "./RoiOverlay";
 import { buildImageRect, clampRoiToImage } from "./roiUtils";
 import type { ImageRect } from "./roiUtils";
+import { LineOverlay } from "./LineOverlay";
+import type { ScreenLine } from "./LineOverlay";
+import { LineProfilePanel } from "./LineProfilePanel";
+import type { LineSegment } from "./lineProfileUtils";
 
 export type { PixelHoverInfo };
 
@@ -36,6 +40,9 @@ interface ViewerCanvasProps {
   showHistogram?: boolean;
   roiMode?: boolean;
   onRoiSelect?: (roi: ImageRect | null) => void;
+  lineMode?: boolean;
+  onLineSelect?: (seg: LineSegment | null) => void;
+  lineSegment?: LineSegment | null;
 }
 
 export function ViewerCanvas({
@@ -52,6 +59,9 @@ export function ViewerCanvas({
   showHistogram,
   roiMode,
   onRoiSelect,
+  lineMode,
+  onLineSelect,
+  lineSegment,
 }: ViewerCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -73,6 +83,17 @@ export function ViewerCanvas({
       setRoiOverlayRect(null);
     }
   }, [roiMode]);
+
+  // ── Line drag state ──────────────────────────────────────────────────────────
+  const lineDragRef = useRef({ active: false, startX: 0, startY: 0 });
+  const [lineOverlay, setLineOverlay] = useState<ScreenLine | null>(null);
+
+  // Clear overlay when line mode is turned off
+  useEffect(() => {
+    if (!lineMode) {
+      setLineOverlay(null);
+    }
+  }, [lineMode]);
 
   // Track box size via ResizeObserver
   useEffect(() => {
@@ -267,7 +288,6 @@ export function ViewerCanvas({
     const y = e.clientY - bRect.top;
     roiDragRef.current = { active: true, startX: x, startY: y };
     setRoiOverlayRect({ x1: x, y1: y, x2: x, y2: y });
-    // Clear the previous selection in the parent
     onRoiSelect?.(null);
   };
 
@@ -292,7 +312,6 @@ export function ViewerCanvas({
     const endX = e.clientX - bRect.left;
     const endY = e.clientY - bRect.top;
 
-    // Keep overlay visible after release
     setRoiOverlayRect({
       x1: roiDragRef.current.startX,
       y1: roiDragRef.current.startY,
@@ -326,20 +345,93 @@ export function ViewerCanvas({
     }
   };
 
+  // ── Line pointer handlers ────────────────────────────────────────────────────
+
+  const handleLinePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const bRect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - bRect.left;
+    const y = e.clientY - bRect.top;
+    lineDragRef.current = { active: true, startX: x, startY: y };
+    setLineOverlay({ x1: x, y1: y, x2: x, y2: y });
+    onLineSelect?.(null);
+  };
+
+  const handleLinePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!lineDragRef.current.active) return;
+    const bRect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - bRect.left;
+    const y = e.clientY - bRect.top;
+    setLineOverlay({
+      x1: lineDragRef.current.startX,
+      y1: lineDragRef.current.startY,
+      x2: x,
+      y2: y,
+    });
+  };
+
+  const handleLinePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!lineDragRef.current.active) return;
+    lineDragRef.current.active = false;
+
+    const bRect = e.currentTarget.getBoundingClientRect();
+    const endX = e.clientX - bRect.left;
+    const endY = e.clientY - bRect.top;
+
+    // Keep overlay line visible after release
+    setLineOverlay({
+      x1: lineDragRef.current.startX,
+      y1: lineDragRef.current.startY,
+      x2: endX,
+      y2: endY,
+    });
+
+    const { scale, panX, panY, fitScale } = zoomPan.state;
+    const params = {
+      boxW: boxSize.w,
+      boxH: boxSize.h,
+      imgW: imgSize.w,
+      imgH: imgSize.h,
+      scale,
+      fitScale,
+      panX,
+      panY,
+    };
+
+    const startPt = mouseToImageCoordsClamped({
+      ...params,
+      mouseX: lineDragRef.current.startX,
+      mouseY: lineDragRef.current.startY,
+    });
+    const endPt = mouseToImageCoordsClamped({ ...params, mouseX: endX, mouseY: endY });
+
+    if (startPt && endPt) {
+      onLineSelect?.({ x0: startPt.x, y0: startPt.y, x1: endPt.x, y1: endPt.y });
+    }
+  };
+
   // ── Cursor and class derivation ─────────────────────────────────────────────
 
   const isZoomed = imgSize.w > 0 && zoomPan.state.scale > zoomPan.state.fitScale;
   const isDragging = zoomPan.isDraggingRef.current;
   let cursorClass = "";
-  if (roiMode) {
+  if (lineMode || roiMode) {
     cursorClass = "iv-canvas-wrap--crosshair";
   } else if (isZoomed) {
     cursorClass = isDragging ? "iv-canvas-wrap--grabbing" : "iv-canvas-wrap--grab";
   }
   const streamClass = isStreaming ? "iv-canvas-wrap--active" : "iv-canvas-wrap--idle";
 
-  // Choose pointer handlers based on mode
-  const pointerHandlers = roiMode
+  // Choose pointer handlers: lineMode > roiMode > zoom/pan
+  const pointerHandlers = lineMode
+    ? {
+        onPointerDown: handleLinePointerDown,
+        onPointerMove: handleLinePointerMove,
+        onPointerUp: handleLinePointerUp,
+        onDoubleClick: undefined,
+      }
+    : roiMode
     ? {
         onPointerDown: handleRoiPointerDown,
         onPointerMove: handleRoiPointerMove,
@@ -353,6 +445,8 @@ export function ViewerCanvas({
         onDoubleClick: zoomPan.onDoubleClick,
       };
 
+  const suppressCrosshair = lineMode || roiMode;
+
   return (
     <div
       ref={wrapRef}
@@ -363,14 +457,22 @@ export function ViewerCanvas({
     >
       <canvas ref={canvasRef} />
       <CrosshairOverlay
-        mouseX={roiMode ? null : (wrapMouse?.x ?? null)}
-        mouseY={roiMode ? null : (wrapMouse?.y ?? null)}
+        mouseX={suppressCrosshair ? null : (wrapMouse?.x ?? null)}
+        mouseY={suppressCrosshair ? null : (wrapMouse?.y ?? null)}
       />
       <RoiOverlay rect={roiMode ? roiOverlayRect : null} />
+      <LineOverlay line={lineMode ? lineOverlay : null} />
       {snapshotRef && (
         <HistogramOverlay
           frameRef={snapshotRef}
           visible={showHistogram ?? false}
+        />
+      )}
+      {snapshotRef && (
+        <LineProfilePanel
+          frameRef={snapshotRef}
+          lineSegment={lineSegment ?? null}
+          visible={lineMode ?? false}
         />
       )}
     </div>
