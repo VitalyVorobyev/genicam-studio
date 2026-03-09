@@ -41,6 +41,7 @@ export function ImageViewer({
   const [zoomLabel, setZoomLabel] = useState<string>("Fit");
   const [pixelHover, setPixelHover] = useState<PixelHoverInfo | null>(null);
   const [isSnapshotBusy, setIsSnapshotBusy] = useState<boolean>(false);
+  const [showHistogram, setShowHistogram] = useState<boolean>(false);
   const [wsStreamInfo, setWsStreamInfo] = useState<{
     pixel_format: string;
     width: number;
@@ -140,6 +141,8 @@ export function ImageViewer({
           deviceName={deviceName}
           onResetZoom={handleResetZoom}
           onSnapshot={isSnapshotBusy ? undefined : handleSnapshot}
+          showHistogram={showHistogram}
+          onToggleHistogram={() => setShowHistogram((v) => !v)}
         />
         <ViewerCanvas
           wsUrl={streamerInfo.ws_url}
@@ -152,6 +155,7 @@ export function ImageViewer({
           isStreaming={true}
           snapshotRef={snapshotRef}
           onStreamInfoChange={handleStreamInfoChange}
+          showHistogram={showHistogram}
         />
         <ViewerStatusBar
           fps={fps}

@@ -6,6 +6,7 @@ import { buildTransform } from "./zoomPanUtils";
 import { samplePixel, formatPixelSample } from "./pixelInspectorUtils";
 import type { PixelHoverInfo } from "./pixelInspectorUtils";
 import { CrosshairOverlay } from "./CrosshairOverlay";
+import { HistogramOverlay } from "./HistogramOverlay";
 
 export type { PixelHoverInfo };
 
@@ -28,6 +29,7 @@ interface ViewerCanvasProps {
   isStreaming?: boolean;
   snapshotRef?: React.RefObject<Uint8Array | null>;
   onStreamInfoChange?: (info: StreamInfoFrame) => void;
+  showHistogram?: boolean;
 }
 
 export function ViewerCanvas({
@@ -41,6 +43,7 @@ export function ViewerCanvas({
   isStreaming,
   snapshotRef,
   onStreamInfoChange,
+  showHistogram,
 }: ViewerCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -261,6 +264,12 @@ export function ViewerCanvas({
         mouseX={wrapMouse?.x ?? null}
         mouseY={wrapMouse?.y ?? null}
       />
+      {snapshotRef && (
+        <HistogramOverlay
+          frameRef={snapshotRef}
+          visible={showHistogram ?? false}
+        />
+      )}
     </div>
   );
 }

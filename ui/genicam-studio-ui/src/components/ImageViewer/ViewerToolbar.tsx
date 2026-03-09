@@ -3,9 +3,11 @@ interface ViewerToolbarProps {
   deviceName?: string;
   onResetZoom: () => void;
   onSnapshot?: () => void;
+  showHistogram?: boolean;
+  onToggleHistogram?: () => void;
 }
 
-export function ViewerToolbar({ zoomLabel, deviceName, onResetZoom, onSnapshot }: ViewerToolbarProps) {
+export function ViewerToolbar({ zoomLabel, deviceName, onResetZoom, onSnapshot, showHistogram, onToggleHistogram }: ViewerToolbarProps) {
   const titleClass = deviceName
     ? "iv-toolbar__title iv-toolbar__title--connected"
     : "iv-toolbar__title";
@@ -32,6 +34,18 @@ export function ViewerToolbar({ zoomLabel, deviceName, onResetZoom, onSnapshot }
           aria-label="Reset zoom"
         >
           {zoomLabel}
+        </button>
+      )}
+      {onToggleHistogram !== undefined && (
+        <button
+          type="button"
+          className={`iv-toolbar__btn${showHistogram ? " iv-toolbar__btn--active" : ""}`}
+          onClick={onToggleHistogram}
+          title="Toggle histogram"
+          aria-label="Toggle histogram"
+          aria-pressed={showHistogram}
+        >
+          ▤
         </button>
       )}
       <button

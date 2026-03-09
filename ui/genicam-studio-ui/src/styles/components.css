@@ -1703,3 +1703,29 @@ input[type="checkbox"] {
   pointer-events: none;
   overflow: visible;
 }
+
+/* ── Histogram Overlay ── */
+.iv-histogram {
+  position: absolute;
+  bottom: var(--sp-5);
+  right: var(--sp-5);
+  background: rgba(13, 17, 23, 0.82);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--sp-2);
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: var(--z-base);
+}
+
+.iv-histogram__canvas {
+  display: block;
+}
+
+/* Active state for toolbar histogram toggle button */
+.iv-toolbar__btn--active {
+  background: var(--accent-muted);
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+}
