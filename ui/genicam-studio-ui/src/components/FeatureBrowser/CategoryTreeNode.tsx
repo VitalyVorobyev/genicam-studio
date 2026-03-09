@@ -1,5 +1,11 @@
 import type { UiGraph, UiNode } from "../../xml_model/uigraph";
-import { isUnknownKind, nodeDisplayName, nodeKindLabel } from "../../xml_model/helpers";
+import {
+  isUnknownKind,
+  nodeDisplayName,
+  nodeKindLabel,
+  nodeKindCssKey,
+  nodeKindIcon,
+} from "../../xml_model/helpers";
 import { visibilityPassesFilter, type VisibilityFilter } from "./FeatureBrowserPage";
 
 interface CategoryTreeNodeProps {
@@ -52,18 +58,14 @@ export function CategoryTreeNode({
   nextPath.add(categoryName);
   const categoryTitle = category.tooltip ?? category.comment ?? category.display_name;
 
-  // Determine if any feature in this category (recursively) passes the filter.
-  // We don't prune categories — a category stays visible even if all its leaf
-  // features are filtered, to preserve hierarchy awareness.
-
   return (
     <div className="tree-node">
       <button
         type="button"
         className={
           categoryName === selectedNodeName
-            ? "tree-item tree-item--active"
-            : "tree-item"
+            ? "tree-item tree-item--category tree-item--active"
+            : "tree-item tree-item--category"
         }
         style={indent}
         title={categoryTitle}
@@ -73,7 +75,7 @@ export function CategoryTreeNode({
         }}
       >
         <span className="tree-item__caret">{isExpanded ? "▾" : "▸"}</span>
-        <span className="tree-item__icon">&#x25A6;</span>
+        <span className="tree-item__icon tree-item__icon--category">&#x25A6;</span>
         <span className="tree-item__label">{category.display_name}</span>
         <span className="tree-item__meta">{category.name}</span>
       </button>
@@ -126,6 +128,8 @@ export function CategoryTreeNode({
 
             const nodeTitle = node.tooltip ?? node.comment ?? nodeDisplayName(node);
             const kindLabel = nodeKindLabel(node.kind);
+            const kindKey = nodeKindCssKey(node.kind);
+            const icon = nodeKindIcon(node.kind);
 
             return (
               <li key={featureName}>
@@ -141,7 +145,9 @@ export function CategoryTreeNode({
                   onClick={() => onSelectNode(featureName)}
                 >
                   <span className="tree-item__caret" />
-                  <span className="tree-item__icon">{kindIcon(kindLabel)}</span>
+                  <span className={`tree-item__icon tree-item__icon--${kindKey}`}>
+                    {icon}
+                  </span>
                   <span className="tree-item__label">{nodeDisplayName(node)}</span>
                   <span className="tree-item__meta">{kindLabel}</span>
                 </button>
@@ -156,18 +162,4 @@ export function CategoryTreeNode({
 
 function isCategoryNode(node: UiNode): boolean {
   return typeof node.kind === "string" && node.kind === "Category";
-}
-
-// Tiny ASCII icons to distinguish node kinds without an icon library
-function kindIcon(kind: string): string {
-  switch (kind) {
-    case "Integer":     return "#";
-    case "Float":       return "~";
-    case "Boolean":     return "?";
-    case "String":      return "\"";
-    case "Enumeration": return "=";
-    case "Command":     return ">";
-    case "Register":    return "@";
-    default:            return "\u00B7";
-  }
 }

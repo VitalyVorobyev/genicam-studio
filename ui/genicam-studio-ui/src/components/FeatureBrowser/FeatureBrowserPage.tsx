@@ -10,7 +10,7 @@ import type { Diag, ParseXmlResponse, UiGraph, UiNode } from "../../xml_model/ui
 import type { NodeValue } from "../../xml_model/values";
 import type { NodeValueEntry } from "../../device/types";
 import { TauriProvider, WebWasmProvider, type XmlModelProvider } from "../../xml_model/provider";
-import { isUnknownKind, nodeDisplayName } from "../../xml_model/helpers";
+import { isUnknownKind, nodeDisplayName, nodeKindCssKey, nodeKindIcon } from "../../xml_model/helpers";
 import { isTauri } from "../../tauri";
 import { useDraftValues } from "../../state/useDraftValues";
 import { CategoryTree } from "./CategoryTree";
@@ -453,6 +453,19 @@ export function FeatureBrowserPage({
             onChange={(e) => handleSearchChange(e.target.value)}
             onKeyDown={handleSearchKeyDown}
           />
+          {searchInput && (
+            <button
+              type="button"
+              className="browser-toolbar__search-clear"
+              aria-label="Clear search"
+              onClick={() => {
+                handleSearchChange("");
+                searchInputRef.current?.focus();
+              }}
+            >
+              ×
+            </button>
+          )}
         </div>
 
         <div className="browser-toolbar__sep" />
@@ -579,6 +592,9 @@ function SearchResults({
               .filter(Boolean)
               .join(" ");
 
+            const kindKey = nodeKindCssKey(node.kind);
+            const icon = nodeKindIcon(node.kind);
+
             return (
               <li key={node.name}>
                 <button
@@ -586,6 +602,9 @@ function SearchResults({
                   className={classes}
                   onClick={() => onSelectNode(node.name)}
                 >
+                  <span className={`tree-item__icon tree-item__icon--${kindKey}`}>
+                    {icon}
+                  </span>
                   <span className="tree-item__label">
                     {highlightMatch(displayName, query)}
                   </span>

@@ -587,6 +587,29 @@ input[type="checkbox"] {
   outline: none;
 }
 
+/* Search clear (×) button */
+.browser-toolbar__search-clear {
+  position: absolute;
+  right: var(--sp-3);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  transition: color var(--transition-fast);
+}
+.browser-toolbar__search-clear:hover { color: var(--text-primary); }
+
 .browser-toolbar__summary {
   font-size: var(--text-xs);
   color: var(--text-muted);
@@ -720,6 +743,22 @@ input[type="checkbox"] {
 .tree-item__caret { width: 14px; flex-shrink: 0; color: var(--text-muted); font-size: 10px; text-align: center; }
 .tree-item__icon  { width: 14px; flex-shrink: 0; color: var(--text-muted); font-size: 11px; text-align: center; }
 .tree-item--active .tree-item__icon { color: var(--accent); opacity: 0.8; }
+
+/* Per-kind icon colours — applied via tree-item__icon--{key} modifier */
+.tree-item__icon--integer  { color: var(--kind-integer); }
+.tree-item__icon--float    { color: var(--kind-integer); }
+.tree-item__icon--boolean  { color: var(--kind-boolean); }
+.tree-item__icon--string   { color: var(--kind-string); }
+.tree-item__icon--enum     { color: var(--kind-enum); }
+.tree-item__icon--command  { color: var(--kind-command); }
+.tree-item__icon--register { color: var(--text-muted); }
+.tree-item__icon--category { color: var(--text-secondary); }
+.tree-item__icon--unknown  { color: var(--warning); }
+/* Active state overrides kind colour */
+.tree-item--active .tree-item__icon { color: var(--accent); opacity: 0.8; }
+
+/* Category row label weight */
+.tree-item--category .tree-item__label { font-weight: var(--fw-medium); }
 
 .tree-item__label {
   flex: 1;
