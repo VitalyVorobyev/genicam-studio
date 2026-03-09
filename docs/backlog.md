@@ -12,8 +12,7 @@ M3 is complete ✓. M4 focuses on multi-format image support, image analysis too
 
 | # | ID | Task | Epic | Size | Rationale |
 |---|----|------|------|------|-----------|
-| 1 | IV-14 | ROI selection tool | Image Viewer | M | Drag-to-select on canvas; applies to Width/Height/OffsetX/OffsetY |
-| 2 | IV-15 | Line profile | Image Viewer | L | Intensity profile plot; benefits from IV-14 canvas interaction infrastructure |
+| 1 | IV-15 | Line profile | Image Viewer | L | Intensity profile plot; benefits from IV-14 canvas interaction infrastructure |
 | — | ~~ZA-04~~ | ~~Inline frame header in image payload~~ | Zenoh API | S | ✓ done |
 | — | ~~ST-02 + IV-17~~ | ~~Multi-format encoder + renderer~~ | Streamer + IV | XL | ✓ done |
 | — | ~~TB-07~~ | ~~Streamer lifecycle improvement~~ | Tauri Backend | M | ✓ done |
@@ -110,7 +109,7 @@ Evolve the Tauri app's Rust backend.
 
 ---
 
-## Epic 5: Image Viewer UI — 14/17 complete
+## Epic 5: Image Viewer UI — 15/17 complete
 
 Build the dedicated Image Viewer with camera controls and image analysis tools.
 
@@ -133,6 +132,7 @@ Build the dedicated Image Viewer with camera controls and image analysis tools.
 | ~~IV-12~~ | ~~Pixel inspector (crosshair)~~ | P0 | M | ✓ done | — | Hover crosshair showing pixel coordinates and value(s). |
 | ~~IV-16~~ | ~~Snapshot save~~ | P1 | S | ✓ done | — | Save current frame as PNG/TIFF. File dialog. |
 | ~~IV-13~~ | ~~Histogram~~ | P1 | L | ✓ done | — | Live histogram overlay (grayscale / per-channel RGB) with toolbar toggle. |
+| ~~IV-14~~ | ~~ROI selection tool~~ | P1 | M | ✓ done | — | Drag-to-select ROI on canvas; Apply ROI button writes Width/Height/OffsetX/OffsetY. |
 
 ---
 
