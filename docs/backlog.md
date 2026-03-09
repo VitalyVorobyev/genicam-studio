@@ -12,13 +12,13 @@ M3 is complete ✓. M4 focuses on multi-format image support, image analysis too
 
 | # | ID | Task | Epic | Size | Rationale |
 |---|----|------|------|------|-----------|
-| 1 | IV-13 | Histogram | Image Viewer | L | Live grayscale/per-channel histogram; after multi-format so it handles all formats |
-| 2 | IV-14 | ROI selection tool | Image Viewer | M | Drag-to-select on canvas; applies to Width/Height/OffsetX/OffsetY |
-| 3 | IV-15 | Line profile | Image Viewer | L | Intensity profile plot; benefits from IV-14 canvas interaction infrastructure |
+| 1 | IV-14 | ROI selection tool | Image Viewer | M | Drag-to-select on canvas; applies to Width/Height/OffsetX/OffsetY |
+| 2 | IV-15 | Line profile | Image Viewer | L | Intensity profile plot; benefits from IV-14 canvas interaction infrastructure |
 | — | ~~ZA-04~~ | ~~Inline frame header in image payload~~ | Zenoh API | S | ✓ done |
 | — | ~~ST-02 + IV-17~~ | ~~Multi-format encoder + renderer~~ | Streamer + IV | XL | ✓ done |
 | — | ~~TB-07~~ | ~~Streamer lifecycle improvement~~ | Tauri Backend | M | ✓ done |
 | — | ~~TB-06~~ | ~~Error recovery on disconnect~~ | Tauri Backend | M | ✓ done |
+| — | ~~IV-13~~ | ~~Histogram~~ | Image Viewer | L | ✓ done |
 
 **Not in M4 (deferred to M5+):** UX polish (UX-03/04/06/07), Feature Browser (FB-01–05), XML parser (XP-01–06).
 
@@ -110,13 +110,12 @@ Evolve the Tauri app's Rust backend.
 
 ---
 
-## Epic 5: Image Viewer UI — 13/17 complete
+## Epic 5: Image Viewer UI — 14/17 complete
 
 Build the dedicated Image Viewer with camera controls and image analysis tools.
 
 | ID | Task | Priority | Size | Status | ADR | Notes |
 |----|------|----------|------|--------|-----|-------|
-| IV-13 | Histogram | P1 | L | planned | — | Live histogram (grayscale or per-channel). Overlay or sidebar panel. |
 | IV-14 | ROI selection tool | P1 | M | planned | — | Drag-to-select ROI on canvas. Button to apply as Width/Height/OffsetX/OffsetY. |
 | IV-15 | Line profile | P1 | L | planned | — | Draw a line on the canvas, show intensity profile plot. |
 | ~~IV-17~~ | ~~Multi-format rendering~~ | P1 | L | ✓ done | 005 | Pixel inspector rewritten to parse BMP header (8bpp gray / 24bpp RGB). Paired with ST-02. |
@@ -133,6 +132,7 @@ Build the dedicated Image Viewer with camera controls and image analysis tools.
 | ~~IV-11~~ | ~~Zoom and pan~~ | P0 | M | ✓ done | — | Mouse wheel zoom, click-drag pan on the canvas. |
 | ~~IV-12~~ | ~~Pixel inspector (crosshair)~~ | P0 | M | ✓ done | — | Hover crosshair showing pixel coordinates and value(s). |
 | ~~IV-16~~ | ~~Snapshot save~~ | P1 | S | ✓ done | — | Save current frame as PNG/TIFF. File dialog. |
+| ~~IV-13~~ | ~~Histogram~~ | P1 | L | ✓ done | — | Live histogram overlay (grayscale / per-channel RGB) with toolbar toggle. |
 
 ---
 
