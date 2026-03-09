@@ -1,5 +1,29 @@
 # GenICam Studio — Product Backlog
 
+## Upcoming Tasks (M4 queue)
+
+M3 is complete ✓. M4 focuses on multi-format image support, image analysis tools, and streamer stability.
+
+**Key decisions made:**
+- ZA-04: metadata embedded inline in the image Zenoh payload as a small binary header (not a separate key)
+- ST-02 + IV-17: implemented as a single task (encoder + renderer are only useful together)
+- Histogram (IV-13): after multi-format support so it handles all pixel formats correctly
+- TB-06, TB-07: included in M4 for reliability before shipping
+
+| # | ID | Task | Epic | Size | Rationale |
+|---|----|------|------|------|-----------|
+| 1 | ZA-04 | Inline frame header in image payload | Zenoh API | S | Spec the binary header format (width, height, pixel format, seq); required by ST-02+IV-17 |
+| 2 | ST-02 + IV-17 | Multi-format encoder + renderer | Streamer + IV | XL | BMP encoder for Mono10-16/RGB8/Bayer and matching canvas renderer; single implement run |
+| 3 | TB-07 | Streamer lifecycle improvement | Tauri Backend | M | Health monitoring + auto-restart on crash |
+| 4 | TB-06 | Error recovery on disconnect | Tauri Backend | M | Auto-cleanup + reconnect prompt; pairs with TB-07 |
+| 5 | IV-13 | Histogram | Image Viewer | L | Live grayscale/per-channel histogram; after multi-format so it handles all formats |
+| 6 | IV-14 | ROI selection tool | Image Viewer | M | Drag-to-select on canvas; applies to Width/Height/OffsetX/OffsetY |
+| 7 | IV-15 | Line profile | Image Viewer | L | Intensity profile plot; benefits from IV-14 canvas interaction infrastructure |
+
+**Not in M4 (deferred to M5+):** UX polish (UX-03/04/06/07), Feature Browser (FB-01–05), XML parser (XP-01–06).
+
+---
+
 ## Legend
 
 - **Priority:** P0 = must-have for release, P1 = important, P2 = nice-to-have
@@ -46,7 +70,7 @@ Evolve the `genicam_zenoh_api` crate and `docs/zenoh-api.md`.
 
 | ID | Task | Priority | Size | Status | ADR | Notes |
 |----|------|----------|------|--------|-----|-------|
-| ZA-04 | Frame metadata in image key | P1 | S | planned | 005 | Define frame header format (inline metadata vs separate key). |
+| ZA-04 | Inline frame header in image payload | P1 | S | planned | 005 | Embed small binary header (width, height, pixel format, seq) inline in the `image` Zenoh payload. Decision: inline header chosen over separate key. |
 | ZA-05 | API version negotiation | P2 | M | planned | 008 | Version field in `announce`, compatibility check. |
 | ZA-06 | Node constraints in value updates | P1 | S | planned | — | Extend `NodeValueUpdate` to optionally include min/max/inc so UI can adapt to runtime constraint changes. |
 | ~~ZA-07~~ | ~~API spec review & documentation~~ | P0 | M | ✓ done | 008 | Review `docs/zenoh-api.md` for completeness. Add sequence diagrams. Ensure spec matches `genicam_zenoh_api` types exactly. |
@@ -56,17 +80,17 @@ Evolve the `genicam_zenoh_api` crate and `docs/zenoh-api.md`.
 
 ---
 
-## Epic 3: Streamer Evolution — 0/5 complete
+## Epic 3: Streamer Evolution — 2/5 complete
 
 Extend `genicam-ws-streamer` for multi-format support and better WebSocket protocol.
 
 | ID | Task | Priority | Size | Status | ADR | Notes |
 |----|------|----------|------|--------|-----|-------|
-| ~~ST-01~~ | ~~Image metadata subscription~~ | P1 | M | ✓ done | 005 | Subscribe to `image/meta` to auto-configure encoder. Removes need for `--width`/`--height` CLI args. |
 | ST-02 | Multi-format BMP encoder | P1 | L | planned | 005 | Extend BMP encoder for Mono10-16 (downscale), RGB8, Bayer (debayer+encode). |
-| ST-03 | WebSocket info frame protocol | P1 | M | planned | — | Send JSON info frame on connect with pixel format, dimensions. Client uses this to configure renderer. |
 | ST-04 | PNG/JPEG encoding option | P2 | M | planned | — | Add `--format bmp|png|jpeg` for compression. Useful for remote/slow connections. |
 | ST-05 | Frame annotation overlay | P2 | M | planned | — | Optional frame ID, timestamp, FPS overlay burned into the image. |
+| ~~ST-01~~ | ~~Image metadata subscription~~ | P1 | M | ✓ done | 005 | Subscribe to `image/meta` to auto-configure encoder. Removes need for `--width`/`--height` CLI args. |
+| ~~ST-03~~ | ~~WebSocket info frame protocol~~ | P1 | M | ✓ done | — | Send JSON info frame on connect with pixel format, dimensions. Client uses this to configure renderer. |
 
 ---
 
@@ -86,7 +110,7 @@ Evolve the Tauri app's Rust backend.
 
 ---
 
-## Epic 5: Image Viewer UI — 14/17 complete
+## Epic 5: Image Viewer UI — 13/17 complete
 
 Build the dedicated Image Viewer with camera controls and image analysis tools.
 
@@ -189,17 +213,17 @@ Build tooling, testing, and deployment.
 Focus: MS-01 through MS-13, ZA-01 through ZA-03
 Goal: A mock Zenoh camera service with realistic SFNC nodes, synthetic multi-format images, node interdependencies, and bulk read. Polished API spec.
 
-### M3: Image Viewer v2 ← current
+### M3: Image Viewer v2 ✓
 Focus: IV-01 through IV-04, IV-09 through IV-12, UX-01, UX-02, UX-05
 Goal: Professional Image Viewer with acquisition controls, exposure/gain sliders, image format controls, zoom/pan, pixel inspector.
 
-### M4: Multi-Format & Image Tools
-Focus: ST-01 through ST-03, IV-13 through IV-17, ZA-04
-Goal: Multi-format streamer. Histogram, ROI selection, line profile, snapshot save.
+### M4: Multi-Format & Image Tools ← current
+Focus: ZA-04, ST-02+IV-17 (paired), TB-06, TB-07, IV-13, IV-14, IV-15
+Goal: Inline image frame header. Multi-format streamer (Mono10-16, RGB8, Bayer) with matching canvas renderer. Streamer lifecycle health monitoring and error recovery. Histogram, ROI selection, line profile.
 
 ### M5: Polish & Feature Browser
-Focus: UX-03 through UX-07, FB-01 through FB-05, IV-05 through IV-08
-Goal: Full UX polish, feature browser improvements, remaining Image Viewer sections.
+Focus: UX-03 through UX-07, FB-01 through FB-05
+Goal: Full UX polish (device sidebar, feature browser styling, responsive layout, loading/error states). Feature browser improvements (live values in tree, batch apply, export).
 
 ### M6: Parser & Advanced Features
 Focus: XP-01 through XP-06, ZA-06
