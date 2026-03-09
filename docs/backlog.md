@@ -86,29 +86,29 @@ Evolve the Tauri app's Rust backend.
 
 ---
 
-## Epic 5: Image Viewer UI — 6/17 complete
+## Epic 5: Image Viewer UI — 14/17 complete
 
 Build the dedicated Image Viewer with camera controls and image analysis tools.
 
 | ID | Task | Priority | Size | Status | ADR | Notes |
 |----|------|----------|------|--------|-----|-------|
+| IV-13 | Histogram | P1 | L | planned | — | Live histogram (grayscale or per-channel). Overlay or sidebar panel. |
+| IV-14 | ROI selection tool | P1 | M | planned | — | Drag-to-select ROI on canvas. Button to apply as Width/Height/OffsetX/OffsetY. |
+| IV-15 | Line profile | P1 | L | planned | — | Draw a line on the canvas, show intensity profile plot. |
+| IV-17 | Multi-format rendering | P1 | L | planned | 005 | Adapt canvas rendering for different pixel formats from streamer info frame. |
+| ~~IV-01~~ | ~~Image Viewer layout redesign~~ | P0 | M | ✓ done | 006 | Split layout: canvas area + collapsible control sidebar. Replace current minimal viewer. |
+| ~~IV-02~~ | ~~Acquisition control section~~ | P0 | M | ✓ done | 006 | Start/Stop, AcquisitionMode enum, frame counter display. |
+| ~~IV-03~~ | ~~Exposure & Gain section~~ | P0 | M | ✓ done | 006,007 | Slider controls for ExposureTime, Gain. Auto toggles for ExposureAuto, GainAuto. |
+| ~~IV-04~~ | ~~Image Format section~~ | P0 | M | ✓ done | 006,007 | Width, Height, OffsetX, OffsetY, PixelFormat, Binning/Decimation controls. |
 | ~~IV-05~~ | ~~Trigger Configuration section~~ | P1 | M | ✓ done | 006,007 | TriggerMode, TriggerSource, TriggerActivation, TriggerDelay. |
 | ~~IV-06~~ | ~~Transport Layer section~~ | P1 | S | ✓ done | 006,007 | GevSCPSPacketSize, GevSCPD (GigE), or relevant USB3 settings. |
 | ~~IV-07~~ | ~~Auto Functions section~~ | P1 | S | ✓ done | 006,007 | Auto-exposure, auto-gain, auto-white-balance settings. |
 | ~~IV-08~~ | ~~Color Processing section~~ | P1 | M | ✓ done | 006,007 | White balance, gamma, LUT (when camera supports it). |
 | ~~IV-09~~ | ~~SFNC groups runtime mapping~~ | P0 | M | ✓ done | 007 | Load `sfnc-groups.json`, match against UiGraph, show/hide sections. |
 | ~~IV-10~~ | ~~Section persistence~~ | P1 | S | ✓ done | 006 | Save expand/collapse state per camera model in localStorage. |
-| IV-13 | Histogram | P1 | L | planned | — | Live histogram (grayscale or per-channel). Overlay or sidebar panel. |
-| IV-14 | ROI selection tool | P1 | M | planned | — | Drag-to-select ROI on canvas. Button to apply as Width/Height/OffsetX/OffsetY. |
-| IV-15 | Line profile | P1 | L | planned | — | Draw a line on the canvas, show intensity profile plot. |
-| ~~IV-16~~ | ~~Snapshot save~~ | P1 | S | ✓ done | — | Save current frame as PNG/TIFF. File dialog. |
-| IV-17 | Multi-format rendering | P1 | L | planned | 005 | Adapt canvas rendering for different pixel formats from streamer info frame. |
-| ~~IV-01~~ | ~~Image Viewer layout redesign~~ | P0 | M | ✓ done | 006 | Split layout: canvas area + collapsible control sidebar. Replace current minimal viewer. |
-| ~~IV-02~~ | ~~Acquisition control section~~ | P0 | M | ✓ done | 006 | Start/Stop, AcquisitionMode enum, frame counter display. |
-| ~~IV-03~~ | ~~Exposure & Gain section~~ | P0 | M | ✓ done | 006,007 | Slider controls for ExposureTime, Gain. Auto toggles for ExposureAuto, GainAuto. |
-| ~~IV-04~~ | ~~Image Format section~~ | P0 | M | ✓ done | 006,007 | Width, Height, OffsetX, OffsetY, PixelFormat, Binning/Decimation controls. |
 | ~~IV-11~~ | ~~Zoom and pan~~ | P0 | M | ✓ done | — | Mouse wheel zoom, click-drag pan on the canvas. |
 | ~~IV-12~~ | ~~Pixel inspector (crosshair)~~ | P0 | M | ✓ done | — | Hover crosshair showing pixel coordinates and value(s). |
+| ~~IV-16~~ | ~~Snapshot save~~ | P1 | S | ✓ done | — | Save current frame as PNG/TIFF. File dialog. |
 
 ---
 
