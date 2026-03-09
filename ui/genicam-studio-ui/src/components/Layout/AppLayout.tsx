@@ -6,10 +6,12 @@ import { useNodeValues } from "../../device/useNodeValues";
 import { useAcquisition } from "../../device/useAcquisition";
 import { useImageMeta } from "../../device/useImageMeta";
 import { AppLogProvider, useAppLog } from "../../context/AppLogContext";
+import { ToastProvider, useToast } from "../../context/ToastContext";
 import { DeviceSidebar } from "../DeviceSidebar/DeviceSidebar";
 import { FeatureBrowserPage } from "../FeatureBrowser/FeatureBrowserPage";
 import { ImageViewer } from "../ImageViewer/ImageViewer";
 import { DiagnosticsTab } from "../Diagnostics/DiagnosticsTab";
+import { ToastContainer } from "./ToastContainer";
 import { formatDeviceChip } from "./headerUtils";
 import { useSplitter } from "./useSplitter";
 import type { ParseXmlResponse } from "../../xml_model/uigraph";
@@ -20,7 +22,9 @@ type MainTab = "features" | "image" | "diagnostics";
 export function AppLayout() {
   return (
     <AppLogProvider>
-      <AppLayoutInner />
+      <ToastProvider>
+        <AppLayoutInner />
+      </ToastProvider>
     </AppLogProvider>
   );
 }
@@ -28,7 +32,6 @@ export function AppLayout() {
 function AppLayoutInner() {
   const [activeTab, setActiveTab] = useState<MainTab>("features");
   const [externalModel, setExternalModel] = useState<ParseXmlResponse | null>(null);
-  const [connectError, setConnectError] = useState<string>("");
 
   const { devices, connectionState, disconnectReason, connect, disconnect } = useDevice();
   const [lastConnectedDeviceId, setLastConnectedDeviceId] = useState<string | null>(null);
@@ -37,6 +40,7 @@ function AppLayoutInner() {
   const { status: acqStatus, streamerInfo, start: startAcq, stop: stopAcq } = useAcquisition();
   const { imageMeta } = useImageMeta();
   const { log } = useAppLog();
+  const { addToast } = useToast();
 
   const isConnected = connectionState.kind === "connected";
   const connectedDeviceName =
@@ -67,13 +71,13 @@ function AppLayoutInner() {
 
   const handleConnect = useCallback(
     async (deviceId: string) => {
-      setConnectError("");
       log("info", "Connecting to device\u2026", deviceId);
       try {
         const response = await connect(deviceId);
         setExternalModel(response);
         setActiveTab("features");
         log("success", `Connected`, deviceId);
+        addToast("success", "Connected to device");
         // Pre-populate live value cache with a single bulk read so controls
         // render with real values from the first render rather than waiting
         // for individual node-value-changed events.
@@ -84,11 +88,11 @@ function AppLayoutInner() {
           typeof e === "object" && e !== null && "message" in e
             ? String((e as { message?: unknown }).message)
             : String(e);
-        setConnectError(msg);
         log("error", `Connection failed: ${msg}`, deviceId);
+        addToast("error", `Connection failed: ${msg}`);
       }
     },
-    [connect, log, readBulk, seedValues]
+    [connect, log, addToast, readBulk, seedValues]
   );
 
   const handleDisconnect = useCallback(async () => {
@@ -96,10 +100,12 @@ function AppLayoutInner() {
     try {
       await disconnect();
       log("info", `Disconnected from ${name}`);
+      addToast("info", `Disconnected from ${name}`);
     } catch (e) {
       log("error", `Disconnect error: ${String(e)}`);
+      addToast("error", `Disconnect error: ${String(e)}`);
     }
-  }, [disconnect, connectedDeviceName, log]);
+  }, [disconnect, connectedDeviceName, log, addToast]);
 
   const handleStartAcquisition = useCallback(async () => {
     log("info", "Starting acquisition\u2026");
@@ -107,20 +113,24 @@ function AppLayoutInner() {
       await startAcq();
       setActiveTab("image");
       log("success", "Acquisition started");
+      addToast("success", "Acquisition started");
     } catch (e) {
       log("error", `Acquisition start failed: ${String(e)}`);
+      addToast("error", `Acquisition start failed: ${String(e)}`);
     }
-  }, [startAcq, log]);
+  }, [startAcq, log, addToast]);
 
   const handleStopAcquisition = useCallback(async () => {
     log("info", "Stopping acquisition\u2026");
     try {
       await stopAcq();
       log("success", "Acquisition stopped");
+      addToast("info", "Acquisition stopped");
     } catch (e) {
       log("error", `Acquisition stop failed: ${String(e)}`);
+      addToast("error", `Acquisition stop failed: ${String(e)}`);
     }
-  }, [stopAcq, log]);
+  }, [stopAcq, log, addToast]);
 
   const chip = formatDeviceChip(connectionState);
 
@@ -207,9 +217,7 @@ function AppLayoutInner() {
         </div>
       </header>
 
-      {connectError && (
-        <div className="status status--error">{connectError}</div>
-      )}
+      <ToastContainer />
 
       <div className="app-body">
         {isTauri() && (

@@ -498,7 +498,7 @@ export function FeatureBrowserPage({
 
       {/* Status strip */}
       {status.kind === "loading" && (
-        <div className="browser-status browser-status--info">
+        <div className="browser-status browser-status--info browser-status--shimmer">
           Loading {status.fileName}\u2026
         </div>
       )}

@@ -8,6 +8,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- UX-07: Toast notification system for connect/acquire events; skeleton shimmer on XML load
 - UX-06: Drag-to-resize splitters for device sidebar and feature browser tree pane, with min/max sizes and localStorage persistence
 - UX-04: Feature Browser polish — kind-colored tree icons, search clear button, kind indicator in search results, category row distinction
 - UX-03: Device sidebar polish — per-card state dots, connecting animation, animated scan indicator, device count badge

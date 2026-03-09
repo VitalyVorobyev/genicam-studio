@@ -1320,6 +1320,78 @@ input[type="checkbox"] {
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
+/* ── Toast notifications ─────────────────────────────────────── */
+
+.toast-container {
+  position: fixed;
+  top: calc(var(--header-h) + var(--sp-4));
+  right: var(--sp-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  z-index: var(--z-toast);
+  pointer-events: none;
+  max-width: 360px;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-5);
+  border-radius: var(--radius-md);
+  border-left: 3px solid;
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-md);
+  font-size: var(--text-sm);
+  pointer-events: auto;
+  animation: toast-slide-in 0.2s ease;
+  color: var(--text-primary);
+}
+
+@keyframes toast-slide-in {
+  from { transform: translateX(calc(100% + var(--sp-6))); opacity: 0; }
+  to   { transform: translateX(0);                        opacity: 1; }
+}
+
+.toast--info    { border-left-color: var(--accent); }
+.toast--success { border-left-color: var(--success); }
+.toast--warning { border-left-color: var(--warning); }
+.toast--error   { border-left-color: var(--danger); }
+
+.toast__message { flex: 1; line-height: var(--lh-base); }
+
+.toast__dismiss {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
+  transition: color var(--transition-fast);
+}
+.toast__dismiss:hover { color: var(--text-primary); }
+
+/* ── Skeleton shimmer ────────────────────────────────────────── */
+
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position:  400px 0; }
+}
+
+.browser-status--shimmer {
+  background-image: linear-gradient(
+    90deg,
+    var(--accent-muted) 0%,
+    rgba(47, 129, 247, 0.25) 40%,
+    var(--accent-muted) 80%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
 /* ── Legacy .app class used by feature browser wrapper ───────── */
 .app { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .main-content .feature-browser { min-height: 0; flex: 1; }
