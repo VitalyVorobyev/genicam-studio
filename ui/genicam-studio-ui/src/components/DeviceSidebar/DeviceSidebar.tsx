@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { ConnectionState, DeviceInfo } from "../../device/types";
+import type { ConnectionState, DeviceInfo, DisconnectReason } from "../../device/types";
 import { DeviceCard } from "./DeviceCard";
 
 // T7.4 — recent device storage shape
@@ -51,6 +51,8 @@ function pushRecent(device: DeviceInfo): RecentDevice[] {
 interface DeviceSidebarProps {
   devices: DeviceInfo[];
   connectionState: ConnectionState;
+  disconnectReason?: DisconnectReason | null;
+  lastConnectedDeviceId?: string | null;
   onConnect: (deviceId: string) => void;
   onDisconnect: () => void;
 }
@@ -58,6 +60,8 @@ interface DeviceSidebarProps {
 export function DeviceSidebar({
   devices,
   connectionState,
+  disconnectReason = null,
+  lastConnectedDeviceId = null,
   onConnect,
   onDisconnect,
 }: DeviceSidebarProps) {
@@ -93,7 +97,20 @@ export function DeviceSidebar({
       </div>
 
       {connectionState.kind === "error" && (
-        <div className="device-sidebar__error">{connectionState.message}</div>
+        <div className="device-sidebar__disconnect-banner">
+          <span className="disconnect-message">
+            {disconnectReason?.message ?? connectionState.message}
+          </span>
+          {lastConnectedDeviceId !== null && (
+            <button
+              type="button"
+              className="reconnect-btn"
+              onClick={() => onConnect(lastConnectedDeviceId)}
+            >
+              Reconnect
+            </button>
+          )}
+        </div>
       )}
 
       {/* Live discovered devices */}

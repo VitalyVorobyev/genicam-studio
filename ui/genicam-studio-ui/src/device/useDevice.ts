@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { isTauri } from "../tauri";
-import type { ConnectionState, DeviceInfo } from "./types";
+import type { ConnectionState, DeviceInfo, DisconnectReason } from "./types";
 import type { ParseXmlResponse } from "../xml_model/uigraph";
 
 export function useDevice() {
@@ -8,6 +8,7 @@ export function useDevice() {
   const [connectionState, setConnectionState] = useState<ConnectionState>({
     kind: "disconnected",
   });
+  const [disconnectReason, setDisconnectReason] = useState<DisconnectReason | null>(null);
 
   useEffect(() => {
     if (!isTauri()) return;
@@ -52,7 +53,11 @@ export function useDevice() {
         setConnectionState(e.payload);
       });
 
-      unlisteners.push(u1, u2, u3);
+      const u4 = await listen<DisconnectReason>("disconnect-reason", (e) => {
+        setDisconnectReason(e.payload);
+      });
+
+      unlisteners.push(u1, u2, u3, u4);
     }
 
     init();
@@ -64,6 +69,7 @@ export function useDevice() {
   }, []);
 
   const connect = useCallback(async (deviceId: string): Promise<ParseXmlResponse> => {
+    setDisconnectReason(null);
     const { invoke } = await import("@tauri-apps/api/core");
     return await invoke<ParseXmlResponse>("connect_device", { deviceId });
   }, []);
@@ -73,5 +79,5 @@ export function useDevice() {
     await invoke("disconnect_device");
   }, []);
 
-  return { devices, connectionState, connect, disconnect };
+  return { devices, connectionState, disconnectReason, connect, disconnect };
 }

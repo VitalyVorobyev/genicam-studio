@@ -19,6 +19,13 @@ pub struct StreamerStatus {
     pub restart_count: u32,
 }
 
+/// Payload for the `disconnect-reason` Tauri event emitted on unexpected loss of device.
+#[derive(Debug, Clone, Serialize)]
+pub struct DisconnectReason {
+    pub message: String,
+    pub device_id: String,
+}
+
 // ── Types exposed to the UI via Tauri IPC ───────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

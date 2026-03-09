@@ -50,3 +50,14 @@ export interface SfncGroup {
   default_open: boolean;
   features: SfncFeature[];
 }
+
+export interface DisconnectReason {
+  message: string;
+  device_id: string;
+}
+
+export interface StreamerStatus {
+  running: boolean;
+  error: string | null;
+  restart_count: number;
+}

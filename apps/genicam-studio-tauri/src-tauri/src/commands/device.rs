@@ -4,7 +4,9 @@ use tauri::{AppHandle, Emitter, State};
 use tokio::sync::RwLock;
 
 use crate::commands::xml_model::{ModelSummary, ParseXmlResponse};
-use crate::state::device_state::{ConnectionState, DeviceInfo, NodeValueEntry, ZenohState};
+use crate::state::device_state::{
+    ConnectionState, DeviceInfo, DisconnectReason, NodeValueEntry, ZenohState,
+};
 use crate::state::ModelState;
 use genicam_xml_model::parse_genicam_xml;
 use genicam_zenoh_api::{DeviceAnnounce, DeviceXmlResponse, ImageMeta};
@@ -253,9 +255,8 @@ fn spawn_status_sub(
                     let msg = status
                         .error
                         .unwrap_or_else(|| "Device disconnected".to_string());
-                    let new_state = ConnectionState::Error { message: msg };
-                    *zenoh.connection.lock().await = new_state.clone();
-                    let _ = app.emit("connection-state-changed", new_state);
+                    do_emergency_disconnect(&zenoh, &app, device_id.clone(), msg).await;
+                    break;
                 }
             }
         }
@@ -328,6 +329,22 @@ async fn abort_sub_tasks(zenoh: &ZenohState) {
     }
 }
 
+async fn do_emergency_disconnect(
+    zenoh: &ZenohState,
+    app: &AppHandle,
+    device_id: String,
+    message: String,
+) {
+    abort_sub_tasks(zenoh).await;
+    stop_acquisition_child(zenoh).await;
+    zenoh.node_cache.write().await.clear();
+    *zenoh.connection.lock().await = ConnectionState::Error {
+        message: message.clone(),
+    };
+    emit_connection_state(app, zenoh).await;
+    let _ = app.emit("disconnect-reason", DisconnectReason { message, device_id });
+}
+
 pub async fn stop_acquisition_child(zenoh: &ZenohState) {
     let mut acq = zenoh.acquisition.lock().await;
     // Signal the monitor task to kill the child and exit.
@@ -359,5 +376,31 @@ async fn fetch_device_xml(session: &zenoh::Session, device_id: &str) -> Result<S
             Err(e) => Err(format!("Reply error: {e}")),
         },
         Err(_) => Err("No reply for XML request (timeout)".to_string()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::state::device_state::DisconnectReason;
+
+    #[test]
+    fn test_disconnect_reason_serializes_fields() {
+        let r = DisconnectReason {
+            message: "USB link lost".to_string(),
+            device_id: "cam0".to_string(),
+        };
+        let json = serde_json::to_value(&r).unwrap();
+        assert_eq!(json["message"], "USB link lost");
+        assert_eq!(json["device_id"], "cam0");
+    }
+
+    #[test]
+    fn test_disconnect_reason_empty_message() {
+        let r = DisconnectReason {
+            message: "".to_string(),
+            device_id: "cam1".to_string(),
+        };
+        let json = serde_json::to_value(&r).unwrap();
+        assert_eq!(json["message"], "");
     }
 }

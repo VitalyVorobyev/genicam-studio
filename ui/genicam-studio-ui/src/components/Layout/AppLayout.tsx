@@ -29,7 +29,8 @@ function AppLayoutInner() {
   const [externalModel, setExternalModel] = useState<ParseXmlResponse | null>(null);
   const [connectError, setConnectError] = useState<string>("");
 
-  const { devices, connectionState, connect, disconnect } = useDevice();
+  const { devices, connectionState, disconnectReason, connect, disconnect } = useDevice();
+  const [lastConnectedDeviceId, setLastConnectedDeviceId] = useState<string | null>(null);
   const { liveValues, seedValues } = useNodeValues();
   const { readBulk } = useNodeBulkRead();
   const { status: acqStatus, streamerInfo, start: startAcq, stop: stopAcq } = useAcquisition();
@@ -48,6 +49,20 @@ function AppLayoutInner() {
       ? `GenICam Studio — ${connectedDeviceName}`
       : "GenICam Studio";
   }, [connectedDeviceName]);
+
+  // Track the last successfully connected device ID for the reconnect prompt.
+  useEffect(() => {
+    if (connectionState.kind === "connected") {
+      setLastConnectedDeviceId(connectionState.device_id);
+    }
+  }, [connectionState]);
+
+  // Clear stale model when an unexpected disconnect is detected.
+  useEffect(() => {
+    if (disconnectReason !== null) {
+      setExternalModel(null);
+    }
+  }, [disconnectReason]);
 
   const handleConnect = useCallback(
     async (deviceId: string) => {
@@ -194,6 +209,8 @@ function AppLayoutInner() {
             <DeviceSidebar
               devices={devices}
               connectionState={connectionState}
+              disconnectReason={disconnectReason}
+              lastConnectedDeviceId={lastConnectedDeviceId}
               onConnect={handleConnect}
               onDisconnect={handleDisconnect}
             />

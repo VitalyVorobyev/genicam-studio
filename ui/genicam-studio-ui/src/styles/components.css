@@ -362,6 +362,37 @@ input[type="checkbox"] {
   border-radius: var(--radius);
 }
 
+.device-sidebar__disconnect-banner {
+  background: rgba(220, 38, 38, 0.12);
+  border: 1px solid rgba(220, 38, 38, 0.4);
+  border-radius: 4px;
+  padding: 10px 12px;
+  margin: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.device-sidebar__disconnect-banner .disconnect-message {
+  font-size: 12px;
+  color: #fca5a5;
+}
+
+.device-sidebar__disconnect-banner .reconnect-btn {
+  align-self: flex-start;
+  padding: 4px 10px;
+  font-size: 11px;
+  background: rgba(220, 38, 38, 0.2);
+  border: 1px solid rgba(220, 38, 38, 0.5);
+  border-radius: 3px;
+  color: #fca5a5;
+  cursor: pointer;
+}
+
+.device-sidebar__disconnect-banner .reconnect-btn:hover {
+  background: rgba(220, 38, 38, 0.35);
+}
+
 .device-sidebar__divider {
   height: 1px;
   background: var(--border-subtle);
