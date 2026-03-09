@@ -150,13 +150,12 @@ Enhance the existing Feature Browser.
 
 ---
 
-## Epic 7: UX Polish & Design — 8/9 complete
+## Epic 7: UX Polish & Design — 9/9 complete ✓
 
 Professional look and feel for the desktop app.
 
 | ID | Task | Priority | Size | Status | ADR | Notes |
 |----|------|----------|------|--------|-----|-------|
-| UX-07 | Loading & error states | P1 | M | planned | — | Skeleton loaders, toast notifications, inline error messages. |
 | ~~UX-01~~ | ~~Design system (tokens, theme)~~ | P0 | L | ✓ done | — | Dark theme, CSS custom properties, consistent spacing/typography. "Dark Instrument" aesthetic. |
 | ~~UX-02~~ | ~~App header & navigation~~ | P0 | M | ✓ done | — | Clean header with device status, tabs, acquisition controls. |
 | ~~UX-05~~ | ~~Image Viewer chrome~~ | P0 | M | ✓ done | — | Toolbar, status bar, professional canvas container. |
@@ -165,6 +164,7 @@ Professional look and feel for the desktop app.
 | ~~UX-03~~ | ~~Device sidebar polish~~ | P1 | M | ✓ done | — | Per-card state dots, connecting animation, animated scan indicator, device count badge. |
 | ~~UX-04~~ | ~~Feature Browser polish~~ | P1 | M | ✓ done | — | Kind-colored tree icons, search clear button, kind indicator in search results, category row distinction. |
 | ~~UX-06~~ | ~~Responsive layout~~ | P1 | M | ✓ done | — | Drag-to-resize splitters for device sidebar and feature browser tree pane; min/max sizes; localStorage persistence. |
+| ~~UX-07~~ | ~~Loading & error states~~ | P1 | M | ✓ done | — | Toast notifications for connect/acquire events; skeleton shimmer on XML load. |
 
 ---
 
