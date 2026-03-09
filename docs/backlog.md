@@ -12,12 +12,12 @@ M3 is complete ✓. M4 focuses on multi-format image support, image analysis too
 
 | # | ID | Task | Epic | Size | Rationale |
 |---|----|------|------|------|-----------|
-| 1 | ZA-04 | Inline frame header in image payload | Zenoh API | S | Spec the binary header format (width, height, pixel format, seq); required by ST-02+IV-17 |
-| 2 | TB-07 | Streamer lifecycle improvement | Tauri Backend | M | Health monitoring + auto-restart on crash |
-| 3 | TB-06 | Error recovery on disconnect | Tauri Backend | M | Auto-cleanup + reconnect prompt; pairs with TB-07 |
-| 4 | IV-13 | Histogram | Image Viewer | L | Live grayscale/per-channel histogram; after multi-format so it handles all formats |
-| 5 | IV-14 | ROI selection tool | Image Viewer | M | Drag-to-select on canvas; applies to Width/Height/OffsetX/OffsetY |
-| 6 | IV-15 | Line profile | Image Viewer | L | Intensity profile plot; benefits from IV-14 canvas interaction infrastructure |
+| 1 | TB-07 | Streamer lifecycle improvement | Tauri Backend | M | Health monitoring + auto-restart on crash |
+| 2 | TB-06 | Error recovery on disconnect | Tauri Backend | M | Auto-cleanup + reconnect prompt; pairs with TB-07 |
+| 3 | IV-13 | Histogram | Image Viewer | L | Live grayscale/per-channel histogram; after multi-format so it handles all formats |
+| 4 | IV-14 | ROI selection tool | Image Viewer | M | Drag-to-select on canvas; applies to Width/Height/OffsetX/OffsetY |
+| 5 | IV-15 | Line profile | Image Viewer | L | Intensity profile plot; benefits from IV-14 canvas interaction infrastructure |
+| — | ~~ZA-04~~ | ~~Inline frame header in image payload~~ | Zenoh API | S | ✓ done |
 | — | ~~ST-02 + IV-17~~ | ~~Multi-format encoder + renderer~~ | Streamer + IV | XL | ✓ done |
 
 **Not in M4 (deferred to M5+):** UX polish (UX-03/04/06/07), Feature Browser (FB-01–05), XML parser (XP-01–06).
