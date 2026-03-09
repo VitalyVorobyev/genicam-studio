@@ -157,12 +157,59 @@ opaque string without `/`).
 
 - **Direction:** Service → Streamer (NOT consumed by Tauri directly)
 - **Mechanism:** `put` per frame
-- **Payload:** Raw binary pixel data, row-major. Format and dimensions are described by the
-  co-published `image/meta` key. Currently generated formats: Mono8 (1 byte/px), Mono16
-  (2 bytes/px, little-endian), BayerRG8 (1 byte/px), RGB8 (3 bytes/px). Not JSON — no
-  encoding wrapper.
+- **Payload:** 16-byte binary [`FrameHeader`] immediately followed by raw pixel data (row-major,
+  no further encoding). The header makes every frame self-describing — consumers do not need to
+  rely on a prior `image/meta` subscription.
 - **Consumer:** `genicam-ws-streamer` subscribes to this key and broadcasts BMP-encoded
   frames over WebSocket. The Tauri app does **not** subscribe to this key directly.
+
+#### Binary frame header layout (16 bytes, all fields little-endian)
+
+| Offset | Size | Field    | Description                                              |
+|--------|------|----------|----------------------------------------------------------|
+| 0      | 2    | `magic`  | `0x4746` LE (`[0x46, 0x47]`) — frame marker             |
+| 2      | 1    | `version`| Header layout version; currently `1`                    |
+| 3      | 1    | `format` | Pixel format discriminant (see table below)              |
+| 4      | 4    | `width`  | Image width in pixels, `u32` LE                          |
+| 8      | 4    | `height` | Image height in pixels, `u32` LE                         |
+| 12     | 4    | `seq`    | Monotonically increasing frame counter, `u32` LE         |
+
+#### Pixel format discriminant table
+
+Codes are **only appended** — never reordered. Unknown codes map to `PixelFormat::Unknown`.
+
+| Code | `PixelFormat` variant | Notes               |
+|------|----------------------|---------------------|
+|    0 | `Unknown`            | fallback / unset    |
+|    1 | `Mono8`              | 1 byte/px           |
+|    2 | `Mono10`             | 2 bytes/px (LE)     |
+|    3 | `Mono12`             | 2 bytes/px (LE)     |
+|    4 | `Mono16`             | 2 bytes/px (LE)     |
+|    5 | `BayerRG8`           | 1 byte/px           |
+|    6 | `BayerGR8`           | 1 byte/px           |
+|    7 | `BayerBG8`           | 1 byte/px           |
+|    8 | `BayerGB8`           | 1 byte/px           |
+|    9 | `BayerRG10`          | 2 bytes/px (LE)     |
+|   10 | `BayerGR10`          | 2 bytes/px (LE)     |
+|   11 | `BayerBG10`          | 2 bytes/px (LE)     |
+|   12 | `BayerGB10`          | 2 bytes/px (LE)     |
+|   13 | `BayerRG12`          | 2 bytes/px (LE)     |
+|   14 | `BayerGR12`          | 2 bytes/px (LE)     |
+|   15 | `BayerBG12`          | 2 bytes/px (LE)     |
+|   16 | `BayerGB12`          | 2 bytes/px (LE)     |
+|   17 | `BayerRG16`          | 2 bytes/px (LE)     |
+|   18 | `BayerGR16`          | 2 bytes/px (LE)     |
+|   19 | `BayerBG16`          | 2 bytes/px (LE)     |
+|   20 | `BayerGB16`          | 2 bytes/px (LE)     |
+|   21 | `RGB8`               | 3 bytes/px          |
+|   22 | `BGR8`               | 3 bytes/px          |
+|   23 | `RGBa8`              | 4 bytes/px          |
+|   24 | `YCbCr422_8`         | 2 bytes/px          |
+|   25 | `YCbCr8`             | 3 bytes/px          |
+|   26 | `Coord3D_C16`        | 2 bytes/px (LE)     |
+
+- **Rust types:** `FrameHeader`, `FrameHeaderError`, `FRAME_MAGIC`, `HEADER_SIZE`,
+  `pixel_format_to_u8`, `u8_to_pixel_format` — all in `genicam_zenoh_api::frame_header`.
 
 ### `genicam/devices/{device_id}/image/meta`
 

@@ -5,6 +5,9 @@
 
 use serde::{Deserialize, Serialize};
 
+pub mod frame_header;
+pub use frame_header::{FrameHeader, FrameHeaderError, FRAME_MAGIC, HEADER_SIZE};
+
 // ── Discovery ────────────────────────────────────────────────────────────────
 
 /// Periodic announcement published by the camera service.

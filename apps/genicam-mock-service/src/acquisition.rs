@@ -5,8 +5,8 @@ use tokio::sync::watch;
 use tracing::{debug, error, info};
 
 use genicam_zenoh_api::{
-    AcquisitionCommand, AcquisitionControlRequest, AcquisitionStatus, ImageMeta, NodeOpResponse,
-    PixelFormat,
+    AcquisitionCommand, AcquisitionControlRequest, AcquisitionStatus, FrameHeader, ImageMeta,
+    NodeOpResponse, PixelFormat,
 };
 
 use crate::config::MockConfig;
@@ -267,11 +267,24 @@ pub async fn run(
                     _ => generate_mono8(width, height, frame_id, brightness),
                 };
 
+                // Prepend the 16-byte self-describing frame header so the
+                // streamer does not need to rely on image/meta subscription
+                // ordering to know the frame dimensions and format.
+                let seq = frame_id as u32;
+                let header = FrameHeader {
+                    pixel_format,
+                    width,
+                    height,
+                    seq,
+                };
+                let mut payload = header.encode();
+                payload.extend_from_slice(&pixels);
+
                 frame_id = frame_id.wrapping_add(1);
                 debug!(
                     "Publishing frame {frame_id}: {width}x{height}, format={pf_str}, brightness={brightness:.2}"
                 );
-                let _ = session.put(&image_key, pixels).await;
+                let _ = session.put(&image_key, payload).await;
             }
             _ = acq_rx.changed() => {
                 // Acquisition state changed, loop will re-evaluate select conditions

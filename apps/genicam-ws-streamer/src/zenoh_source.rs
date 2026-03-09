@@ -1,19 +1,22 @@
-//! Zenoh subscription loop that converts Mono8 frames into BMP bytes.
+//! Zenoh subscription loop that converts frames into BMP bytes.
 //!
 //! Two subscribers run concurrently inside a single `select!` loop:
 //!
-//! - **meta subscriber** — listens on `image/meta`; updates the shared
-//!   `Arc<RwLock<ImageMeta>>` and rebuilds the `BmpEncoder` when dimensions
-//!   change.
-//! - **frame subscriber** — receives raw pixel payloads, validates size using
-//!   the current meta, encodes to BMP, and pushes into the watch channel so
-//!   the latest frame overwrites older ones (backpressure).
+//! - **meta subscriber** — listens on `image/meta`; updates the shared `Arc<RwLock<ImageMeta>>`
+//!   and rebuilds the `BmpEncoder` when dimensions change. Retained for the Tauri app's
+//!   `image-meta-changed` event path.
+//! - **frame subscriber** — receives framed payloads (`16-byte FrameHeader + raw pixels`),
+//!   decodes the inline header, validates payload size, encodes to BMP, and pushes into the
+//!   watch channel (latest frame overwrites older ones — backpressure).
+//!
+//! Because every frame carries an inline `FrameHeader`, the streamer no longer depends on
+//! `image/meta` subscription ordering to know the format or dimensions of a frame.
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use bytes::Bytes;
-use genicam_zenoh_api::{ImageMeta, PixelFormat};
+use genicam_zenoh_api::{FrameHeader, ImageMeta, PixelFormat};
 use tokio::sync::{watch, RwLock};
 use tracing::{info, warn};
 
@@ -137,32 +140,58 @@ pub async fn run(
                     }
                 }
 
-                let (expected, px_format) = {
-                    let m = shared_meta.read().await;
-                    let expected = (m.width as usize)
-                        .checked_mul(m.height as usize)
-                        .ok_or_else(|| StreamerError::Config("width*height overflows usize".into()))?;
-                    (expected, m.pixel_format.clone())
+                let raw = sample.payload().to_bytes();
+
+                // Decode the inline frame header. Frames without a valid
+                // header (e.g. from an older service version) are dropped with
+                // a warning rather than treated as fatal errors.
+                let (header, pixel_data) = match FrameHeader::decode(raw.as_ref()) {
+                    Ok(pair) => pair,
+                    Err(err) => {
+                        warn!("Dropped frame: invalid frame header: {err}");
+                        continue;
+                    }
                 };
 
-                let payload = sample.payload().to_bytes();
-                if payload.len() != expected {
+                // Validate that the pixel data length matches what the header
+                // claims, using bytes_per_pixel for the declared format.
+                let bpp = header.pixel_format.bytes_per_pixel();
+                let expected_pixels = (header.width as usize)
+                    .checked_mul(header.height as usize)
+                    .ok_or_else(|| StreamerError::Config("width*height overflows usize".into()))?;
+                // Truncate fractional bpp to whole bytes (e.g. YCbCr422 = 2.0).
+                let expected_bytes = (expected_pixels as f32 * bpp) as usize;
+
+                if pixel_data.len() != expected_bytes {
                     warn!(
-                        "Dropped frame: payload size mismatch (expected {}, got {})",
-                        expected,
-                        payload.len()
+                        "Dropped frame seq={}: pixel data size mismatch (expected {}, got {})",
+                        header.seq,
+                        expected_bytes,
+                        pixel_data.len()
                     );
                     continue;
                 }
 
-                if px_format != PixelFormat::Mono8 {
+                // Rebuild the BMP encoder when dimensions change.
+                {
+                    let old = shared_meta.read().await;
+                    if old.width != header.width || old.height != header.height {
+                        info!(
+                            "Frame header dimensions changed to {}x{}; rebuilding BMP encoder",
+                            header.width, header.height
+                        );
+                        encoder = BmpEncoder::new(header.width, header.height);
+                    }
+                }
+
+                if header.pixel_format != PixelFormat::Mono8 {
                     warn!(
-                        "Encoding non-Mono8 frame ({:?}) as Mono8; output may be incorrect until ST-02",
-                        px_format
+                        "Encoding non-Mono8 frame seq={} ({:?}) as Mono8; output may be incorrect until ST-02",
+                        header.seq, header.pixel_format
                     );
                 }
 
-                let frame = encoder.encode_gray8(payload.as_ref())?;
+                let frame = encoder.encode_gray8(pixel_data)?;
 
                 if frame_tx.send(frame).is_err() {
                     warn!("No WebSocket clients are listening for frames");

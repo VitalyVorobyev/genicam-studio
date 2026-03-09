@@ -8,6 +8,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- ZA-04: Inline 16-byte frame header (magic, version, format, width, height, seq) prepended to image Zenoh payload; FrameHeader encode/decode in genicam_zenoh_api; mock service prepends, streamer decodes
 - ST-03: WebSocket info frame broadcast on meta change; ViewerCanvas propagates pixel_format/dimensions from info frame
 - IV-08: Add Color Processing sidebar section (BalanceRatio, Gamma, LUT controls)
 - IV-07: Add Auto Functions section (ExposureAuto, GainAuto, BalanceWhiteAuto enum selects) to Image Viewer sidebar

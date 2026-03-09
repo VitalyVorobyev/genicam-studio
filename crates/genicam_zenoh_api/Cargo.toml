@@ -7,3 +7,4 @@ description = "Shared Zenoh API payload types for GenICam Studio (no Zenoh depen
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+thiserror = "1"
