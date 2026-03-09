@@ -13,12 +13,12 @@ M3 is complete ✓. M4 focuses on multi-format image support, image analysis too
 | # | ID | Task | Epic | Size | Rationale |
 |---|----|------|------|------|-----------|
 | 1 | ZA-04 | Inline frame header in image payload | Zenoh API | S | Spec the binary header format (width, height, pixel format, seq); required by ST-02+IV-17 |
-| 2 | ST-02 + IV-17 | Multi-format encoder + renderer | Streamer + IV | XL | BMP encoder for Mono10-16/RGB8/Bayer and matching canvas renderer; single implement run |
-| 3 | TB-07 | Streamer lifecycle improvement | Tauri Backend | M | Health monitoring + auto-restart on crash |
-| 4 | TB-06 | Error recovery on disconnect | Tauri Backend | M | Auto-cleanup + reconnect prompt; pairs with TB-07 |
-| 5 | IV-13 | Histogram | Image Viewer | L | Live grayscale/per-channel histogram; after multi-format so it handles all formats |
-| 6 | IV-14 | ROI selection tool | Image Viewer | M | Drag-to-select on canvas; applies to Width/Height/OffsetX/OffsetY |
-| 7 | IV-15 | Line profile | Image Viewer | L | Intensity profile plot; benefits from IV-14 canvas interaction infrastructure |
+| 2 | TB-07 | Streamer lifecycle improvement | Tauri Backend | M | Health monitoring + auto-restart on crash |
+| 3 | TB-06 | Error recovery on disconnect | Tauri Backend | M | Auto-cleanup + reconnect prompt; pairs with TB-07 |
+| 4 | IV-13 | Histogram | Image Viewer | L | Live grayscale/per-channel histogram; after multi-format so it handles all formats |
+| 5 | IV-14 | ROI selection tool | Image Viewer | M | Drag-to-select on canvas; applies to Width/Height/OffsetX/OffsetY |
+| 6 | IV-15 | Line profile | Image Viewer | L | Intensity profile plot; benefits from IV-14 canvas interaction infrastructure |
+| — | ~~ST-02 + IV-17~~ | ~~Multi-format encoder + renderer~~ | Streamer + IV | XL | ✓ done |
 
 **Not in M4 (deferred to M5+):** UX polish (UX-03/04/06/07), Feature Browser (FB-01–05), XML parser (XP-01–06).
 
@@ -86,7 +86,7 @@ Extend `genicam-ws-streamer` for multi-format support and better WebSocket proto
 
 | ID | Task | Priority | Size | Status | ADR | Notes |
 |----|------|----------|------|--------|-----|-------|
-| ST-02 | Multi-format BMP encoder | P1 | L | planned | 005 | Extend BMP encoder for Mono10-16 (downscale), RGB8, Bayer (debayer+encode). |
+| ~~ST-02~~ | ~~Multi-format BMP encoder~~ | P1 | L | ✓ done | 005 | Extend BMP encoder for Mono10-16 (downscale), RGB8, Bayer (debayer+encode). Paired with IV-17. |
 | ST-04 | PNG/JPEG encoding option | P2 | M | planned | — | Add `--format bmp|png|jpeg` for compression. Useful for remote/slow connections. |
 | ST-05 | Frame annotation overlay | P2 | M | planned | — | Optional frame ID, timestamp, FPS overlay burned into the image. |
 | ~~ST-01~~ | ~~Image metadata subscription~~ | P1 | M | ✓ done | 005 | Subscribe to `image/meta` to auto-configure encoder. Removes need for `--width`/`--height` CLI args. |
@@ -119,7 +119,7 @@ Build the dedicated Image Viewer with camera controls and image analysis tools.
 | IV-13 | Histogram | P1 | L | planned | — | Live histogram (grayscale or per-channel). Overlay or sidebar panel. |
 | IV-14 | ROI selection tool | P1 | M | planned | — | Drag-to-select ROI on canvas. Button to apply as Width/Height/OffsetX/OffsetY. |
 | IV-15 | Line profile | P1 | L | planned | — | Draw a line on the canvas, show intensity profile plot. |
-| IV-17 | Multi-format rendering | P1 | L | planned | 005 | Adapt canvas rendering for different pixel formats from streamer info frame. |
+| ~~IV-17~~ | ~~Multi-format rendering~~ | P1 | L | ✓ done | 005 | Pixel inspector rewritten to parse BMP header (8bpp gray / 24bpp RGB). Paired with ST-02. |
 | ~~IV-01~~ | ~~Image Viewer layout redesign~~ | P0 | M | ✓ done | 006 | Split layout: canvas area + collapsible control sidebar. Replace current minimal viewer. |
 | ~~IV-02~~ | ~~Acquisition control section~~ | P0 | M | ✓ done | 006 | Start/Stop, AcquisitionMode enum, frame counter display. |
 | ~~IV-03~~ | ~~Exposure & Gain section~~ | P0 | M | ✓ done | 006,007 | Slider controls for ExposureTime, Gain. Auto toggles for ExposureAuto, GainAuto. |
