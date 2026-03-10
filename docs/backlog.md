@@ -62,19 +62,19 @@ A fake Zenoh camera service for end-to-end integration testing without real hard
 
 ---
 
-## Epic 2: Zenoh API & Shared Types — 3/7 complete
+## Epic 2: Zenoh API & Shared Types — 4/7 complete
 
 Evolve the `genicam_zenoh_api` crate and `docs/zenoh-api.md`.
 
 | ID | Task | Priority | Size | Status | ADR | Notes |
 |----|------|----------|------|--------|-----|-------|
 | ZA-05 | API version negotiation | P2 | M | planned | 008 | Version field in `announce`, compatibility check. |
-| ZA-06 | Node constraints in value updates | P1 | S | planned | — | Extend `NodeValueUpdate` to optionally include min/max/inc so UI can adapt to runtime constraint changes. |
 | ~~ZA-07~~ | ~~API spec review & documentation~~ | P0 | M | ✓ done | 008 | Review `docs/zenoh-api.md` for completeness. Add sequence diagrams. Ensure spec matches `genicam_zenoh_api` types exactly. |
 | ~~ZA-01~~ | ~~Image metadata types~~ | P1 | S | ✓ done | 005,008 | Add `ImageMeta` struct, `image_meta()` key helper. |
 | ~~ZA-02~~ | ~~Bulk read types~~ | P1 | S | ✓ done | 008 | Add `BulkReadRequest`, `BulkReadResponse` types. |
 | ~~ZA-03~~ | ~~PixelFormat enum (shared)~~ | P0 | S | ✓ done | 005 | Full SFNC pixel format enum in `genicam_zenoh_api`. |
 | ~~ZA-04~~ | ~~Inline frame header in image payload~~ | P1 | S | ✓ done | 005 | Embed small binary header (width, height, pixel format, seq) inline in the `image` Zenoh payload. Decision: inline header chosen over separate key. |
+| ~~ZA-06~~ | ~~Node constraints in value updates~~ | P1 | S | ✓ done | — | `NodeValueUpdate` extended with optional `min`/`max`/`inc`; forwarded to UI via `NodeValueEntry` and `node-value-changed` event. |
 
 ---
 
