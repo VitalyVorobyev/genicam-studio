@@ -58,6 +58,15 @@ pub enum ConnectionState {
 pub struct NodeValueEntry {
     pub value: serde_json::Value,
     pub access_mode: String,
+    /// Runtime minimum constraint forwarded from the camera service, if available.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub min: Option<f64>,
+    /// Runtime maximum constraint forwarded from the camera service, if available.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max: Option<f64>,
+    /// Runtime increment (step) forwarded from the camera service, if available.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub inc: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize)]

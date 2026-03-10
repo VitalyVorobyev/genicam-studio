@@ -37,10 +37,23 @@ pub struct DeviceXmlResponse {
 // ── Node Values ──────────────────────────────────────────────────────────────
 
 /// Live node value update published by the service on change.
+///
+/// `min`, `max`, and `inc` are optional runtime constraint hints.
+/// When present, the UI can tighten slider ranges without re-parsing XML.
+/// Services that do not implement constraint propagation may omit them.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodeValueUpdate {
     pub value: serde_json::Value,
     pub access_mode: String,
+    /// Optional minimum allowed value for this node at the current camera state.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub min: Option<f64>,
+    /// Optional maximum allowed value for this node at the current camera state.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max: Option<f64>,
+    /// Optional increment (step) for this node's value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub inc: Option<f64>,
 }
 
 /// Request payload for the `nodes/{name}/set` queryable.
@@ -238,5 +251,57 @@ pub mod keys {
         } else {
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_node_value_update_without_constraints() {
+        let u = NodeValueUpdate {
+            value: serde_json::json!(42),
+            access_mode: "RW".to_string(),
+            min: None,
+            max: None,
+            inc: None,
+        };
+        let s = serde_json::to_string(&u).expect("serialization failed");
+        // Optional None fields must be absent from the JSON output.
+        assert!(!s.contains("\"min\""), "min should be absent: {s}");
+        assert!(!s.contains("\"max\""), "max should be absent: {s}");
+        assert!(!s.contains("\"inc\""), "inc should be absent: {s}");
+        // Mandatory fields must be present.
+        assert!(s.contains("\"value\""));
+        assert!(s.contains("\"access_mode\""));
+    }
+
+    #[test]
+    fn test_node_value_update_with_constraints() {
+        let u = NodeValueUpdate {
+            value: serde_json::json!(1024),
+            access_mode: "RW".to_string(),
+            min: Some(1.0),
+            max: Some(4096.0),
+            inc: Some(1.0),
+        };
+        let s = serde_json::to_string(&u).expect("serialization failed");
+        let d: NodeValueUpdate = serde_json::from_str(&s).expect("deserialization failed");
+        assert_eq!(d.min, Some(1.0));
+        assert_eq!(d.max, Some(4096.0));
+        assert_eq!(d.inc, Some(1.0));
+        assert_eq!(d.access_mode, "RW");
+    }
+
+    #[test]
+    fn test_node_value_update_deserializes_legacy() {
+        // Legacy JSON (no min/max/inc) must still deserialize with all None.
+        let legacy = r#"{"value": 1024, "access_mode": "RW"}"#;
+        let d: NodeValueUpdate = serde_json::from_str(legacy).expect("deserialization failed");
+        assert!(d.min.is_none());
+        assert!(d.max.is_none());
+        assert!(d.inc.is_none());
+        assert_eq!(d.access_mode, "RW");
     }
 }

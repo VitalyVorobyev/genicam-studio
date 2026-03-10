@@ -72,10 +72,14 @@ opaque string without `/`).
   { "value": 1024, "access_mode": "RW" }
   { "value": "Continuous", "access_mode": "RW" }
   { "value": true, "access_mode": "RO" }
+  { "value": 640, "access_mode": "RW", "min": 1.0, "max": 4096.0, "inc": 1.0 }
   ```
 - **Rust type:** `NodeValueUpdate` in `genicam_zenoh_api`
 - **Semantics:** The app maintains a local `NodeValueCache` updated by these messages.
   `access_mode` is one of `RO`, `WO`, `RW`, `NA`.
+  `min`, `max`, `inc` are **optional** runtime constraint hints (ZA-06). When present,
+  the UI can tighten slider ranges without re-parsing XML. Services that do not implement
+  constraint propagation may omit them; the UI falls back to XML-parsed static constraints.
 
 ### `genicam/devices/{device_id}/nodes/{node_name}/set`
 
@@ -328,7 +332,7 @@ sequenceDiagram
 |-------|---------|-------------|
 | `device-discovered` | `DeviceInfo` | New device seen on Zenoh |
 | `device-lost` | `{ device_id: string }` | Device announce timed out |
-| `node-value-changed` | `{ node_name, value, access_mode }` | Live node update |
+| `node-value-changed` | `{ node_name, value, access_mode, min?, max?, inc? }` | Live node update; `min`/`max`/`inc` present when service provides runtime constraints |
 | `acquisition-status` | `AcquisitionStatus` | Acquisition state change |
 | `connection-state-changed` | `ConnectionState` | Connect/disconnect/error |
 | `image-meta-changed` | `ImageMeta` | Image format or dimension change; emitted by TB-01 on each image/meta Zenoh update |

@@ -172,6 +172,9 @@ impl NodeStore {
         values.get(name).map(|entry| NodeValueUpdate {
             value: entry.value.clone(),
             access_mode: entry.access_mode.clone(),
+            min: None,
+            max: None,
+            inc: None,
         })
     }
 
@@ -262,6 +265,9 @@ impl NodeStore {
         let update = NodeValueUpdate {
             value: entry.value.clone(),
             access_mode: entry.access_mode.clone(),
+            min: None,
+            max: None,
+            inc: None,
         };
         let _ = self.change_tx.send((name.to_string(), update.clone()));
 
@@ -272,6 +278,9 @@ impl NodeStore {
                 let sec_update = NodeValueUpdate {
                     value: sec_value,
                     access_mode: sec_entry.access_mode.clone(),
+                    min: None,
+                    max: None,
+                    inc: None,
                 };
                 let _ = self.change_tx.send((sec_name, sec_update));
             }
@@ -295,6 +304,9 @@ impl NodeStore {
                     NodeValueUpdate {
                         value: entry.value.clone(),
                         access_mode: entry.access_mode.clone(),
+                        min: None,
+                        max: None,
+                        inc: None,
                     },
                 )
             })

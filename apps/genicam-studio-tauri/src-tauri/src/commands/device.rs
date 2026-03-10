@@ -213,6 +213,9 @@ fn spawn_node_value_sub(
                     let entry = NodeValueEntry {
                         value: update.value.clone(),
                         access_mode: update.access_mode.clone(),
+                        min: update.min,
+                        max: update.max,
+                        inc: update.inc,
                     };
                     zenoh
                         .node_cache
@@ -225,6 +228,9 @@ fn spawn_node_value_sub(
                             "node_name": node_name,
                             "value": update.value,
                             "access_mode": update.access_mode,
+                            "min": update.min,
+                            "max": update.max,
+                            "inc": update.inc,
                         }),
                     );
                 }

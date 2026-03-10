@@ -8,6 +8,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- ZA-06: NodeValueUpdate extended with optional min/max/inc constraint fields; NodeValueEntry carries runtime constraints to the UI
 - FB-05: Export State button exports all live device values as a JSON preset file
 - FB-02: Batch apply — Apply All button writes all valid pending drafts sequentially with progress indicator
 - FB-01: Live node values shown inline in category tree and search results

@@ -29,6 +29,12 @@ export interface StreamerInfo {
 export interface NodeValueEntry {
   value: number | string | boolean;
   access_mode: string;
+  /** Optional runtime minimum constraint reported by the camera service. */
+  min?: number;
+  /** Optional runtime maximum constraint reported by the camera service. */
+  max?: number;
+  /** Optional runtime increment (step) reported by the camera service. */
+  inc?: number;
 }
 
 export interface ImageMeta {
