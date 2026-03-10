@@ -8,6 +8,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- FB-02: Batch apply — Apply All button writes all valid pending drafts sequentially with progress indicator
 - FB-01: Live node values shown inline in category tree and search results
 - UX-07: Toast notification system for connect/acquire events; skeleton shimmer on XML load
 - UX-06: Drag-to-resize splitters for device sidebar and feature browser tree pane, with min/max sizes and localStorage persistence

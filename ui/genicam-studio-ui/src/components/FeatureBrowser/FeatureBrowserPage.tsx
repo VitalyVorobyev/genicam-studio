@@ -16,6 +16,7 @@ import { useDraftValues } from "../../state/useDraftValues";
 import { useSplitter } from "../Layout/useSplitter";
 import { CategoryTree } from "./CategoryTree";
 import { formatLiveValue } from "./treeUtils";
+import { countApplicableDrafts, formatBatchProgress } from "./batchApplyUtils";
 import { FeaturePanel } from "./FeaturePanel";
 
 // T7.1 — visibility levels; rank determines filtering inclusivity
@@ -86,6 +87,7 @@ export function FeatureBrowserPage({
   const [selectedFixture, setSelectedFixture] = useState<string>("");
 
   const { drafts, errors, setDraft, resetDraft, clearAllDrafts } = useDraftValues();
+  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
 
   const { size: treeWidth, handleProps: treeSplitterProps } = useSplitter({
     storageKey: "genicam-studio:feature-browser-tree-width",
@@ -349,6 +351,40 @@ export function FeatureBrowserPage({
     await provider.executeCommand(selectedNode.name);
   }, [provider, selectedNode]);
 
+  const applicableDraftCount = useMemo(
+    () => countApplicableDrafts(drafts, errors),
+    [drafts, errors],
+  );
+
+  const handleBatchApply = useCallback(async () => {
+    if (!provider.applyNodeValue || !graph) return;
+
+    // Build ordered list of valid drafts (skip any with validation errors).
+    const applicable: Array<{ name: string; value: NodeValue }> = [];
+    for (const [name, value] of Object.entries(drafts)) {
+      if ((errors[name] ?? []).length === 0) {
+        applicable.push({ name, value });
+      }
+    }
+    if (applicable.length === 0) return;
+
+    setBatchProgress({ done: 0, total: applicable.length });
+
+    for (let i = 0; i < applicable.length; i++) {
+      const item = applicable[i];
+      if (!item) continue;
+      try {
+        await provider.applyNodeValue(item.name, item.value);
+        resetDraft(item.name);
+      } catch {
+        // Keep failed drafts in state so the user can inspect and retry.
+      }
+      setBatchProgress({ done: i + 1, total: applicable.length });
+    }
+
+    setBatchProgress(null);
+  }, [provider, graph, drafts, errors, resetDraft]);
+
   // T7.1+T7.2 — filtered search results
   const searchResults = useMemo(() => {
     if (!graph || !searchText.trim()) return [] as UiNode[];
@@ -448,6 +484,29 @@ export function FeatureBrowserPage({
           </button>
         </div>
 
+        {/* FB-02 — Batch apply */}
+        {canApply && (
+          <>
+            <div className="browser-toolbar__sep" />
+            <div className="browser-toolbar__group">
+              <button
+                type="button"
+                className="btn"
+                onClick={handleBatchApply}
+                disabled={applicableDraftCount === 0 || batchProgress !== null}
+                title={
+                  applicableDraftCount === 0
+                    ? "No valid drafts to apply"
+                    : `Apply all ${applicableDraftCount} pending draft${applicableDraftCount !== 1 ? "s" : ""} to device`
+                }
+              >
+                Apply All
+                {applicableDraftCount > 0 && ` (${applicableDraftCount})`}
+              </button>
+            </div>
+          </>
+        )}
+
         <div className="browser-toolbar__sep" />
 
         {/* T7.2 — Search with debounce */}
@@ -498,6 +557,11 @@ export function FeatureBrowserPage({
       </div>
 
       {/* Status strip */}
+      {batchProgress !== null && (
+        <div className="browser-status browser-status--info">
+          {formatBatchProgress(batchProgress.done, batchProgress.total)}
+        </div>
+      )}
       {status.kind === "loading" && (
         <div className="browser-status browser-status--info browser-status--shimmer">
           Loading {status.fileName}\u2026
