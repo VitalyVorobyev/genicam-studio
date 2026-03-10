@@ -136,7 +136,7 @@ Build the dedicated Image Viewer with camera controls and image analysis tools.
 
 ---
 
-## Epic 6: Feature Browser Improvements — 2/5 complete
+## Epic 6: Feature Browser Improvements — 3/5 complete
 
 Enhance the existing Feature Browser.
 
@@ -144,9 +144,9 @@ Enhance the existing Feature Browser.
 |----|------|----------|------|--------|-----|-------|
 | FB-03 | Node dependency visualization | P2 | L | planned | — | Show which nodes affect which (pSelected, pInvalidator relationships from XML). |
 | FB-04 | Favorites/pinned nodes | P2 | S | planned | — | Pin frequently-used nodes for quick access. |
-| FB-05 | Export full node state | P1 | M | planned | — | Export all current live values (not just drafts) as a preset file. |
 | ~~FB-01~~ | ~~Live value display in tree~~ | P1 | M | ✓ done | — | Live values shown inline in category tree and search results (green mono text, replaces kind label). |
 | ~~FB-02~~ | ~~Batch apply~~ | P1 | M | ✓ done | — | Apply All button writes valid pending drafts sequentially with per-item progress strip. |
+| ~~FB-05~~ | ~~Export full node state~~ | P1 | M | ✓ done | — | Export State button downloads all live device values as genicam-state.json (same format as Import Preset). |
 
 ---
 
