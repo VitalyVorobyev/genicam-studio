@@ -17,6 +17,7 @@ import { useSplitter } from "../Layout/useSplitter";
 import { CategoryTree } from "./CategoryTree";
 import { formatLiveValue } from "./treeUtils";
 import { countApplicableDrafts, formatBatchProgress } from "./batchApplyUtils";
+import { buildLiveValuePreset } from "./presetUtils";
 import { FeaturePanel } from "./FeaturePanel";
 
 // T7.1 — visibility levels; rank determines filtering inclusivity
@@ -248,6 +249,20 @@ export function FeatureBrowserPage({
     a.click();
     URL.revokeObjectURL(url);
   }, [graph, drafts]);
+
+  // FB-05 — Export live state: download all current live values as JSON
+  const onExportLiveState = useCallback(() => {
+    if (!graph || !liveValues || liveValues.size === 0) return;
+    const preset = buildLiveValuePreset(liveValues);
+    const data = JSON.stringify(preset, null, 2);
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "genicam-state.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [graph, liveValues]);
 
   // T7.3 — Import preset: load JSON and restore drafts
   const onImportPreset = useCallback(() => {
@@ -481,6 +496,20 @@ export function FeatureBrowserPage({
             title="Import a JSON preset file and restore draft values"
           >
             Import Preset
+          </button>
+          {/* FB-05 — Export all live values as a state snapshot */}
+          <button
+            type="button"
+            className="btn--ghost"
+            onClick={onExportLiveState}
+            disabled={!graph || !liveValues || liveValues.size === 0}
+            title={
+              liveValues && liveValues.size > 0
+                ? `Export all ${liveValues.size} live device values as genicam-state.json`
+                : "Connect to a device to export live state"
+            }
+          >
+            Export State
           </button>
         </div>
 
