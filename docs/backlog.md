@@ -68,7 +68,7 @@ Evolve the `genicam_zenoh_api` crate and `docs/zenoh-api.md`.
 
 | ID | Task | Priority | Size | Status | ADR | Notes |
 |----|------|----------|------|--------|-----|-------|
-| ZA-05 | API version negotiation | P2 | M | planned | 008 | Version field in `announce`, compatibility check. |
+| ~~ZA-05~~ | ~~API version negotiation~~ | P2 | M | ✓ done | 008 | Version field in `announce`, compatibility check. |
 | ~~ZA-07~~ | ~~API spec review & documentation~~ | P0 | M | ✓ done | 008 | Review `docs/zenoh-api.md` for completeness. Add sequence diagrams. Ensure spec matches `genicam_zenoh_api` types exactly. |
 | ~~ZA-01~~ | ~~Image metadata types~~ | P1 | S | ✓ done | 005,008 | Add `ImageMeta` struct, `image_meta()` key helper. |
 | ~~ZA-02~~ | ~~Bulk read types~~ | P1 | S | ✓ done | 008 | Add `BulkReadRequest`, `BulkReadResponse` types. |
