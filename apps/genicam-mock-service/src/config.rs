@@ -1,5 +1,3 @@
-use crate::Cli;
-
 #[derive(Debug, Clone)]
 pub struct MockConfig {
     pub device_id: String,
@@ -12,15 +10,23 @@ pub struct MockConfig {
 }
 
 impl MockConfig {
-    pub fn from_cli(cli: &Cli) -> Self {
+    pub fn new(
+        device_id: impl Into<String>,
+        device_name: impl Into<String>,
+        model: impl Into<String>,
+        serial: impl Into<String>,
+        width: u32,
+        height: u32,
+        fps: f32,
+    ) -> Self {
         Self {
-            device_id: cli.device_id.clone(),
-            device_name: cli.device_name.clone(),
-            model: cli.model.clone(),
-            serial: cli.serial.clone(),
-            width: cli.width,
-            height: cli.height,
-            fps: cli.fps,
+            device_id: device_id.into(),
+            device_name: device_name.into(),
+            model: model.into(),
+            serial: serial.into(),
+            width,
+            height,
+            fps,
         }
     }
 }

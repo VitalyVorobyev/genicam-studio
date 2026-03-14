@@ -1,20 +1,12 @@
-mod acquisition;
-mod config;
-mod discovery;
-mod interdependencies;
-mod nodes;
-mod state;
-mod status;
-mod xml_queryable;
-
 use std::sync::Arc;
 
 use clap::Parser;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
-use crate::config::MockConfig;
-use crate::state::NodeStore;
+use genicam_mock_service::{
+    acquisition, config::MockConfig, discovery, nodes, state::NodeStore, status, xml_queryable,
+};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -65,7 +57,15 @@ const DEFAULT_FIXTURE: &str = include_str!("../fixtures/sfnc-standard.xml");
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     init_tracing();
     let cli = Cli::parse();
-    let config = MockConfig::from_cli(&cli);
+    let config = MockConfig::new(
+        &cli.device_id,
+        &cli.device_name,
+        &cli.model,
+        &cli.serial,
+        cli.width,
+        cli.height,
+        cli.fps,
+    );
 
     let zenoh_config = load_zenoh_config(cli.zenoh_config.as_deref())?;
     let session = Arc::new(zenoh::open(zenoh_config).await?);

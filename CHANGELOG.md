@@ -8,6 +8,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- CI-01: End-to-end integration tests — discovery, XML fetch, node set, and bulk read over real Zenoh peer sessions
 - ZA-05: API version negotiation — api_version field in DeviceAnnounce; compatibility check on discovery; api-version-mismatch Tauri event
 - TB-04: Node value validation in write_node — access mode, type, range, increment, and enum checks before Zenoh send
 - ZA-06: NodeValueUpdate extended with optional min/max/inc constraint fields; NodeValueEntry carries runtime constraints to the UI
