@@ -98,7 +98,7 @@ Evolve the Tauri app's Rust backend.
 
 | ID | Task | Priority | Size | Status | ADR | Notes |
 |----|------|----------|------|--------|-----|-------|
-| TB-04 | Node value validation | P1 | M | planned | — | Validate node writes against UiGraph constraints before sending to service. |
+| ~~TB-04~~ | ~~Node value validation~~ | P1 | M | ✓ done | — | Validate node writes against UiGraph constraints before sending to service. |
 | ~~TB-06~~ | ~~Error recovery on disconnect~~ | P1 | M | ✓ done | — | Auto-cleanup on unexpected disconnect. Reconnect prompt. |
 | ~~TB-07~~ | ~~Streamer lifecycle improvement~~ | P1 | M | ✓ done | — | Health monitoring of streamer child process. Auto-restart on crash. |
 | ~~TB-01~~ | ~~Image metadata event~~ | P1 | S | ✓ done | 005 | Subscribe to `image/meta`, emit `image-meta-changed` to frontend. |
