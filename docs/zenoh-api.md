@@ -23,12 +23,17 @@ opaque string without `/`).
     "id": "cam0",
     "name": "Sony IMX421 GigE Camera",
     "model": "SPC-3000",
-    "serial": "SN12345678"
+    "serial": "SN12345678",
+    "api_version": 1
   }
   ```
 - **Rust type:** `DeviceAnnounce` in `genicam_zenoh_api`
 - **Semantics:** The app subscribes to `genicam/devices/*/announce`. Any device not seen
   for more than 6 seconds is considered lost and removed from the discovered list.
+- **`api_version`:** Optional (`null`/absent means the service is pre-versioning). The app
+  compares this against `genicam_zenoh_api::API_VERSION` (currently `1`). On mismatch or
+  absence, the app emits an `api-version-mismatch` Tauri event (see below) and still
+  discovers the device — no hard rejection.
 
 ---
 
@@ -332,6 +337,7 @@ sequenceDiagram
 |-------|---------|-------------|
 | `device-discovered` | `DeviceInfo` | New device seen on Zenoh |
 | `device-lost` | `{ device_id: string }` | Device announce timed out |
+| `api-version-mismatch` | `{ device_id: string, device_version: number \| null, app_version: number }` | Emitted once per device on first discovery when `api_version` is absent or differs from `API_VERSION`; device is still discovered |
 | `node-value-changed` | `{ node_name, value, access_mode, min?, max?, inc? }` | Live node update; `min`/`max`/`inc` present when service provides runtime constraints |
 | `acquisition-status` | `AcquisitionStatus` | Acquisition state change |
 | `connection-state-changed` | `ConnectionState` | Connect/disconnect/error |

@@ -5,11 +5,33 @@ use tokio::sync::RwLock;
 
 use crate::commands::xml_model::{ModelSummary, ParseXmlResponse};
 use crate::state::device_state::{
-    ConnectionState, DeviceInfo, DisconnectReason, NodeValueEntry, ZenohState,
+    ApiVersionMismatch, ConnectionState, DeviceInfo, DisconnectReason, NodeValueEntry, ZenohState,
 };
 use crate::state::ModelState;
 use genicam_xml_model::parse_genicam_xml;
 use genicam_zenoh_api::{DeviceAnnounce, DeviceXmlResponse, ImageMeta};
+
+// ── API version compatibility ─────────────────────────────────────────────────
+
+/// Outcome of comparing a service-announced API version against the app's expected version.
+#[derive(Debug, PartialEq)]
+pub enum ApiVersionStatus {
+    /// Versions match exactly — service is compatible.
+    Compatible,
+    /// Service did not include `api_version` — old service, warn but allow.
+    Missing,
+    /// Service announced a different version — warn user.
+    Incompatible(u32),
+}
+
+/// Compare the announced `api_version` against the app's `expected` version.
+fn check_api_version(announced: Option<u32>, expected: u32) -> ApiVersionStatus {
+    match announced {
+        None => ApiVersionStatus::Missing,
+        Some(v) if v == expected => ApiVersionStatus::Compatible,
+        Some(v) => ApiVersionStatus::Incompatible(v),
+    }
+}
 
 // ── IPC Commands ──────────────────────────────────────────────────────────────
 
@@ -160,6 +182,12 @@ async fn run_discovery_loop(zenoh: Arc<ZenohState>, app: AppHandle) {
                 };
                 let bytes = sample.payload().to_bytes();
                 if let Ok(announce) = serde_json::from_slice::<DeviceAnnounce>(&bytes) {
+                    // Check API version compatibility on first discovery of each device.
+                    let version_status = check_api_version(
+                        announce.api_version,
+                        genicam_zenoh_api::API_VERSION,
+                    );
+
                     let info = DeviceInfo {
                         id: announce.id.clone(),
                         name: announce.name,
@@ -174,6 +202,17 @@ async fn run_discovery_loop(zenoh: Arc<ZenohState>, app: AppHandle) {
                     };
                     if is_new {
                         let _ = app.emit("device-discovered", &info);
+                        // Emit version warning on first discovery only.
+                        if version_status != ApiVersionStatus::Compatible {
+                            let _ = app.emit(
+                                "api-version-mismatch",
+                                ApiVersionMismatch {
+                                    device_id: announce.id.clone(),
+                                    device_version: announce.api_version,
+                                    app_version: genicam_zenoh_api::API_VERSION,
+                                },
+                            );
+                        }
                     }
                 }
             }
@@ -387,7 +426,26 @@ async fn fetch_device_xml(session: &zenoh::Session, device_id: &str) -> Result<S
 
 #[cfg(test)]
 mod tests {
+    use super::{check_api_version, ApiVersionStatus};
     use crate::state::device_state::DisconnectReason;
+
+    #[test]
+    fn test_check_api_version_compatible() {
+        assert_eq!(check_api_version(Some(1), 1), ApiVersionStatus::Compatible);
+    }
+
+    #[test]
+    fn test_check_api_version_missing() {
+        assert_eq!(check_api_version(None, 1), ApiVersionStatus::Missing);
+    }
+
+    #[test]
+    fn test_check_api_version_incompatible() {
+        assert_eq!(
+            check_api_version(Some(2), 1),
+            ApiVersionStatus::Incompatible(2)
+        );
+    }
 
     #[test]
     fn test_disconnect_reason_serializes_fields() {

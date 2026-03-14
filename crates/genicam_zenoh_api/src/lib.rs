@@ -10,6 +10,13 @@ pub use frame_header::{FrameHeader, FrameHeaderError, FRAME_MAGIC, HEADER_SIZE};
 
 // ── Discovery ────────────────────────────────────────────────────────────────
 
+/// Current GenICam Studio Zenoh API version.
+///
+/// Increment this constant when making breaking changes to the Zenoh wire
+/// protocol.  The mock service publishes this value; the Tauri app checks it
+/// on discovery and emits `api-version-mismatch` when versions differ.
+pub const API_VERSION: u32 = 1;
+
 /// Periodic announcement published by the camera service.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceAnnounce {
@@ -17,6 +24,12 @@ pub struct DeviceAnnounce {
     pub name: String,
     pub model: String,
     pub serial: String,
+    /// Zenoh API version supported by this service.
+    ///
+    /// `None` when deserializing from older services that do not include the
+    /// field — handled gracefully by the app (warns but still discovers).
+    #[serde(default)]
+    pub api_version: Option<u32>,
 }
 
 // ── Connection Lifecycle ─────────────────────────────────────────────────────
@@ -257,6 +270,24 @@ pub mod keys {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_device_announce_deserializes_without_api_version() {
+        // Legacy JSON (no api_version field) must deserialize with api_version: None.
+        let legacy = r#"{"id":"cam0","name":"Test Cam","model":"M1","serial":"S1"}"#;
+        let a: DeviceAnnounce = serde_json::from_str(legacy).expect("should deserialize");
+        assert!(
+            a.api_version.is_none(),
+            "api_version should be None for legacy JSON"
+        );
+    }
+
+    #[test]
+    fn test_device_announce_deserializes_with_api_version() {
+        let json = r#"{"id":"cam0","name":"Test","model":"M","serial":"S","api_version":1}"#;
+        let a: DeviceAnnounce = serde_json::from_str(json).expect("should deserialize");
+        assert_eq!(a.api_version, Some(1));
+    }
 
     #[test]
     fn test_node_value_update_without_constraints() {

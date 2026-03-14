@@ -26,6 +26,19 @@ pub struct DisconnectReason {
     pub device_id: String,
 }
 
+/// Payload for the `api-version-mismatch` Tauri event.
+///
+/// Emitted when the announced `api_version` of a discovered device does not
+/// match `genicam_zenoh_api::API_VERSION`, or is absent (old service).
+#[derive(Debug, Clone, Serialize)]
+pub struct ApiVersionMismatch {
+    pub device_id: String,
+    /// Version reported by the service, or `null` if absent.
+    pub device_version: Option<u32>,
+    /// Version expected by the app.
+    pub app_version: u32,
+}
+
 // ── Types exposed to the UI via Tauri IPC ───────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

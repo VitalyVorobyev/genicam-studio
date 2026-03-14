@@ -19,6 +19,7 @@ pub async fn run(
         name: config.device_name.clone(),
         model: config.model.clone(),
         serial: config.serial.clone(),
+        api_version: Some(genicam_zenoh_api::API_VERSION),
     };
     let payload = match serde_json::to_vec(&announce) {
         Ok(p) => p,
