@@ -189,7 +189,7 @@ Build tooling, testing, and deployment.
 
 | ID | Task | Priority | Size | Status | ADR | Notes |
 |----|------|----------|------|--------|-----|-------|
-| CI-01 | End-to-end integration tests | P0 | M | planned | — | Mock service → Zenoh → Tauri backend → assertions. |
+| ~~CI-01~~ | ~~End-to-end integration tests~~ | P0 | M | ✓ done | — | Mock service → Zenoh → Tauri backend → assertions. |
 | CI-02 | Tauri build in CI | P1 | M | planned | — | Cross-platform Tauri builds (macOS, Linux, Windows). |
 | CI-03 | Release packaging | P1 | L | planned | — | DMG (macOS), AppImage (Linux), MSI (Windows). Bundle streamer binary. |
 | CI-04 | Performance benchmarks | P2 | M | planned | — | Frame throughput, node update latency, UI render performance. |
