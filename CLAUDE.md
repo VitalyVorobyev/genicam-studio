@@ -10,7 +10,13 @@ Key docs:
 - `docs/backlog.md` — product backlog and milestone plan
 - `docs/camera-service-api.md` — camera service library API specification
 - `docs/zenoh-api.md` — Zenoh wire protocol between service and app
+- `docs/testing-cookbook.md` — how to test with real camera service and aravis fake camera
 - `docs/adrs/` — architecture decision records
+
+## Related Projects
+
+- **genicam-rs** (`../genicam-rs`) — Pure Rust GenICam/GigE Vision implementation. Contains `genicam-service` binary that bridges real cameras to this app via Zenoh.
+- **aravis** (`../aravis`) — C library providing `arv-fake-gv-camera-0.8` for simulated device testing.
 
 Pre-alpha: parsing coverage is expanding; JSON contracts aim for stability. Desktop (Tauri) is the primary runtime; WASM is maintained for offline XML browsing.
 
