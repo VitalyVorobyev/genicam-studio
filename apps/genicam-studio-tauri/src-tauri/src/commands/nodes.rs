@@ -4,6 +4,7 @@ use std::sync::Arc;
 use tauri::State;
 use tokio::sync::RwLock;
 
+use crate::error::HumanizeExt;
 use crate::state::device_state::{ConnectionState, NodeValueEntry, ZenohState};
 use crate::state::ModelState;
 use genicam_xml_model::{UiNode, UiNodeKind};
@@ -21,6 +22,7 @@ pub async fn get_node_value(
         .get(&node_name)
         .cloned()
         .ok_or_else(|| format!("Node '{node_name}' not in cache"))
+        .humanize()
 }
 
 /// Validate that `value` is a legal write for `node`, using runtime constraints from `live`
@@ -174,8 +176,8 @@ pub async fn write_node(
         }
     }
 
-    let session = zenoh.get_session().await?;
-    let device_id = connected_device_id(&zenoh).await?;
+    let session = zenoh.get_session().await.humanize()?;
+    let device_id = connected_device_id(&zenoh).await.humanize()?;
 
     let key = genicam_zenoh_api::keys::node_set(&device_id, &node_name);
     let payload = serde_json::to_vec(&NodeSetRequest { value }).map_err(|e| e.to_string())?;
@@ -183,8 +185,10 @@ pub async fn write_node(
     let replies = session
         .get(&key)
         .payload(payload)
+        .timeout(std::time::Duration::from_secs(5))
         .await
-        .map_err(|e| format!("Zenoh error: {e}"))?;
+        .map_err(|e| format!("Zenoh error: {e}"))
+        .humanize()?;
 
     match replies.recv_async().await {
         Ok(reply) => match reply.result() {
@@ -202,6 +206,7 @@ pub async fn write_node(
         },
         Err(_) => Err(format!("No reply for write_node '{node_name}' (timeout)")),
     }
+    .humanize()
 }
 
 #[tauri::command]
@@ -209,15 +214,17 @@ pub async fn execute_command(
     node_name: String,
     zenoh: State<'_, Arc<ZenohState>>,
 ) -> Result<(), String> {
-    let session = zenoh.get_session().await?;
-    let device_id = connected_device_id(&zenoh).await?;
+    let session = zenoh.get_session().await.humanize()?;
+    let device_id = connected_device_id(&zenoh).await.humanize()?;
 
     let key = genicam_zenoh_api::keys::node_execute(&device_id, &node_name);
 
     let replies = session
         .get(&key)
+        .timeout(std::time::Duration::from_secs(5))
         .await
-        .map_err(|e| format!("Zenoh error: {e}"))?;
+        .map_err(|e| format!("Zenoh error: {e}"))
+        .humanize()?;
 
     match replies.recv_async().await {
         Ok(reply) => match reply.result() {
@@ -237,6 +244,7 @@ pub async fn execute_command(
             "No reply for execute_command '{node_name}' (timeout)"
         )),
     }
+    .humanize()
 }
 
 /// Parse raw bytes from a `nodes/bulk/read` reply into a `NodeValueEntry` map.
@@ -268,8 +276,8 @@ pub async fn read_nodes_bulk(
     names: Vec<String>,
     zenoh: State<'_, Arc<ZenohState>>,
 ) -> Result<HashMap<String, NodeValueEntry>, String> {
-    let session = zenoh.get_session().await?;
-    let device_id = connected_device_id(&zenoh).await?;
+    let session = zenoh.get_session().await.humanize()?;
+    let device_id = connected_device_id(&zenoh).await.humanize()?;
 
     let key = genicam_zenoh_api::keys::nodes_bulk_read(&device_id);
     let payload = serde_json::to_vec(&BulkReadRequest { names }).map_err(|e| e.to_string())?;
@@ -277,8 +285,10 @@ pub async fn read_nodes_bulk(
     let replies = session
         .get(&key)
         .payload(payload)
+        .timeout(std::time::Duration::from_secs(5))
         .await
-        .map_err(|e| format!("Zenoh error: {e}"))?;
+        .map_err(|e| format!("Zenoh error: {e}"))
+        .humanize()?;
 
     match replies.recv_async().await {
         Ok(reply) => match reply.result() {
@@ -290,6 +300,7 @@ pub async fn read_nodes_bulk(
         },
         Err(_) => Err("No reply for read_nodes_bulk (timeout)".to_string()),
     }
+    .humanize()
 }
 
 async fn connected_device_id(zenoh: &ZenohState) -> Result<String, String> {
@@ -334,6 +345,12 @@ mod tests {
             }),
             enum_entries: vec![],
             raw: raw_node("Integer"),
+            dependencies: vec![],
+            dependents: vec![],
+            expression: None,
+            int_min: None,
+            int_max: None,
+            int_inc: None,
         }
     }
 
@@ -357,6 +374,12 @@ mod tests {
             }),
             enum_entries: vec![],
             raw: raw_node("Float"),
+            dependencies: vec![],
+            dependents: vec![],
+            expression: None,
+            int_min: None,
+            int_max: None,
+            int_inc: None,
         }
     }
 
@@ -375,6 +398,12 @@ mod tests {
             constraints: None,
             enum_entries: vec![],
             raw: raw_node("Boolean"),
+            dependencies: vec![],
+            dependents: vec![],
+            expression: None,
+            int_min: None,
+            int_max: None,
+            int_inc: None,
         }
     }
 
@@ -400,6 +429,12 @@ mod tests {
                 })
                 .collect(),
             raw: raw_node("Enumeration"),
+            dependencies: vec![],
+            dependents: vec![],
+            expression: None,
+            int_min: None,
+            int_max: None,
+            int_inc: None,
         }
     }
 
@@ -533,6 +568,12 @@ mod tests {
             constraints: None,
             enum_entries: vec![],
             raw: raw_node("Command"),
+            dependencies: vec![],
+            dependents: vec![],
+            expression: None,
+            int_min: None,
+            int_max: None,
+            int_inc: None,
         };
         let err = validate_node_write(&node, None, &serde_json::json!(null))
             .expect_err("Command node should be rejected");

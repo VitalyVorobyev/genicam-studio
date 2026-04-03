@@ -5,6 +5,7 @@ pub enum ParseError {
     Xml(quick_xml::Error),
     Attr(AttrError),
     MissingName { tag: String },
+    Full(String),
 }
 
 impl std::fmt::Display for ParseError {
@@ -15,6 +16,7 @@ impl std::fmt::Display for ParseError {
             Self::MissingName { tag } => {
                 write!(f, "missing required Name attribute on <{tag}>")
             }
+            Self::Full(msg) => write!(f, "full parser: {msg}"),
         }
     }
 }
@@ -24,7 +26,7 @@ impl std::error::Error for ParseError {
         match self {
             Self::Xml(err) => Some(err),
             Self::Attr(err) => Some(err),
-            Self::MissingName { .. } => None,
+            Self::MissingName { .. } | Self::Full(_) => None,
         }
     }
 }

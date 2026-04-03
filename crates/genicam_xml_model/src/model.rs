@@ -33,6 +33,24 @@ pub struct UiNode {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub enum_entries: Vec<EnumEntry>,
     pub raw: RawNode,
+    /// Nodes that this node depends on (pValue, pMin, pMax references).
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub dependencies: Vec<String>,
+    /// Nodes that are invalidated when this node changes.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub dependents: Vec<String>,
+    /// SwissKnife/Converter expression string (for display, not evaluation).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expression: Option<String>,
+    /// For Integer nodes: static integer minimum from XML.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub int_min: Option<i64>,
+    /// For Integer nodes: static integer maximum from XML.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub int_max: Option<i64>,
+    /// For Integer nodes: static integer increment from XML.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub int_inc: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

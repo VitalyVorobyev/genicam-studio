@@ -3,6 +3,7 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
 
 use crate::commands::device::stop_acquisition_child;
+use crate::error::HumanizeExt;
 use crate::state::device_state::{ConnectionState, StreamerInfo, StreamerStatus, ZenohState};
 use genicam_zenoh_api::{
     AcquisitionCommand, AcquisitionControlRequest, AcquisitionStatus, NodeOpResponse,
@@ -81,7 +82,7 @@ async fn run_streamer_monitor(
                         restart_count,
                     },
                 );
-                eprintln!("Streamer spawn failed: {e}");
+                tracing::error!("Streamer spawn failed: {e}");
                 return;
             }
         };
@@ -111,10 +112,10 @@ async fn run_streamer_monitor(
                         restart_count,
                     },
                 );
-                eprintln!("genicam-ws-streamer exited unexpectedly ({exit_desc}), restart_count={restart_count}");
+                tracing::warn!("genicam-ws-streamer exited unexpectedly ({exit_desc}), restart_count={restart_count}");
 
                 if restart_count >= MAX_RESTARTS {
-                    eprintln!("Streamer exceeded max restart count; giving up");
+                    tracing::error!("Streamer exceeded max restart count; giving up");
                     return;
                 }
 
@@ -162,8 +163,8 @@ pub async fn start_acquisition(
     zenoh: State<'_, Arc<ZenohState>>,
     app: AppHandle,
 ) -> Result<StreamerInfo, String> {
-    let session = zenoh.get_session().await?;
-    let device_id = connected_device_id(&zenoh).await?;
+    let session = zenoh.get_session().await.humanize()?;
+    let device_id = connected_device_id(&zenoh).await.humanize()?;
 
     // Read image dimensions from cached node values (Width / Height SFNC nodes)
     let (width, height) = {
@@ -239,8 +240,8 @@ pub async fn stop_acquisition(
     zenoh: State<'_, Arc<ZenohState>>,
     app: AppHandle,
 ) -> Result<(), String> {
-    let session = zenoh.get_session().await?;
-    let device_id = connected_device_id(&zenoh).await?;
+    let session = zenoh.get_session().await.humanize()?;
+    let device_id = connected_device_id(&zenoh).await.humanize()?;
 
     // Signal device service to stop — best-effort, don't block on error
     let _ = send_acquisition_command(&session, &device_id, AcquisitionCommand::Stop).await;
@@ -280,6 +281,7 @@ async fn send_acquisition_command(
     let replies = session
         .get(&key)
         .payload(payload)
+        .timeout(std::time::Duration::from_secs(5))
         .await
         .map_err(|e| format!("Zenoh error: {e}"))?;
 

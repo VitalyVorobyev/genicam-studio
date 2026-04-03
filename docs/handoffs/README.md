@@ -13,6 +13,15 @@ One file per implemented backlog task. Each file records the architect's spec, i
 
 ## Index
 
+### M6–M10 (current roadmap)
+
+| Task | Title | Handoff |
+|------|-------|---------|
+| M6–M10 | Implementation plan | [M6-implementation-plan.md](M6-implementation-plan.md) |
+| SX-* | Shared XML crate — genicam-rs handoff | [SX-genicam-rs-handoff.md](SX-genicam-rs-handoff.md) |
+
+### M1–M5 (archived)
+
 | Task | Title | Handoff |
 |------|-------|---------|
 | MS-09 | Image metadata publisher | [MS-09.md](MS-09.md) |

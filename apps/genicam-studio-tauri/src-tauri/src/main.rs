@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
+mod error;
 mod state;
 
 use std::sync::Arc;
@@ -12,6 +13,12 @@ fn ping() -> &'static str {
 }
 
 fn main() {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "genicam_studio=info,warn".into()),
+        )
+        .init();
     // ModelState: holds the last parsed UiGraph (used by xml_model commands).
     let model_state = RwLock::new(state::ModelState::default());
 
@@ -42,7 +49,7 @@ fn main() {
                         commands::device::start_discovery_task(zenoh, app_handle);
                     }
                     Err(e) => {
-                        eprintln!("Failed to open Zenoh session: {e}");
+                        tracing::error!("Failed to open Zenoh session: {e}");
                         // App still starts; Zenoh commands will return errors.
                     }
                 }
@@ -76,6 +83,6 @@ fn main() {
         ])
         .run(tauri::generate_context!())
     {
-        eprintln!("error while running tauri application: {err}");
+        tracing::error!("error while running tauri application: {err}");
     }
 }

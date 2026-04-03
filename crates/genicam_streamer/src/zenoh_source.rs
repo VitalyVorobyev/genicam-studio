@@ -40,8 +40,33 @@ pub struct ZenohSourceConfig {
     pub fps_limit: Option<u32>,
 }
 
+/// Run the Zenoh source by opening a new session from the given config.
 pub async fn run(
     config: zenoh::Config,
+    source: ZenohSourceConfig,
+    shared_meta: Arc<RwLock<ImageMeta>>,
+    frame_tx: watch::Sender<Bytes>,
+    info_tx: watch::Sender<crate::ws::StreamInfo>,
+    shutdown: watch::Receiver<bool>,
+) -> Result<(), StreamerError> {
+    let session = Arc::new(zenoh::open(config).await?);
+    run_inner(session, source, shared_meta, frame_tx, info_tx, shutdown).await
+}
+
+/// Run the Zenoh source with a pre-opened session (for embedding).
+pub async fn run_with_session(
+    session: Arc<zenoh::Session>,
+    source: ZenohSourceConfig,
+    shared_meta: Arc<RwLock<ImageMeta>>,
+    frame_tx: watch::Sender<Bytes>,
+    info_tx: watch::Sender<crate::ws::StreamInfo>,
+    shutdown: watch::Receiver<bool>,
+) -> Result<(), StreamerError> {
+    run_inner(session, source, shared_meta, frame_tx, info_tx, shutdown).await
+}
+
+async fn run_inner(
+    session: Arc<zenoh::Session>,
     source: ZenohSourceConfig,
     shared_meta: Arc<RwLock<ImageMeta>>,
     frame_tx: watch::Sender<Bytes>,
@@ -52,7 +77,6 @@ pub async fn run(
         .fps_limit
         .map(|fps| Duration::from_secs_f64(1.0 / fps as f64));
 
-    let session = zenoh::open(config).await?;
     let frame_sub = session.declare_subscriber(&source.key_expr).await?;
     let meta_sub = session.declare_subscriber(&source.meta_key).await?;
 
@@ -205,10 +229,6 @@ pub async fn run(
                 last_emit = Some(Instant::now());
             }
         }
-    }
-
-    if let Err(err) = session.close().await {
-        warn!("Failed to close zenoh session cleanly: {err}");
     }
 
     Ok(())

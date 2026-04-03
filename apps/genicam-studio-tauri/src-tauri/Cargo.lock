@@ -1242,6 +1242,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "genapi-core"
+version = "0.1.0"
+dependencies = [
+ "genapi-xml",
+ "thiserror 1.0.69",
+ "tracing",
+]
+
+[[package]]
+name = "genapi-xml"
+version = "0.1.0"
+dependencies = [
+ "quick-xml 0.31.0",
+ "serde",
+ "thiserror 1.0.69",
+ "tracing",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1264,6 +1283,8 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-fs",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
  "zenoh",
 ]
 
@@ -1271,8 +1292,11 @@ dependencies = [
 name = "genicam_xml_model"
 version = "0.1.0"
 dependencies = [
+ "genapi-core",
+ "genapi-xml",
  "quick-xml 0.31.0",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

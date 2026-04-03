@@ -63,14 +63,23 @@ pub async fn run_server(
     bind: SocketAddr,
     path: String,
     state: AppState,
+    shutdown: watch::Receiver<bool>,
+) -> Result<(), StreamerError> {
+    let listener = TcpListener::bind(bind).await?;
+    info!("WebSocket server listening on ws://{bind}{path}");
+    run_server_with_listener(listener, path, state, shutdown).await
+}
+
+/// Run the WebSocket server with a pre-bound listener (for embedding).
+pub async fn run_server_with_listener(
+    listener: TcpListener,
+    path: String,
+    state: AppState,
     mut shutdown: watch::Receiver<bool>,
 ) -> Result<(), StreamerError> {
     let app = Router::new()
         .route(&path, get(ws_handler))
         .with_state(state);
-
-    let listener = TcpListener::bind(bind).await?;
-    info!("WebSocket server listening on ws://{bind}{path}");
 
     let shutdown_signal = async move {
         loop {

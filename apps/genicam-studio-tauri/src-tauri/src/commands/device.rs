@@ -4,6 +4,7 @@ use tauri::{AppHandle, Emitter, State};
 use tokio::sync::RwLock;
 
 use crate::commands::xml_model::{ModelSummary, ParseXmlResponse};
+use crate::error::HumanizeExt;
 use crate::state::device_state::{
     ApiVersionMismatch, ConnectionState, DeviceInfo, DisconnectReason, NodeValueEntry, ZenohState,
 };
@@ -56,7 +57,7 @@ pub async fn connect_device(
     model: State<'_, RwLock<ModelState>>,
     app: AppHandle,
 ) -> Result<ParseXmlResponse, String> {
-    let session = zenoh.get_session().await?;
+    let session = zenoh.get_session().await.humanize()?;
 
     // Signal connecting
     *zenoh.connection.lock().await = ConnectionState::Connecting {
@@ -65,7 +66,7 @@ pub async fn connect_device(
     emit_connection_state(&app, &zenoh).await;
 
     // Fetch GenICam XML from the device service
-    let xml = match fetch_device_xml(&session, &device_id).await {
+    let xml = match fetch_device_xml(&session, &device_id).await.humanize() {
         Ok(xml) => xml,
         Err(e) => {
             *zenoh.connection.lock().await = ConnectionState::Error { message: e.clone() };
@@ -166,7 +167,7 @@ async fn run_discovery_loop(zenoh: Arc<ZenohState>, app: AppHandle) {
     {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("Discovery subscriber error: {e}");
+            tracing::error!("Discovery subscriber error: {e}");
             return;
         }
     };
@@ -239,7 +240,7 @@ fn spawn_node_value_sub(
         let sub = match session.declare_subscriber(&key).await {
             Ok(s) => s,
             Err(e) => {
-                eprintln!("Node value subscriber error: {e}");
+                tracing::error!("Node value subscriber error: {e}");
                 return;
             }
         };
@@ -289,7 +290,7 @@ fn spawn_status_sub(
         let sub = match session.declare_subscriber(&key).await {
             Ok(s) => s,
             Err(e) => {
-                eprintln!("Status subscriber error: {e}");
+                tracing::error!("Status subscriber error: {e}");
                 return;
             }
         };
@@ -319,7 +320,7 @@ fn spawn_acq_status_sub(
         let sub = match session.declare_subscriber(&key).await {
             Ok(s) => s,
             Err(e) => {
-                eprintln!("Acquisition status subscriber error: {e}");
+                tracing::error!("Acquisition status subscriber error: {e}");
                 return;
             }
         };
@@ -346,7 +347,7 @@ fn spawn_image_meta_sub(
         let sub = match session.declare_subscriber(&key).await {
             Ok(s) => s,
             Err(e) => {
-                eprintln!("Image meta subscriber error: {e}");
+                tracing::error!("Image meta subscriber error: {e}");
                 return;
             }
         };
@@ -407,6 +408,7 @@ async fn fetch_device_xml(session: &zenoh::Session, device_id: &str) -> Result<S
     let key = genicam_zenoh_api::keys::xml(device_id);
     let replies = session
         .get(&key)
+        .timeout(std::time::Duration::from_secs(5))
         .await
         .map_err(|e| format!("Zenoh GET error: {e}"))?;
 

@@ -11,7 +11,6 @@ export interface UiNode {
   name: string;
   kind: UiNodeKind;
   display_name?: string;
-  comment?: string;
   tooltip?: string;
   description?: string;
   visibility?: string;
@@ -21,6 +20,12 @@ export interface UiNode {
   constraints?: NumericConstraints;
   enum_entries?: EnumEntry[];
   raw: RawNode;
+  dependencies?: string[];
+  dependents?: string[];
+  expression?: string;
+  int_min?: number;
+  int_max?: number;
+  int_inc?: number;
 }
 
 export type UiNodeKind =
@@ -38,8 +43,6 @@ export interface UiCategory {
   name: string;
   display_name: string;
   features: string[];
-  tooltip?: string;
-  comment?: string;
 }
 
 export interface NumericConstraints {

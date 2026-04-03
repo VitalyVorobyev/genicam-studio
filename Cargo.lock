@@ -862,6 +862,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "genapi-core"
+version = "0.1.0"
+dependencies = [
+ "genapi-xml",
+ "thiserror 1.0.69",
+ "tracing",
+]
+
+[[package]]
+name = "genapi-xml"
+version = "0.1.0"
+dependencies = [
+ "quick-xml",
+ "serde",
+ "thiserror 1.0.69",
+ "tracing",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -890,13 +909,12 @@ dependencies = [
 name = "genicam-ws-streamer"
 version = "0.1.0"
 dependencies = [
- "axum",
  "bytes",
  "clap",
+ "genicam_streamer",
  "genicam_zenoh_api",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -904,9 +922,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "genicam_streamer"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "bytes",
+ "genicam_zenoh_api",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "zenoh",
+]
+
+[[package]]
 name = "genicam_xml_model"
 version = "0.1.0"
 dependencies = [
+ "genapi-core",
+ "genapi-xml",
  "quick-xml",
  "serde",
  "serde_json",

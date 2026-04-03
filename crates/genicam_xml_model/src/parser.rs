@@ -174,6 +174,12 @@ impl TempNode {
                 attributes: self.raw_attributes,
                 children_text: self.raw_children,
             },
+            dependencies: vec![],
+            dependents: vec![],
+            expression: None,
+            int_min: None,
+            int_max: None,
+            int_inc: None,
         }
     }
 }

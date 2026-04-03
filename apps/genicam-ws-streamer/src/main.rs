@@ -1,9 +1,3 @@
-mod bmp;
-mod error;
-mod meta;
-mod ws;
-mod zenoh_source;
-
 use std::sync::Arc;
 
 use clap::Parser;
@@ -12,9 +6,10 @@ use tokio::sync::{watch, RwLock};
 use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 
-use crate::error::StreamerError;
-use crate::ws::{AppState, StreamInfo};
-use crate::zenoh_source::ZenohSourceConfig;
+use genicam_streamer::error::StreamerError;
+use genicam_streamer::ws::{AppState, StreamInfo};
+use genicam_streamer::zenoh_source::ZenohSourceConfig;
+use genicam_streamer::{meta, ws, zenoh_source};
 
 #[derive(Parser, Debug)]
 #[command(
