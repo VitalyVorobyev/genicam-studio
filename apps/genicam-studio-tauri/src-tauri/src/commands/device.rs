@@ -392,16 +392,7 @@ async fn do_emergency_disconnect(
 }
 
 pub async fn stop_acquisition_child(zenoh: &ZenohState) {
-    let mut acq = zenoh.acquisition.lock().await;
-    // Signal the monitor task to kill the child and exit.
-    if let Some(tx) = acq.stop_tx.take() {
-        let _ = tx.send(true);
-        // Drop `tx` so the monitor task sees the channel close even if send was missed.
-    }
-    // Drop the handle (task will complete on its own after receiving the stop signal).
-    acq.monitor_handle.take();
-    acq.ws_url = None;
-    acq.status.active = false;
+    crate::commands::acquisition::stop_streamer_tasks(zenoh).await;
 }
 
 async fn fetch_device_xml(session: &zenoh::Session, device_id: &str) -> Result<String, String> {

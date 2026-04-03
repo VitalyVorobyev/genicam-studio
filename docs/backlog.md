@@ -92,16 +92,16 @@ Error handling, reconnection, logging, and reliability for daily use with real c
 
 ---
 
-## Epic 12: Embed Streamer — 2/6 complete
+## Epic 12: Embed Streamer — 4/6 complete
 
 Move WebSocket image streamer from separate subprocess into Tauri backend process. Keep WS protocol to frontend.
 
 | ID | Task | Priority | Size | Status | Notes |
 |----|------|----------|------|--------|-------|
 | ES-01 | Extract streamer into library crate | P0 | M | done | Create `crates/genicam_streamer/` with BMP, WS, Zenoh source modules. Existing binary becomes thin `main.rs` calling `genicam_streamer::run()`. |
-| ES-02 | Embed streamer tasks in Tauri backend | P0 | L | planned | Replace `spawn_streamer_child` + `run_streamer_monitor` in `acquisition.rs` with tokio tasks using embedded streamer. Share existing `ZenohState` session. |
+| ES-02 | Embed streamer tasks in Tauri backend | P0 | L | done | Replaced subprocess with tokio tasks using `genicam_streamer::run_with_session()` and `run_server_with_listener()`. Auto-assigns WS port. |
 | ES-03 | Share Zenoh session | P0 | M | done | Modify streamer to accept `Arc<zenoh::Session>` instead of opening its own. Eliminates duplicate session. |
-| ES-04 | Remove process management code | P1 | S | planned | Delete `StreamerStatus` event, `spawn_streamer_child`, `run_streamer_monitor`, `resolve_streamer_path`. Simplify `AcquisitionInner`. |
+| ES-04 | Remove process management code | P1 | S | done | Deleted `StreamerStatus`, `StreamerArgs`, `spawn_streamer_child`, `run_streamer_monitor`, `resolve_streamer_path`. Simplified `AcquisitionInner` to use `shutdown_tx` + `task_handles`. |
 | ES-05 | PNG/JPEG encoding option | P2 | M | planned | Carry-forward ST-04. Add `--format bmp|png|jpeg`. Configurable via IPC in embedded mode. |
 | ES-06 | Frame annotation overlay | P2 | M | planned | Carry-forward ST-05. Optional frame ID, timestamp, FPS text burned into image. Toggle from toolbar. |
 
