@@ -13,16 +13,36 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 pub fn parse_xml_to_uigraph(xml: String) -> JsValue {
     match genicam_xml_model::parse_genicam_xml(&xml) {
-        Ok(graph) => {
-            // HashMaps serialize to JS Maps by default; force plain objects so the UI can
-            // treat UiGraph like a JSON contract without extra adapters.
-            let serializer = serde_wasm_bindgen::Serializer::new().serialize_maps_as_objects(true);
-            match graph.serialize(&serializer) {
-                Ok(value) => value,
-                Err(err) => throw_js(format!("Failed to serialize UiGraph: {err}")),
+        Ok(graph) => serialize_graph(&graph),
+        Err(err) => throw_js(format!("XML parse failed: {err}")),
+    }
+}
+
+/// Parse GenICam XML using the full genapi-xml + genapi-core pipeline.
+///
+/// Produces a richer UiGraph with dependency tracking, integer constraints,
+/// and expression strings. Falls back to the streaming parser on error.
+#[wasm_bindgen]
+pub fn parse_xml_full(xml: String) -> JsValue {
+    match genicam_xml_model::parse_full(&xml) {
+        Ok(graph) => serialize_graph(&graph),
+        Err(_) => {
+            // Fall back to lightweight parser if full pipeline fails
+            match genicam_xml_model::parse_genicam_xml(&xml) {
+                Ok(graph) => serialize_graph(&graph),
+                Err(err) => throw_js(format!("XML parse failed: {err}")),
             }
         }
-        Err(err) => throw_js(format!("XML parse failed: {err}")),
+    }
+}
+
+fn serialize_graph(graph: &genicam_xml_model::UiGraph) -> JsValue {
+    // HashMaps serialize to JS Maps by default; force plain objects so the UI can
+    // treat UiGraph like a JSON contract without extra adapters.
+    let serializer = serde_wasm_bindgen::Serializer::new().serialize_maps_as_objects(true);
+    match graph.serialize(&serializer) {
+        Ok(value) => value,
+        Err(err) => throw_js(format!("Failed to serialize UiGraph: {err}")),
     }
 }
 

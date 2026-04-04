@@ -22,6 +22,8 @@ interface CategoryTreeNodeProps {
   depth: number;
   path?: Set<string>;
   liveValues?: Map<string, NodeValueEntry>;
+  favorites?: Set<string>;
+  onToggleFavorite?: (name: string) => void;
 }
 
 export function CategoryTreeNode({
@@ -36,6 +38,8 @@ export function CategoryTreeNode({
   depth,
   path,
   liveValues,
+  favorites,
+  onToggleFavorite,
 }: CategoryTreeNodeProps) {
   const category = graph.categories[categoryName];
   const isExpanded = expanded.has(categoryName);
@@ -126,6 +130,8 @@ export function CategoryTreeNode({
                     depth={depth + 1}
                     path={nextPath}
                     liveValues={liveValues}
+                    favorites={favorites}
+                    onToggleFavorite={onToggleFavorite}
                   />
                 </li>
               );
@@ -151,7 +157,21 @@ export function CategoryTreeNode({
                   title={liveText !== null ? `${nodeTitle} = ${liveText}` : nodeTitle}
                   onClick={() => onSelectNode(featureName)}
                 >
-                  <span className="tree-item__caret" />
+                  {onToggleFavorite ? (
+                    <button
+                      type="button"
+                      className={`tree-item__favorite-btn${favorites?.has(featureName) ? " tree-item__favorite-btn--active" : ""}`}
+                      title={favorites?.has(featureName) ? "Remove from favorites" : "Add to favorites"}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleFavorite(featureName);
+                      }}
+                    >
+                      {favorites?.has(featureName) ? "\u2605" : "\u2606"}
+                    </button>
+                  ) : (
+                    <span className="tree-item__caret" />
+                  )}
                   <span className={`tree-item__icon tree-item__icon--${kindKey}`}>
                     {icon}
                   </span>

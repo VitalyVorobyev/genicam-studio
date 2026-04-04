@@ -13,6 +13,7 @@ import { TauriProvider, WebWasmProvider, type XmlModelProvider } from "../../xml
 import { isUnknownKind, nodeDisplayName, nodeKindCssKey, nodeKindIcon } from "../../xml_model/helpers";
 import { isTauri } from "../../tauri";
 import { useDraftValues } from "../../state/useDraftValues";
+import { useFavorites } from "../../state/useFavorites";
 import { useSplitter } from "../Layout/useSplitter";
 import { CategoryTree } from "./CategoryTree";
 import { formatLiveValue } from "./treeUtils";
@@ -88,6 +89,7 @@ export function FeatureBrowserPage({
   const [selectedFixture, setSelectedFixture] = useState<string>("");
 
   const { drafts, errors, setDraft, resetDraft, clearAllDrafts } = useDraftValues();
+  const { favorites, toggleFavorite } = useFavorites();
   const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
 
   const { size: treeWidth, handleProps: treeSplitterProps } = useSplitter({
@@ -629,6 +631,8 @@ export function FeatureBrowserPage({
                 selectedNodeName={selectedNodeName}
                 onSelectNode={onSelectNode}
                 liveValues={liveValues}
+                favorites={favorites}
+                onToggleFavorite={toggleFavorite}
               />
             )}
           </div>

@@ -17,7 +17,9 @@ export interface XmlModelProvider {
 export class WebWasmProvider implements XmlModelProvider {
   async parseXml(xml: string): Promise<ParseXmlResponse> {
     const module = await loadWasmModule();
-    const graph = module.parse_xml_to_uigraph(xml) as UiGraph;
+    // Prefer full parser (with dependencies, expressions) when available
+    const parseFn = module.parse_xml_full ?? module.parse_xml_to_uigraph;
+    const graph = parseFn(xml) as UiGraph;
     return {
       graph,
       xml,
@@ -58,6 +60,7 @@ export class TauriProvider implements XmlModelProvider {
 type WasmModule = {
   default: () => Promise<void>;
   parse_xml_to_uigraph: (xml: string) => unknown;
+  parse_xml_full?: (xml: string) => unknown;
   version: () => string;
 };
 

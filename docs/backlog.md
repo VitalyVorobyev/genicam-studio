@@ -107,7 +107,7 @@ Move WebSocket image streamer from separate subprocess into Tauri backend proces
 
 ---
 
-## Epic 13: Shared XML Crate — 3/5 complete
+## Epic 13: Shared XML Crate — 4/5 complete
 
 Extract genapi-xml/core from genicam-rs into a standalone crate. Both repos depend on it. Enables offline XML browsing with full node resolution.
 
@@ -116,19 +116,19 @@ Extract genapi-xml/core from genicam-rs into a standalone crate. Both repos depe
 | SX-01 | Design shared crate API surface | P0 | M | done | Defined in `docs/handoffs/SX-genicam-rs-handoff.md`. genapi-xml + genapi-core stay in genicam-rs, studio depends via path. |
 | SX-02 | Extract genapi-xml + genapi-core | P0 | XL | done | Crates in genicam-rs with full serde, introspection API, NullIo, WASM compat. |
 | SX-03 | Integrate into genicam-studio | P1 | L | done | `parse_full()` in genicam_xml_model uses genapi-xml + genapi-core. UiNode extended with dependencies, dependents, expression, int_min/max/inc. |
-| SX-04 | Offline XML browsing with full resolution | P1 | L | planned | Use shared crate in WASM mode. Load any GenICam XML, display full feature tree with resolved cross-references. No service required. |
+| SX-04 | Offline XML browsing with full resolution | P1 | L | done | WASM adapter exposes `parse_xml_full()` using genapi-xml + genapi-core. WebWasmProvider auto-selects full parser. Fallback to streaming parser on error. |
 | SX-05 | Deprecate old Epic 8 | P1 | S | planned | Mark XP-01–XP-06 superseded. Update docs. Shared crate covers all planned parser improvements. |
 
 ---
 
-## Epic 14: Feature Browser Enhancements — 0/2 complete
+## Epic 14: Feature Browser Enhancements — 1/2 complete
 
 Carry-forward from Epic 6.
 
 | ID | Task | Priority | Size | Status | Notes |
 |----|------|----------|------|--------|-------|
 | FB-03 | Node dependency visualization | P2 | L | planned | Show pSelected/pInvalidator edges in feature tree. Click to highlight dependents. Requires SX-03 for full dependency data. |
-| FB-04 | Favorites/pinned nodes | P2 | S | planned | Pin nodes to "Favorites" section. Persist per camera model in localStorage. Star icon toggle. |
+| FB-04 | Favorites/pinned nodes | P2 | S | done | Pin nodes to "Favorites" section. Persist in localStorage. Star icon toggle on hover, collapsible Favorites category at tree top. |
 
 ---
 
