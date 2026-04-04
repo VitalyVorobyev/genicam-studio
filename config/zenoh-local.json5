@@ -1,18 +1,9 @@
 {
-  // Shared Zenoh config for local development.
-  // Use when multicast scouting doesn't work (common on macOS).
-  //
-  // All peers try to listen on tcp/127.0.0.1:7447 (first wins).
-  // All peers also listen on a random port as fallback.
-  // All peers try to connect to tcp/127.0.0.1:7447 (reaches whoever is listening).
-  // exit_on_failure: false means bind failures are non-fatal.
+  // Camera service config: listens on a fixed port.
+  // Studio config is zenoh-studio.json5 (connects to this port).
   mode: "peer",
-  connect: {
-    endpoints: ["tcp/127.0.0.1:7447"]
-  },
   listen: {
-    endpoints: ["tcp/127.0.0.1:7447", "tcp/127.0.0.1:0"],
-    exit_on_failure: false
+    endpoints: ["tcp/127.0.0.1:7447"]
   },
   scouting: {
     multicast: { enabled: false }

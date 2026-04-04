@@ -31,8 +31,8 @@ fn load_zenoh_config() -> zenoh::Config {
 
     // 2. Dev-mode config adjacent to the workspace
     let dev_candidates = [
-        concat!(env!("CARGO_MANIFEST_DIR"), "/../../../../config/zenoh-local.json5"),
-        concat!(env!("CARGO_MANIFEST_DIR"), "/../../../config/zenoh-local.json5"),
+        concat!(env!("CARGO_MANIFEST_DIR"), "/../../../../config/zenoh-studio.json5"),
+        concat!(env!("CARGO_MANIFEST_DIR"), "/../../../config/zenoh-studio.json5"),
     ];
     for candidate in &dev_candidates {
         if std::path::Path::new(candidate).exists() {
@@ -104,6 +104,7 @@ fn main() {
                 let zenoh_config = load_zenoh_config();
                 match zenoh::open(zenoh_config).await {
                     Ok(session) => {
+                        tracing::info!("Zenoh session open, ZID: {}", session.zid());
                         *zenoh.session.lock().await = Some(Arc::new(session));
                         commands::device::start_discovery_task(zenoh, app_handle);
                     }

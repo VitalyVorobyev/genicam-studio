@@ -1977,10 +1977,40 @@
       "description": "Permission identifier",
       "oneOf": [
         {
+          "description": "Allows acquisition start/stop/status commands.",
+          "type": "string",
+          "const": "acquisition",
+          "markdownDescription": "Allows acquisition start/stop/status commands."
+        },
+        {
+          "description": "Allows device discovery and connection commands.",
+          "type": "string",
+          "const": "device",
+          "markdownDescription": "Allows device discovery and connection commands."
+        },
+        {
+          "description": "Allows node read/write/execute commands.",
+          "type": "string",
+          "const": "nodes",
+          "markdownDescription": "Allows node read/write/execute commands."
+        },
+        {
           "description": "Allows invoking the app ping() command.",
           "type": "string",
           "const": "ping",
           "markdownDescription": "Allows invoking the app ping() command."
+        },
+        {
+          "description": "Allows recording start/stop/status commands.",
+          "type": "string",
+          "const": "recording",
+          "markdownDescription": "Allows recording start/stop/status commands."
+        },
+        {
+          "description": "Allows reading SFNC group configuration.",
+          "type": "string",
+          "const": "sfnc-groups",
+          "markdownDescription": "Allows reading SFNC group configuration."
         },
         {
           "description": "Allows invoking XML parsing and fixture commands.",

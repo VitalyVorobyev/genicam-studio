@@ -215,6 +215,7 @@ async fn run_discovery_loop(zenoh: Arc<ZenohState>, app: AppHandle) {
             return;
         }
     };
+    tracing::info!("Discovery loop started");
 
     let mut ticker = tokio::time::interval(std::time::Duration::from_secs(1));
 
@@ -226,7 +227,14 @@ async fn run_discovery_loop(zenoh: Arc<ZenohState>, app: AppHandle) {
                     Err(_) => break,
                 };
                 let bytes = sample.payload().to_bytes();
-                if let Ok(announce) = serde_json::from_slice::<DeviceAnnounce>(&bytes) {
+                let announce = match serde_json::from_slice::<DeviceAnnounce>(&bytes) {
+                    Ok(a) => a,
+                    Err(e) => {
+                        tracing::warn!("Failed to parse announce: {e}");
+                        continue;
+                    }
+                };
+                {
                     // Check API version compatibility on first discovery of each device.
                     let version_status = check_api_version(
                         announce.api_version,
@@ -246,18 +254,21 @@ async fn run_discovery_loop(zenoh: Arc<ZenohState>, app: AppHandle) {
                         is_new
                     };
                     if is_new {
-                        let _ = app.emit("device-discovered", &info);
-                        // Emit version warning on first discovery only.
-                        if version_status != ApiVersionStatus::Compatible {
-                            let _ = app.emit(
-                                "api-version-mismatch",
-                                ApiVersionMismatch {
-                                    device_id: announce.id.clone(),
-                                    device_version: announce.api_version,
-                                    app_version: genicam_zenoh_api::API_VERSION,
-                                },
-                            );
-                        }
+                        tracing::info!(device_id = %info.id, "New device discovered");
+                    }
+                    // Always emit so the UI picks up the device even if its
+                    // listener registered after the first announce.
+                    // The UI deduplicates by device ID.
+                    let _ = app.emit("device-discovered", &info);
+                    if is_new && version_status != ApiVersionStatus::Compatible {
+                        let _ = app.emit(
+                            "api-version-mismatch",
+                            ApiVersionMismatch {
+                                device_id: announce.id.clone(),
+                                device_version: announce.api_version,
+                                app_version: genicam_zenoh_api::API_VERSION,
+                            },
+                        );
                     }
                 }
             }
