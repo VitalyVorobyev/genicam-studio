@@ -658,6 +658,7 @@ export function FeatureBrowserPage({
             executeDisabledReason={executeDisabledReason}
             onExecute={onExecute}
             liveValue={selectedLiveValue}
+            onSelectNode={onSelectNode}
           />
         </section>
       </div>

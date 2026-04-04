@@ -12,6 +12,7 @@ export type ConnectionState =
   | { kind: "disconnected" }
   | { kind: "connecting"; device_id: string }
   | { kind: "connected"; device_id: string; device_name: string; model: string }
+  | { kind: "reconnecting"; device_id: string; attempt: number; max_attempts: number; reason: string }
   | { kind: "error"; message: string };
 
 export interface AcquisitionStatus {

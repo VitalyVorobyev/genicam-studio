@@ -101,6 +101,17 @@ export function DeviceSidebar({
         <span className={`conn-badge conn-badge--${statusClass}`}>{statusLabel}</span>
       </div>
 
+      {connectionState.kind === "reconnecting" && (
+        <div className="device-sidebar__disconnect-banner device-sidebar__disconnect-banner--reconnecting">
+          <span className="disconnect-message">
+            {connectionState.reason}
+          </span>
+          <span className="disconnect-message" style={{ fontSize: "var(--text-xs)", opacity: 0.7 }}>
+            Attempt {connectionState.attempt}/{connectionState.max_attempts}
+          </span>
+        </div>
+      )}
+
       {connectionState.kind === "error" && (
         <div className="device-sidebar__disconnect-banner">
           <span className="disconnect-message">
@@ -189,18 +200,20 @@ export function DeviceSidebar({
 
 function connectionStateLabel(state: ConnectionState): string {
   switch (state.kind) {
-    case "disconnected": return "Disconnected";
-    case "connecting":   return "Connecting\u2026";
-    case "connected":    return "Connected";
-    case "error":        return "Error";
+    case "disconnected":  return "Disconnected";
+    case "connecting":    return "Connecting\u2026";
+    case "connected":     return "Connected";
+    case "reconnecting":  return `Reconnecting (${state.attempt}/${state.max_attempts})\u2026`;
+    case "error":         return "Error";
   }
 }
 
 function connectionStateClass(state: ConnectionState): string {
   switch (state.kind) {
-    case "disconnected": return "disconnected";
-    case "connecting":   return "connecting";
-    case "connected":    return "connected";
-    case "error":        return "error";
+    case "disconnected":  return "disconnected";
+    case "connecting":    return "connecting";
+    case "connected":     return "connected";
+    case "reconnecting":  return "connecting";
+    case "error":         return "error";
   }
 }

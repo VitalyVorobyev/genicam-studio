@@ -1119,6 +1119,62 @@ input[type="checkbox"] {
   flex-shrink: 0;
 }
 
+/* ── Feature Panel dependency links ──────────────────────────── */
+.feature-panel__deps {
+  padding: var(--sp-4);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.dep-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+.dep-group__label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-weight: var(--fw-medium);
+  flex-shrink: 0;
+}
+.dep-group__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.dep-link {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  color: var(--accent);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.dep-link:hover {
+  background: var(--accent);
+  color: var(--surface);
+}
+.dep-link--dependent {
+  color: var(--warning);
+}
+.dep-link--dependent:hover {
+  background: var(--warning);
+  color: var(--surface);
+}
+.dep-expression {
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
 /* ── Feature Panel bottom tabs ───────────────────────────────── */
 
 .feature-panel__tabs {

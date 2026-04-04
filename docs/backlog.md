@@ -75,7 +75,7 @@ Automated end-to-end tests with genicam-service + arv-fake-gv-camera. Extends CI
 
 ---
 
-## Epic 11: Production Hardening — 5/8 complete
+## Epic 11: Production Hardening — 7/8 complete
 
 Error handling, reconnection, logging, and reliability for daily use with real cameras.
 
@@ -84,9 +84,9 @@ Error handling, reconnection, logging, and reliability for daily use with real c
 | PH-01 | Structured logging with `tracing` | P0 | M | done | Replace all `eprintln!` in Tauri backend with `tracing`. Add `tracing-subscriber` with `EnvFilter`. |
 | PH-02 | Zenoh query timeout wrappers | P0 | M | done | Explicit `.timeout(5s)` on all `session.get()` calls. User-friendly timeout error messages. |
 | PH-03 | Zenoh session health monitor | P1 | M | done | Background task with liveliness token check every 10s. Emits `zenoh-session-lost`/`zenoh-session-restored` events. |
-| PH-04 | Device reconnection on network glitch | P1 | L | planned | New `ConnectionState::Reconnecting`. Auto-retry with backoff (1s–30s, max 5 attempts). Auto-reconnect if device reappears in discovery. |
+| PH-04 | Device reconnection on network glitch | P1 | L | done | `ConnectionState::Reconnecting` with exponential backoff (1–15s, 5 attempts). Auto-reconnects when device reappears in registry. UI shows attempt counter. |
 | PH-05 | User-friendly error messages | P0 | M | done | Error mapping layer: "Camera service not running", "Camera busy", "Value out of range", "Network unreachable". No raw Rust errors shown to users. |
-| PH-06 | Graceful service crash recovery | P1 | M | planned | Detect service crash via announce timeout (6s). Clean up acquisition state. Show "Service lost" with manual retry prompt. |
+| PH-06 | Graceful service crash recovery | P1 | M | done | Emergency disconnect triggers auto-reconnect loop. Cleans up acquisition state. UI shows reconnecting banner with reason + attempt counter. Falls back to Error state after max attempts. |
 | PH-07 | Connection state persistence | P2 | M | planned | Remember last connected device_id. Offer auto-reconnect toast on app restart if device rediscovered. |
 | PH-08 | Log file sink | P2 | S | done | Daily-rotating `~/.genicam-studio/logs/studio.log.YYYY-MM-DD` via `tracing-appender`. Non-blocking dual output (stderr + file). |
 
@@ -121,13 +121,13 @@ Extract genapi-xml/core from genicam-rs into a standalone crate. Both repos depe
 
 ---
 
-## Epic 14: Feature Browser Enhancements — 1/2 complete
+## Epic 14: Feature Browser Enhancements — 2/2 complete
 
 Carry-forward from Epic 6.
 
 | ID | Task | Priority | Size | Status | Notes |
 |----|------|----------|------|--------|-------|
-| FB-03 | Node dependency visualization | P2 | L | planned | Show pSelected/pInvalidator edges in feature tree. Click to highlight dependents. Requires SX-03 for full dependency data. |
+| FB-03 | Node dependency visualization | P2 | L | done | Dependencies/dependents shown as clickable links in FeaturePanel. Expression strings displayed for SwissKnife/Converter nodes. Links navigate to referenced nodes. |
 | FB-04 | Favorites/pinned nodes | P2 | S | done | Pin nodes to "Favorites" section. Persist in localStorage. Star icon toggle on hover, collapsible Favorites category at tree top. |
 
 ---

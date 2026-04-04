@@ -14,12 +14,15 @@ export function DeviceCard({ device, connectionState, onConnect, onDisconnect }:
   const isConnected =
     connectionState.kind === "connected" &&
     connectionState.device_id === device.id;
+  const isReconnecting =
+    connectionState.kind === "reconnecting" &&
+    connectionState.device_id === device.id;
   const isBusy =
-    connectionState.kind === "connecting" || connectionState.kind === "connected";
+    connectionState.kind === "connecting" || connectionState.kind === "connected" || connectionState.kind === "reconnecting";
 
   const dotState = isConnected
     ? "connected"
-    : isConnecting
+    : isConnecting || isReconnecting
     ? "connecting"
     : "disconnected";
 

@@ -48,6 +48,12 @@ pub enum ConnectionState {
         device_name: String,
         model: String,
     },
+    Reconnecting {
+        device_id: String,
+        attempt: u32,
+        max_attempts: u32,
+        reason: String,
+    },
     Error {
         message: String,
     },

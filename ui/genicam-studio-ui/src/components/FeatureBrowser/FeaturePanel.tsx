@@ -28,6 +28,7 @@ interface FeaturePanelProps {
   executeDisabledReason: string;
   onExecute: () => void;
   liveValue?: NodeValueEntry;
+  onSelectNode?: (name: string) => void;
 }
 
 export function FeaturePanel({
@@ -47,6 +48,7 @@ export function FeaturePanel({
   executeDisabledReason,
   onExecute,
   liveValue,
+  onSelectNode,
 }: FeaturePanelProps) {
   const [infoOpen, setInfoOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<"raw" | "debug" | "diagnostics">("raw");
@@ -180,6 +182,53 @@ export function FeaturePanel({
           >
             Apply
           </button>
+        </section>
+      )}
+
+      {((selectedNode.dependencies?.length ?? 0) > 0 || (selectedNode.dependents?.length ?? 0) > 0) && (
+        <section className="feature-panel__deps">
+          {(selectedNode.dependencies?.length ?? 0) > 0 && (
+            <div className="dep-group">
+              <span className="dep-group__label">Depends on:</span>
+              <div className="dep-group__links">
+                {selectedNode.dependencies!.map((dep) => (
+                  <button
+                    key={dep}
+                    type="button"
+                    className="dep-link"
+                    onClick={() => onSelectNode?.(dep)}
+                    title={`Navigate to ${dep}`}
+                  >
+                    {dep}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {(selectedNode.dependents?.length ?? 0) > 0 && (
+            <div className="dep-group">
+              <span className="dep-group__label">Invalidates:</span>
+              <div className="dep-group__links">
+                {selectedNode.dependents!.map((dep) => (
+                  <button
+                    key={dep}
+                    type="button"
+                    className="dep-link dep-link--dependent"
+                    onClick={() => onSelectNode?.(dep)}
+                    title={`Navigate to ${dep}`}
+                  >
+                    {dep}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {selectedNode.expression && (
+            <div className="dep-group">
+              <span className="dep-group__label">Expression:</span>
+              <code className="dep-expression">{selectedNode.expression}</code>
+            </div>
+          )}
         </section>
       )}
 
