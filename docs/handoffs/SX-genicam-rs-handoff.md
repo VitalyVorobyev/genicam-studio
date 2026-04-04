@@ -127,6 +127,53 @@ fetch = []  # Enables fetch_and_load_xml (async device memory reading)
 
 Total: ~5-7 weeks with some parallelism.
 
+## Bug: `--iface lo0` Doesn't Discover on Loopback
+
+**Severity:** Blocks all loopback testing (fake camera + service on same machine).
+
+**Root cause:** `genicam-service` calls `gige::discover_on_interface(timeout, "lo0")` which maps to `discover_impl(timeout, Some("lo0"), false)`. The `include_loopback=false` parameter at `tl-gige/src/gvcp.rs:205` causes the loopback interface to be skipped even when the user explicitly requests it via `--iface lo0`.
+
+**File:** `crates/tl-gige/src/gvcp.rs` lines 201-206:
+```rust
+pub async fn discover_on_interface(
+    timeout: Duration,
+    interface: &str,
+) -> Result<Vec<DeviceInfo>, GigeError> {
+    discover_impl(timeout, Some(interface), false).await  // BUG: false should be true when iface is loopback
+}
+```
+
+**Fix (option A — minimal):** Change `discover_on_interface` to detect loopback:
+```rust
+pub async fn discover_on_interface(
+    timeout: Duration,
+    interface: &str,
+) -> Result<Vec<DeviceInfo>, GigeError> {
+    let include_loopback = interface == "lo0" || interface == "lo";
+    discover_impl(timeout, Some(interface), include_loopback).await
+}
+```
+
+**Fix (option B — always include when filtered):** When a user explicitly names an interface, they want to use it regardless of type. Always pass `true`:
+```rust
+pub async fn discover_on_interface(
+    timeout: Duration,
+    interface: &str,
+) -> Result<Vec<DeviceInfo>, GigeError> {
+    discover_impl(timeout, Some(interface), true).await
+}
+```
+
+Option B is cleaner — if someone says `--iface lo0`, they mean it.
+
+**Verification:** After the fix:
+```bash
+arv-fake-gv-camera-0.8 -i 127.0.0.1 &
+cargo run -p genicam-service -- --iface lo0 -vv
+# Should log: "GVCP discovery ... interface_name=lo0 local=127.0.0.1 dest=127.255.255.255:3956"
+# Should discover cam-000000000000
+```
+
 ## Non-Goals
 
 - **No breaking changes to genicam-rs internals.** We're asking for additive API surface only.
