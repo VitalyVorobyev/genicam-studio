@@ -2080,9 +2080,20 @@ input[type="checkbox"] {
   display: block;
 }
 
-/* Active state for toolbar histogram toggle button */
+/* Active state for toolbar toggle buttons */
 .iv-toolbar__btn--active {
   background: var(--accent-muted);
   color: var(--accent);
   border: 1px solid var(--accent-border);
+}
+
+/* Record button */
+.iv-toolbar__btn--record { color: var(--error, #e53e3e); }
+.iv-toolbar__btn--recording {
+  color: var(--error, #e53e3e);
+  animation: rec-pulse 1s ease-in-out infinite;
+}
+@keyframes rec-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }

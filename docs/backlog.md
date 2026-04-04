@@ -75,7 +75,7 @@ Automated end-to-end tests with genicam-service + arv-fake-gv-camera. Extends CI
 
 ---
 
-## Epic 11: Production Hardening — 7/8 complete
+## Epic 11: Production Hardening — 8/8 complete
 
 Error handling, reconnection, logging, and reliability for daily use with real cameras.
 
@@ -87,7 +87,7 @@ Error handling, reconnection, logging, and reliability for daily use with real c
 | PH-04 | Device reconnection on network glitch | P1 | L | done | `ConnectionState::Reconnecting` with exponential backoff (1–15s, 5 attempts). Auto-reconnects when device reappears in registry. UI shows attempt counter. |
 | PH-05 | User-friendly error messages | P0 | M | done | Error mapping layer: "Camera service not running", "Camera busy", "Value out of range", "Network unreachable". No raw Rust errors shown to users. |
 | PH-06 | Graceful service crash recovery | P1 | M | done | Emergency disconnect triggers auto-reconnect loop. Cleans up acquisition state. UI shows reconnecting banner with reason + attempt counter. Falls back to Error state after max attempts. |
-| PH-07 | Connection state persistence | P2 | M | planned | Remember last connected device_id. Offer auto-reconnect toast on app restart if device rediscovered. |
+| PH-07 | Connection state persistence | P2 | M | done | Persists last-connected device_id in localStorage. Shows toast when device reappears after restart. |
 | PH-08 | Log file sink | P2 | S | done | Daily-rotating `~/.genicam-studio/logs/studio.log.YYYY-MM-DD` via `tracing-appender`. Non-blocking dual output (stderr + file). |
 
 ---
@@ -151,8 +151,8 @@ Raw frame recording to disk for post-processing and analysis.
 
 | ID | Task | Priority | Size | Status | Notes |
 |----|------|----------|------|--------|-------|
-| REC-01 | Recording engine: raw frames to disk | P1 | L | planned | Subscribe to Zenoh image key during acquisition. Write raw pixel data with per-frame index. Custom `.gsr` format with JSON header (pixel format, dimensions, timestamps). Buffered I/O with background writer. |
-| REC-02 | Recording UI controls | P1 | M | planned | Tauri commands: `start_recording`, `stop_recording`, `get_recording_status`. Record button in toolbar, elapsed time, frame count, file size. |
+| REC-01 | Recording engine: raw frames to disk | P1 | L | done | `genicam_streamer::recording` module with .gsr format (JSON header + raw frames + index). Background writer with mpsc channel. 3 unit tests. |
+| REC-02 | Recording UI controls | P1 | M | done | Tauri commands: `start_recording`, `stop_recording`, `get_recording_status`. Record button in ViewerToolbar with pulse animation. `useRecording` hook with status polling. |
 | REC-03 | Playback engine | P2 | L | planned | Load `.gsr`, feed frames through BMP encoder + WS pipeline. Play/pause, frame step, speed control, seek. |
 | REC-04 | Export to standard format | P2 | M | planned | Convert `.gsr` to TIFF stack or AVI (uncompressed). Enables interop with ImageJ, MATLAB, etc. |
 

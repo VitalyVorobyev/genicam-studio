@@ -13,6 +13,7 @@ import { ImageViewer } from "../ImageViewer/ImageViewer";
 import { DiagnosticsTab } from "../Diagnostics/DiagnosticsTab";
 import { ToastContainer } from "./ToastContainer";
 import { formatDeviceChip } from "./headerUtils";
+import { useRecording } from "../../device/useRecording";
 import { useSplitter } from "./useSplitter";
 import type { ParseXmlResponse } from "../../xml_model/uigraph";
 
@@ -34,10 +35,16 @@ function AppLayoutInner() {
   const [externalModel, setExternalModel] = useState<ParseXmlResponse | null>(null);
 
   const { devices, connectionState, disconnectReason, connect, disconnect } = useDevice();
-  const [lastConnectedDeviceId, setLastConnectedDeviceId] = useState<string | null>(null);
+  const [lastConnectedDeviceId, setLastConnectedDeviceId] = useState<string | null>(
+    () => {
+      try { return localStorage.getItem("genicam-studio:last-device"); } catch { return null; }
+    }
+  );
+  const [autoReconnectOffered, setAutoReconnectOffered] = useState(false);
   const { liveValues, seedValues } = useNodeValues();
   const { readBulk } = useNodeBulkRead();
   const { status: acqStatus, streamerInfo, start: startAcq, stop: stopAcq } = useAcquisition();
+  const { recordingStatus, startRecording, stopRecording } = useRecording();
   const { imageMeta } = useImageMeta();
   const { log } = useAppLog();
   const { addToast } = useToast();
@@ -59,8 +66,22 @@ function AppLayoutInner() {
   useEffect(() => {
     if (connectionState.kind === "connected") {
       setLastConnectedDeviceId(connectionState.device_id);
+      try { localStorage.setItem("genicam-studio:last-device", connectionState.device_id); } catch { /* */ }
     }
   }, [connectionState]);
+
+  // PH-07: Offer auto-reconnect when last-connected device reappears after app restart.
+  useEffect(() => {
+    if (autoReconnectOffered) return;
+    if (connectionState.kind !== "disconnected") return;
+    if (!lastConnectedDeviceId) return;
+    const lastDevice = devices.find((d) => d.id === lastConnectedDeviceId);
+    if (!lastDevice) return;
+
+    setAutoReconnectOffered(true);
+    const name = lastDevice.name || lastDevice.id;
+    addToast("info", `Previously connected device "${name}" detected`);
+  }, [devices, connectionState, lastConnectedDeviceId, autoReconnectOffered, addToast]);
 
   // Clear stale model when an unexpected disconnect is detected.
   useEffect(() => {
@@ -258,6 +279,13 @@ function AppLayoutInner() {
                 deviceName={connectedDeviceName ?? undefined}
                 cameraModel={connectedModel ?? undefined}
                 imageMeta={imageMeta}
+                isRecording={recordingStatus.active}
+                onToggleRecording={async () => {
+                  if (recordingStatus.active) await stopRecording();
+                  else await startRecording();
+                }}
+                recordingFrameCount={recordingStatus.frame_count}
+                recordingElapsed={recordingStatus.elapsed_secs}
               />
             )}
             {activeTab === "diagnostics" && <DiagnosticsTab />}

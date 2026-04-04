@@ -14,6 +14,10 @@ interface ViewerToolbarProps {
   onApplyRoi?: () => void;
   showLineTool?: boolean;
   onToggleLineTool?: () => void;
+  isRecording?: boolean;
+  onToggleRecording?: () => void;
+  recordingFrameCount?: number;
+  recordingElapsed?: number;
 }
 
 export function ViewerToolbar({
@@ -29,6 +33,10 @@ export function ViewerToolbar({
   onApplyRoi,
   showLineTool,
   onToggleLineTool,
+  isRecording,
+  onToggleRecording,
+  recordingFrameCount,
+  recordingElapsed,
 }: ViewerToolbarProps) {
   const titleClass = deviceName
     ? "iv-toolbar__title iv-toolbar__title--connected"
@@ -106,6 +114,17 @@ export function ViewerToolbar({
           aria-pressed={showHistogram}
         >
           ▤
+        </button>
+      )}
+      {onToggleRecording !== undefined && (
+        <button
+          type="button"
+          className={`iv-toolbar__btn iv-toolbar__btn--record${isRecording ? " iv-toolbar__btn--recording" : ""}`}
+          onClick={onToggleRecording}
+          title={isRecording ? `Recording: ${recordingFrameCount ?? 0} frames, ${(recordingElapsed ?? 0).toFixed(1)}s` : "Start recording"}
+          aria-label={isRecording ? "Stop recording" : "Start recording"}
+        >
+          {isRecording ? "\u25A0" : "\u25CF"}
         </button>
       )}
       <button

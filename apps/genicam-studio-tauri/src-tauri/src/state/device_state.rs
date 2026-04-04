@@ -148,6 +148,8 @@ pub struct AcquisitionInner {
     pub width: u32,
     pub height: u32,
     pub image_meta: Option<ImageMeta>,
+    /// Active recording handle, if recording is in progress.
+    pub recording: Option<genicam_streamer::recording::RecordingHandle>,
 }
 
 impl AcquisitionInner {
@@ -164,6 +166,7 @@ impl AcquisitionInner {
             width: 640,
             height: 480,
             image_meta: None,
+            recording: None,
         }
     }
 }
