@@ -13,6 +13,43 @@ fn ping() -> &'static str {
     "pong"
 }
 
+/// Load Zenoh configuration, checking these sources in order:
+/// 1. `ZENOH_CONFIG` environment variable (path to a JSON5 config file)
+/// 2. `config/zenoh-local.json5` relative to the workspace root (dev mode)
+/// 3. Default config (multicast scouting — works on Linux, often fails on macOS)
+fn load_zenoh_config() -> zenoh::Config {
+    // 1. Env var
+    if let Ok(path) = std::env::var("ZENOH_CONFIG") {
+        match zenoh::Config::from_file(&path) {
+            Ok(cfg) => {
+                tracing::info!("Loaded Zenoh config from ZENOH_CONFIG={path}");
+                return cfg;
+            }
+            Err(e) => tracing::warn!("Failed to load ZENOH_CONFIG={path}: {e}"),
+        }
+    }
+
+    // 2. Dev-mode config adjacent to the workspace
+    let dev_candidates = [
+        concat!(env!("CARGO_MANIFEST_DIR"), "/../../../../config/zenoh-local.json5"),
+        concat!(env!("CARGO_MANIFEST_DIR"), "/../../../config/zenoh-local.json5"),
+    ];
+    for candidate in &dev_candidates {
+        if std::path::Path::new(candidate).exists() {
+            match zenoh::Config::from_file(candidate) {
+                Ok(cfg) => {
+                    tracing::info!("Loaded Zenoh config from {candidate}");
+                    return cfg;
+                }
+                Err(e) => tracing::warn!("Failed to load {candidate}: {e}"),
+            }
+        }
+    }
+
+    tracing::info!("Using default Zenoh config (multicast scouting)");
+    zenoh::Config::default()
+}
+
 fn dirs_log_path() -> std::path::PathBuf {
     let base = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
     let log_dir = base.join(".genicam-studio").join("logs");
@@ -64,7 +101,8 @@ fn main() {
 
             // Initialize Zenoh and start the device-discovery background task.
             tauri::async_runtime::spawn(async move {
-                match zenoh::open(zenoh::Config::default()).await {
+                let zenoh_config = load_zenoh_config();
+                match zenoh::open(zenoh_config).await {
                     Ok(session) => {
                         *zenoh.session.lock().await = Some(Arc::new(session));
                         commands::device::start_discovery_task(zenoh, app_handle);

@@ -7,6 +7,12 @@
   "permissions": [
     "core:default",
     "ping",
-    "xml-model"
+    "xml-model",
+    "fs:default",
+    "fs:allow-read-file",
+    "fs:allow-write-file",
+    "dialog:default",
+    "dialog:allow-open",
+    "dialog:allow-save"
   ]
 }

@@ -27,6 +27,9 @@ const FAKE_CAM_PATH_ENV: &str = "ARV_FAKE_CAMERA_PATH";
 /// Default: find in PATH.
 const FAKE_CAM_PATH_DEFAULT: &str = "arv-fake-gv-camera-0.8";
 
+/// Environment variable for a Zenoh config file (JSON5).
+const ZENOH_CONFIG_ENV: &str = "ZENOH_CONFIG";
+
 /// The device ID produced by the aravis fake camera (all-zero MAC).
 pub const FAKE_DEVICE_ID: &str = "cam-000000000000";
 
@@ -91,21 +94,39 @@ impl TestHarness {
         // 2. Wait for the camera to be ready (brief delay for UDP socket binding)
         sleep(Duration::from_secs(2)).await;
 
-        // 3. Start genicam-service
+        // 3. Start genicam-service with loopback interface
         tracing::info!("Starting service: {service_path}");
-        let service = Command::new(&service_path)
+        let mut svc_cmd = Command::new(&service_path);
+        svc_cmd
+            .arg("--iface")
+            .arg(if cfg!(target_os = "macos") {
+                "lo0"
+            } else {
+                "lo"
+            })
             .stdout(Stdio::null())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|e| {
-                HarnessError::ServiceSpawn(format!(
-                    "{e} (path: {service_path}). Build it with: cd ../genicam-rs && cargo build -p genicam-service"
-                ))
-            })?;
+            .stderr(Stdio::piped());
 
-        // 4. Open Zenoh session
+        // Pass zenoh config if available
+        let zenoh_config_path = std::env::var(ZENOH_CONFIG_ENV).ok();
+        if let Some(ref cfg_path) = zenoh_config_path {
+            svc_cmd.arg("--zenoh-config").arg(cfg_path);
+        }
+
+        let service = svc_cmd.spawn().map_err(|e| {
+            HarnessError::ServiceSpawn(format!(
+                "{e} (path: {service_path}). Build it with: cd ../genicam-rs && cargo build -p genicam-service"
+            ))
+        })?;
+
+        // 4. Open Zenoh session (load config if provided)
+        let zenoh_config = match &zenoh_config_path {
+            Some(path) => zenoh::Config::from_file(path)
+                .map_err(|e| HarnessError::ZenohOpen(format!("config {path}: {e}")))?,
+            None => zenoh::Config::default(),
+        };
         let session = Arc::new(
-            zenoh::open(zenoh::Config::default())
+            zenoh::open(zenoh_config)
                 .await
                 .map_err(|e| HarnessError::ZenohOpen(e.to_string()))?,
         );
@@ -137,6 +158,11 @@ impl TestHarness {
 
         let device_id = announce.id.clone();
         tracing::info!("Device discovered: {device_id} ({})", announce.name);
+
+        // Give Zenoh time to fully establish bidirectional transport
+        // and propagate queryable declarations across peers.
+        // pub/sub works quickly but queryables with wildcards need more time.
+        sleep(Duration::from_secs(5)).await;
 
         Ok(Self {
             fake_camera,

@@ -14,7 +14,7 @@
   },
   "plugins": {
     "fs": {
-      "scope": ["$DESKTOP/**", "$DOCUMENT/**", "$DOWNLOAD/**"]
+      "requireLiteralLeadingDot": false
     }
   },
   "app": {
