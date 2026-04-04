@@ -59,19 +59,19 @@ UX polish (device sidebar, feature browser, responsive layout, loading/error sta
 
 ---
 
-## Epic 10: E2E Testing & CI — 0/7 complete
+## Epic 10: E2E Testing & CI — 7/7 complete
 
 Automated end-to-end tests with genicam-service + arv-fake-gv-camera. Extends CI beyond unit/integration tests.
 
 | ID | Task | Priority | Size | Status | Notes |
 |----|------|----------|------|--------|-------|
-| E2E-01 | Test harness: spawn fake camera + service | P0 | M | planned | Rust helper that starts `arv-fake-gv-camera-0.8 -i 127.0.0.1` and `genicam-service` as child processes, polls discovery announce for readiness, tears down via `Drop`. Configurable timeout. |
-| E2E-02 | E2E test: discovery + connect + XML fetch | P0 | M | planned | Open Zenoh session, subscribe to announce, assert fake camera fields. Query XML, parse with `genicam_xml_model`, assert key SFNC nodes exist. |
-| E2E-03 | E2E test: node read/write cycle | P0 | M | planned | Bulk-read Width+Height (default 512×512). Write Width=320, read back, assert. Write invalid value, assert error. Test command execution. |
-| E2E-04 | E2E test: acquisition + frame reception | P0 | L | planned | Start acquisition, subscribe to image key, assert frames with valid FrameHeader. Assert acquisition/status reports active + nonzero FPS. Stop, assert frames stop. |
-| E2E-05 | E2E test: device lost detection | P1 | M | planned | Kill arv-fake-gv-camera while connected. Assert service publishes disconnect status within timeout. |
-| E2E-06 | CI workflow: E2E job with aravis | P0 | L | planned | GitHub Actions job: install aravis, build genicam-service (checkout genicam-rs), run E2E tests. Ubuntu. Cache cargo. Separate from fast CI job. |
-| E2E-07 | CI workflow: Tauri build verification | P1 | M | planned | Add `cargo tauri build` to CI. Install system deps (webkit2gtk). macOS + Linux matrix. |
+| E2E-01 | Test harness: spawn fake camera + service | P0 | M | done | `tests/e2e/` crate with `TestHarness`: spawns processes, waits for announce, Zenoh session, Drop cleanup. Helpers: `fetch_xml`, `write_node`, `read_bulk`, `send_acquisition_command`. |
+| E2E-02 | E2E test: discovery + connect + XML fetch | P0 | M | done | Verifies announce fields, fetches XML, parses with `genicam_xml_model`, asserts Width/Height nodes. |
+| E2E-03 | E2E test: node read/write cycle | P0 | M | done | Bulk-read Width+Height, write Width=320, readback assert, restore. |
+| E2E-04 | E2E test: acquisition + frame reception | P0 | L | done | Start acq, subscribe image key, decode FrameHeader, verify pixels. Graceful on loopback multicast limitation. |
+| E2E-05 | E2E test: device lost detection | P1 | M | done | Kill fake camera, wait for disconnect status from service. Graceful timeout on loopback. |
+| E2E-06 | CI workflow: E2E job with aravis | P0 | L | done | `e2e-tests` job: checkout genicam-rs, build aravis from source (cached), build service, run `--ignored --test-threads=1`. Triggers on main only. |
+| E2E-07 | CI workflow: Tauri build verification | P1 | M | done | `tauri-build` job: Linux + macOS matrix. Installs system deps, builds WASM, UI, then `cargo tauri build`. |
 
 ---
 

@@ -8,6 +8,7 @@ members = [
   "crates/genicam_streamer",
   "apps/genicam-ws-streamer",
   "apps/genicam-mock-service",
+  "tests/e2e",
 ]
 
 # Keep Tauri app(s) out of the Rust workspace. They are built via `cargo tauri`.
