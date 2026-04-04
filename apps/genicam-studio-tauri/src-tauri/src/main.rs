@@ -6,19 +6,40 @@ mod state;
 
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tracing_subscriber::prelude::*;
 
 #[tauri::command]
 fn ping() -> &'static str {
     "pong"
 }
 
+fn dirs_log_path() -> std::path::PathBuf {
+    let base = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+    let log_dir = base.join(".genicam-studio").join("logs");
+    std::fs::create_dir_all(&log_dir).ok();
+    log_dir
+}
+
 fn main() {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "genicam_studio=info,warn".into()),
+    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| "genicam_studio=info,warn".into());
+
+    // File appender: daily rotation in ~/.genicam-studio/logs/
+    let log_dir = dirs_log_path();
+    let file_appender = tracing_appender::rolling::daily(&log_dir, "studio.log");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+
+    tracing_subscriber::registry()
+        .with(env_filter)
+        .with(tracing_subscriber::fmt::layer().with_writer(std::io::stderr))
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_ansi(false)
+                .with_writer(non_blocking),
         )
         .init();
+
+    tracing::info!("Log directory: {}", log_dir.display());
     // ModelState: holds the last parsed UiGraph (used by xml_model commands).
     let model_state = RwLock::new(state::ModelState::default());
 

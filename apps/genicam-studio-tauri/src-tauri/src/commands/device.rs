@@ -150,9 +150,53 @@ pub async fn disconnect_device(
 
 /// Start the global device-discovery subscriber.  Runs for the app lifetime.
 pub fn start_discovery_task(state: Arc<ZenohState>, app: AppHandle) {
+    let state_clone = state.clone();
+    let app_clone = app.clone();
     tauri::async_runtime::spawn(async move {
-        run_discovery_loop(state, app).await;
+        run_discovery_loop(state_clone, app_clone).await;
     });
+    tauri::async_runtime::spawn(async move {
+        run_session_health_monitor(state, app).await;
+    });
+}
+
+/// Periodically checks Zenoh session health via a liveliness token.
+/// Emits `zenoh-session-lost` event if the session becomes unresponsive.
+async fn run_session_health_monitor(zenoh: Arc<ZenohState>, app: AppHandle) {
+    let mut interval = tokio::time::interval(std::time::Duration::from_secs(10));
+    let mut was_healthy = true;
+
+    loop {
+        interval.tick().await;
+
+        let session = match zenoh.session.lock().await.clone() {
+            Some(s) => s,
+            None => continue,
+        };
+
+        // Try a lightweight liveliness declaration as health check
+        let healthy = session
+            .liveliness()
+            .declare_token("genicam-studio/health")
+            .await
+            .is_ok();
+
+        if !healthy && was_healthy {
+            tracing::warn!("Zenoh session health check failed");
+            let _ = app.emit(
+                "zenoh-session-lost",
+                serde_json::json!({ "message": "Zenoh session lost" }),
+            );
+        } else if healthy && !was_healthy {
+            tracing::info!("Zenoh session recovered");
+            let _ = app.emit(
+                "zenoh-session-restored",
+                serde_json::json!({ "message": "Zenoh session restored" }),
+            );
+        }
+
+        was_healthy = healthy;
+    }
 }
 
 async fn run_discovery_loop(zenoh: Arc<ZenohState>, app: AppHandle) {

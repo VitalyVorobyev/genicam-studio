@@ -75,7 +75,7 @@ Automated end-to-end tests with genicam-service + arv-fake-gv-camera. Extends CI
 
 ---
 
-## Epic 11: Production Hardening — 3/8 complete
+## Epic 11: Production Hardening — 5/8 complete
 
 Error handling, reconnection, logging, and reliability for daily use with real cameras.
 
@@ -83,12 +83,12 @@ Error handling, reconnection, logging, and reliability for daily use with real c
 |----|------|----------|------|--------|-------|
 | PH-01 | Structured logging with `tracing` | P0 | M | done | Replace all `eprintln!` in Tauri backend with `tracing`. Add `tracing-subscriber` with `EnvFilter`. |
 | PH-02 | Zenoh query timeout wrappers | P0 | M | done | Explicit `.timeout(5s)` on all `session.get()` calls. User-friendly timeout error messages. |
-| PH-03 | Zenoh session health monitor | P1 | M | planned | Background task checking session liveness. Emit `zenoh-session-lost` event. Reopen with exponential backoff. |
+| PH-03 | Zenoh session health monitor | P1 | M | done | Background task with liveliness token check every 10s. Emits `zenoh-session-lost`/`zenoh-session-restored` events. |
 | PH-04 | Device reconnection on network glitch | P1 | L | planned | New `ConnectionState::Reconnecting`. Auto-retry with backoff (1s–30s, max 5 attempts). Auto-reconnect if device reappears in discovery. |
 | PH-05 | User-friendly error messages | P0 | M | done | Error mapping layer: "Camera service not running", "Camera busy", "Value out of range", "Network unreachable". No raw Rust errors shown to users. |
 | PH-06 | Graceful service crash recovery | P1 | M | planned | Detect service crash via announce timeout (6s). Clean up acquisition state. Show "Service lost" with manual retry prompt. |
 | PH-07 | Connection state persistence | P2 | M | planned | Remember last connected device_id. Offer auto-reconnect toast on app restart if device rediscovered. |
-| PH-08 | Log file sink | P2 | S | planned | Write to `~/.genicam-studio/logs/studio-YYYY-MM-DD.log`. Rotate daily, keep 7 days. Depends on PH-01. |
+| PH-08 | Log file sink | P2 | S | done | Daily-rotating `~/.genicam-studio/logs/studio.log.YYYY-MM-DD` via `tracing-appender`. Non-blocking dual output (stderr + file). |
 
 ---
 
@@ -107,7 +107,7 @@ Move WebSocket image streamer from separate subprocess into Tauri backend proces
 
 ---
 
-## Epic 13: Shared XML Crate — 4/5 complete
+## Epic 13: Shared XML Crate — 5/5 complete
 
 Extract genapi-xml/core from genicam-rs into a standalone crate. Both repos depend on it. Enables offline XML browsing with full node resolution.
 
@@ -117,7 +117,7 @@ Extract genapi-xml/core from genicam-rs into a standalone crate. Both repos depe
 | SX-02 | Extract genapi-xml + genapi-core | P0 | XL | done | Crates in genicam-rs with full serde, introspection API, NullIo, WASM compat. |
 | SX-03 | Integrate into genicam-studio | P1 | L | done | `parse_full()` in genicam_xml_model uses genapi-xml + genapi-core. UiNode extended with dependencies, dependents, expression, int_min/max/inc. |
 | SX-04 | Offline XML browsing with full resolution | P1 | L | done | WASM adapter exposes `parse_xml_full()` using genapi-xml + genapi-core. WebWasmProvider auto-selects full parser. Fallback to streaming parser on error. |
-| SX-05 | Deprecate old Epic 8 | P1 | S | planned | Mark XP-01–XP-06 superseded. Update docs. Shared crate covers all planned parser improvements. |
+| SX-05 | Deprecate old Epic 8 | P1 | S | done | Epic 8 (XML Parser) superseded by Epic 13 (Shared XML Crate). genapi-xml + genapi-core from genicam-rs now handle all parsing. |
 
 ---
 
