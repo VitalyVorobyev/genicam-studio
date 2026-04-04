@@ -808,6 +808,21 @@ input[type="checkbox"] {
 
 .tree-children { list-style: none; margin: 0; padding: 0; }
 
+/* Virtual tree container */
+.virtual-tree { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+
+/* Access mode badge (RO indicator) */
+.tree-item__access-badge {
+  font-size: 9px;
+  font-weight: var(--fw-semibold);
+  color: var(--text-muted);
+  background: var(--bg-overlay);
+  border-radius: var(--radius-sm);
+  padding: 0 3px;
+  flex-shrink: 0;
+  line-height: 14px;
+}
+
 /* Live value inline in tree rows */
 .tree-item__live {
   font-size: var(--text-xs);
@@ -2096,4 +2111,65 @@ input[type="checkbox"] {
 @keyframes rec-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
+}
+
+/* CSS-only spinner for loading states */
+.spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--text-muted);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Error boundary fallback */
+.error-boundary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: var(--bg-base);
+  color: var(--text-primary);
+}
+.error-boundary__card {
+  max-width: 520px;
+  padding: var(--sp-10);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.error-boundary__title {
+  font-size: var(--text-lg);
+  font-weight: var(--fw-semibold);
+  margin: 0 0 var(--sp-4);
+}
+.error-boundary__message {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin: 0 0 var(--sp-6);
+  line-height: var(--lh-base);
+}
+.error-boundary__stack {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--danger);
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-4);
+  margin: 0 0 var(--sp-6);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  max-height: 120px;
+}
+.error-boundary__actions {
+  display: flex;
+  gap: var(--sp-4);
+  justify-content: flex-end;
 }

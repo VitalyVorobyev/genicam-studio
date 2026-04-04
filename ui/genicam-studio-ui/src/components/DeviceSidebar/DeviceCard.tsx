@@ -56,7 +56,8 @@ export function DeviceCard({ device, connectionState, onConnect, onDisconnect }:
             disabled={isBusy || isConnecting}
             onClick={() => onConnect(device.id)}
           >
-            {isConnecting ? "Connecting\u2026" : "Connect"}
+            {(isConnecting || isReconnecting) && <span className="spinner" />}
+            {isConnecting ? "Connecting\u2026" : isReconnecting ? "Reconnecting\u2026" : "Connect"}
           </button>
         )}
       </div>

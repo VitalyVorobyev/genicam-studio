@@ -11,6 +11,7 @@ import { DeviceSidebar } from "../DeviceSidebar/DeviceSidebar";
 import { FeatureBrowserPage } from "../FeatureBrowser/FeatureBrowserPage";
 import { ImageViewer } from "../ImageViewer/ImageViewer";
 import { DiagnosticsTab } from "../Diagnostics/DiagnosticsTab";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { ToastContainer } from "./ToastContainer";
 import { formatDeviceChip } from "./headerUtils";
 import { useRecording } from "../../device/useRecording";
@@ -24,7 +25,9 @@ export function AppLayout() {
   return (
     <AppLogProvider>
       <ToastProvider>
-        <AppLayoutInner />
+        <ErrorBoundary>
+          <AppLayoutInner />
+        </ErrorBoundary>
       </ToastProvider>
     </AppLogProvider>
   );
@@ -153,6 +156,31 @@ function AppLayoutInner() {
     }
   }, [stopAcq, log, addToast]);
 
+  const handleRefreshAll = useCallback(async () => {
+    if (!externalModel) return;
+    try {
+      const bulk = await readBulk(Object.keys(externalModel.graph.nodes_by_name));
+      seedValues(bulk);
+      addToast("success", "Values refreshed");
+    } catch (e) {
+      addToast("error", `Refresh failed: ${String(e)}`);
+    }
+  }, [externalModel, readBulk, seedValues, addToast]);
+
+  const handleToggleRecording = useCallback(async () => {
+    try {
+      if (recordingStatus.active) {
+        await stopRecording();
+        addToast("info", "Recording stopped");
+      } else {
+        await startRecording();
+        addToast("success", "Recording started");
+      }
+    } catch (e) {
+      addToast("error", `Recording error: ${String(e)}`);
+    }
+  }, [recordingStatus.active, startRecording, stopRecording, addToast]);
+
   const chip = formatDeviceChip(connectionState);
 
   const { size: sidebarWidth, handleProps: sidebarSplitterProps } = useSplitter({
@@ -265,6 +293,7 @@ function AppLayoutInner() {
                 externalModel={externalModel}
                 liveValues={liveValues}
                 isConnected={isConnected}
+                onRefreshAll={handleRefreshAll}
               />
             </div>
             {activeTab === "image" && (
@@ -280,10 +309,7 @@ function AppLayoutInner() {
                 cameraModel={connectedModel ?? undefined}
                 imageMeta={imageMeta}
                 isRecording={recordingStatus.active}
-                onToggleRecording={async () => {
-                  if (recordingStatus.active) await stopRecording();
-                  else await startRecording();
-                }}
+                onToggleRecording={handleToggleRecording}
                 recordingFrameCount={recordingStatus.frame_count}
                 recordingElapsed={recordingStatus.elapsed_secs}
               />

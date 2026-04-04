@@ -236,41 +236,56 @@ export function ViewerCanvas({
     };
   }, [wsUrl, onFrameStats, onFrame, onStreamInfoChange]);
 
+  // rAF-throttled mouse move handler to avoid 60Hz React re-renders
+  const rafPendingRef = useRef(false);
+  const lastMouseRef = useRef<{ x: number; y: number } | null>(null);
+
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    setWrapMouse({ x, y });
+    lastMouseRef.current = { x, y };
 
-    if (!onPixelHover) return;
+    if (rafPendingRef.current) return;
+    rafPendingRef.current = true;
 
-    const { scale, panX, panY, fitScale } = zoomPan.state;
-    const coords = mouseToImageCoords({
-      mouseX: x,
-      mouseY: y,
-      boxW: boxSize.w,
-      boxH: boxSize.h,
-      imgW: imgSize.w,
-      imgH: imgSize.h,
-      scale,
-      fitScale,
-      panX,
-      panY,
+    requestAnimationFrame(() => {
+      rafPendingRef.current = false;
+      const pos = lastMouseRef.current;
+      if (!pos) return;
+
+      setWrapMouse(pos);
+
+      if (!onPixelHover) return;
+
+      const { scale, panX, panY, fitScale } = zoomPan.state;
+      const coords = mouseToImageCoords({
+        mouseX: pos.x,
+        mouseY: pos.y,
+        boxW: boxSize.w,
+        boxH: boxSize.h,
+        imgW: imgSize.w,
+        imgH: imgSize.h,
+        scale,
+        fitScale,
+        panX,
+        panY,
+      });
+
+      if (!coords) {
+        onPixelHover(null);
+        return;
+      }
+
+      const frame = lastFrameRef.current;
+      const fmt = pixelFormat ?? "Mono8";
+      const sample =
+        frame
+          ? samplePixel(frame, coords.x, coords.y, imgSize.w, imgSize.h, fmt)
+          : null;
+      const formatted = sample ? formatPixelSample(sample) : "";
+      onPixelHover({ coords, sample, formatted });
     });
-
-    if (!coords) {
-      onPixelHover(null);
-      return;
-    }
-
-    const frame = lastFrameRef.current;
-    const fmt = pixelFormat ?? "Mono8";
-    const sample =
-      frame
-        ? samplePixel(frame, coords.x, coords.y, imgSize.w, imgSize.h, fmt)
-        : null;
-    const formatted = sample ? formatPixelSample(sample) : "";
-    onPixelHover({ coords, sample, formatted });
   };
 
   const handleMouseLeave = () => {

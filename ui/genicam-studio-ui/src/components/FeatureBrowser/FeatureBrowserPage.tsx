@@ -51,12 +51,14 @@ interface FeatureBrowserPageProps {
   externalModel?: ParseXmlResponse | null;
   liveValues?: Map<string, NodeValueEntry>;
   isConnected?: boolean;
+  onRefreshAll?: () => Promise<void>;
 }
 
 export function FeatureBrowserPage({
   externalModel,
   liveValues = new Map(),
   isConnected = false,
+  onRefreshAll,
 }: FeatureBrowserPageProps = {}) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const presetInputRef = useRef<HTMLInputElement | null>(null);
@@ -583,6 +585,20 @@ export function FeatureBrowserPage({
             </button>
           ))}
         </div>
+
+        {onRefreshAll && isConnected && (
+          <>
+            <div className="browser-toolbar__sep" />
+            <button
+              type="button"
+              className="btn--ghost"
+              onClick={onRefreshAll}
+              title="Refresh all node values from device"
+            >
+              Refresh
+            </button>
+          </>
+        )}
 
         <span className="browser-toolbar__summary" title={summary}>{summary}</span>
       </div>
