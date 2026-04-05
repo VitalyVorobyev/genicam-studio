@@ -7,15 +7,13 @@ import { useAcquisition } from "../../device/useAcquisition";
 import { useImageMeta } from "../../device/useImageMeta";
 import { AppLogProvider, useAppLog } from "../../context/AppLogContext";
 import { ToastProvider, useToast } from "../../context/ToastContext";
-import { DeviceSidebar } from "../DeviceSidebar/DeviceSidebar";
+import { DeviceDropdown } from "../DeviceSidebar/DeviceDropdown";
 import { FeatureBrowserPage } from "../FeatureBrowser/FeatureBrowserPage";
 import { ImageViewer } from "../ImageViewer/ImageViewer";
 import { DiagnosticsTab } from "../Diagnostics/DiagnosticsTab";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { ToastContainer } from "./ToastContainer";
-import { formatDeviceChip } from "./headerUtils";
 import { useRecording } from "../../device/useRecording";
-import { useSplitter } from "./useSplitter";
 import type { ParseXmlResponse } from "../../xml_model/uigraph";
 
 type MainTab = "features" | "image" | "diagnostics";
@@ -181,15 +179,6 @@ function AppLayoutInner() {
     }
   }, [recordingStatus.active, startRecording, stopRecording, addToast]);
 
-  const chip = formatDeviceChip(connectionState);
-
-  const { size: sidebarWidth, handleProps: sidebarSplitterProps } = useSplitter({
-    storageKey: "genicam-studio:device-sidebar-width",
-    defaultSize: 220,
-    minSize: 160,
-    maxSize: 420,
-  });
-
   return (
     <div className="app-layout">
       <header className="app-header">
@@ -209,7 +198,7 @@ function AppLayoutInner() {
             }
             onClick={() => setActiveTab("features")}
           >
-            Feature Browser
+            Features
           </button>
           <button
             type="button"
@@ -220,7 +209,7 @@ function AppLayoutInner() {
             }
             onClick={() => setActiveTab("image")}
           >
-            Image Viewer
+            Image
           </button>
           <button
             type="button"
@@ -235,17 +224,17 @@ function AppLayoutInner() {
           </button>
         </nav>
 
-        {/* Right: acquisition indicator + device chip */}
+        {/* Right: acquisition + device dropdown */}
         <div className="app-header__actions">
           {isConnected && !acqStatus.active && (
-            <button type="button" className="btn" onClick={handleStartAcquisition}>
-              Start Acquisition
+            <button type="button" className="btn btn--sm" onClick={handleStartAcquisition}>
+              Start Acq
             </button>
           )}
           {acqStatus.active && (
             <div className="app-header__acq-indicator">
               <span className="app-header__acq-dot" />
-              Acquiring{acqStatus.fps != null ? ` ${acqStatus.fps.toFixed(1)} fps` : ""}
+              {acqStatus.fps != null ? `${acqStatus.fps.toFixed(1)} fps` : "Acquiring"}
             </div>
           )}
           {isConnected && acqStatus.active && (
@@ -257,34 +246,21 @@ function AppLayoutInner() {
               Stop
             </button>
           )}
-          <div className="app-header__device-chip">
-            <span
-              className={`app-header__device-dot app-header__device-dot--${chip.state}`}
+          {isTauri() && (
+            <DeviceDropdown
+              devices={devices}
+              connectionState={connectionState}
+              disconnectReason={disconnectReason}
+              onConnect={handleConnect}
+              onDisconnect={handleDisconnect}
             />
-            {chip.label}
-          </div>
+          )}
         </div>
       </header>
 
       <ToastContainer />
 
       <div className="app-body">
-        {isTauri() && (
-          <>
-            <aside className="device-sidebar-wrapper" style={{ width: sidebarWidth }}>
-              <DeviceSidebar
-                devices={devices}
-                connectionState={connectionState}
-                disconnectReason={disconnectReason}
-                lastConnectedDeviceId={lastConnectedDeviceId}
-                onConnect={handleConnect}
-                onDisconnect={handleDisconnect}
-              />
-            </aside>
-            <div {...sidebarSplitterProps} />
-          </>
-        )}
-
         <main className="main-area">
           <div className="main-content">
             {/* Feature Browser stays mounted so tree state is preserved between tabs */}

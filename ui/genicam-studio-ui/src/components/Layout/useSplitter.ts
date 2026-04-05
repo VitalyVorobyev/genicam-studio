@@ -34,11 +34,13 @@ interface SplitterOptions {
   defaultSize: number;
   minSize: number;
   maxSize: number;
+  /** "horizontal" = left/right split (default), "vertical" = top/bottom split */
+  orientation?: "horizontal" | "vertical";
 }
 
 interface HandleProps {
   role: "separator";
-  "aria-orientation": "vertical";
+  "aria-orientation": "vertical" | "horizontal";
   className: string;
   tabIndex: number;
   onPointerDown: (e: React.PointerEvent) => void;
@@ -67,6 +69,7 @@ export function useSplitter({
   defaultSize,
   minSize,
   maxSize,
+  orientation = "horizontal",
 }: SplitterOptions): SplitterResult {
   const [size, setSize] = useState<number>(() => {
     const loaded = loadSize(storageKey, defaultSize);
@@ -77,20 +80,24 @@ export function useSplitter({
   const sizeRef = useRef(size);
   sizeRef.current = size;
 
-  const dragRef = useRef({ active: false, startX: 0, startSize: 0 });
+  const dragRef = useRef({ active: false, startPos: 0, startSize: 0 });
 
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
       e.preventDefault();
       dragRef.current = {
         active: true,
-        startX: e.clientX,
+        startPos: orientation === "vertical" ? e.clientY : e.clientX,
         startSize: sizeRef.current,
       };
 
       const handleMove = (ev: PointerEvent) => {
-        const dx = ev.clientX - dragRef.current.startX;
-        const next = clampSplitter(dragRef.current.startSize + dx, minSize, maxSize);
+        const currentPos = orientation === "vertical" ? ev.clientY : ev.clientX;
+        const delta = currentPos - dragRef.current.startPos;
+        // For vertical (bottom pane): dragging up = larger, so subtract delta
+        const next = orientation === "vertical"
+          ? clampSplitter(dragRef.current.startSize - delta, minSize, maxSize)
+          : clampSplitter(dragRef.current.startSize + delta, minSize, maxSize);
         setSize(next);
       };
 
@@ -105,13 +112,15 @@ export function useSplitter({
       document.addEventListener("pointermove", handleMove);
       document.addEventListener("pointerup", handleUp);
     },
-    [minSize, maxSize, storageKey],
+    [minSize, maxSize, storageKey, orientation],
   );
+
+  const isVertical = orientation === "vertical";
 
   const handleProps: HandleProps = {
     role: "separator",
-    "aria-orientation": "vertical",
-    className: "pane-splitter",
+    "aria-orientation": isVertical ? "horizontal" : "vertical",
+    className: isVertical ? "pane-splitter pane-splitter--horizontal" : "pane-splitter",
     tabIndex: 0,
     onPointerDown,
   };

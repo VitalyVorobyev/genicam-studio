@@ -13,9 +13,9 @@ import { TauriProvider, WebWasmProvider, type XmlModelProvider } from "../../xml
 import { isUnknownKind, nodeDisplayName, nodeKindCssKey, nodeKindIcon } from "../../xml_model/helpers";
 import { isTauri } from "../../tauri";
 import { useDraftValues } from "../../state/useDraftValues";
-import { useFavorites } from "../../state/useFavorites";
 import { useSplitter } from "../Layout/useSplitter";
-import { CategoryTree } from "./CategoryTree";
+import { CategoryList } from "./CategoryList";
+import { FeatureList } from "./FeatureList";
 import { formatLiveValue } from "./treeUtils";
 import { countApplicableDrafts, formatBatchProgress } from "./batchApplyUtils";
 import { buildLiveValuePreset } from "./presetUtils";
@@ -75,6 +75,9 @@ export function FeatureBrowserPage({
   const [graph, setGraph] = useState<UiGraph | null>(null);
   const [xmlText, setXmlText] = useState<string>("");
   const [selectedNodeName, setSelectedNodeName] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   // T7.2 — raw input value (not debounced)
   const [searchInput, setSearchInput] = useState("");
   // T7.2 — debounced query used for actual filtering
@@ -88,17 +91,16 @@ export function FeatureBrowserPage({
   const [diags, setDiags] = useState<Diag[]>([]);
   const [summaryOverride, setSummaryOverride] = useState<string | null>(null);
   const [fixtures, setFixtures] = useState<string[]>([]);
-  const [selectedFixture, setSelectedFixture] = useState<string>("");
+  const [selectedFixture, setSelectedFixture] = useState("");
 
   const { drafts, errors, setDraft, resetDraft, clearAllDrafts } = useDraftValues();
-  const { favorites, toggleFavorite } = useFavorites();
   const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
 
-  const { size: treeWidth, handleProps: treeSplitterProps } = useSplitter({
-    storageKey: "genicam-studio:feature-browser-tree-width",
-    defaultSize: 280,
+  const { size: featureListWidth, handleProps: featureListSplitterProps } = useSplitter({
+    storageKey: "genicam-studio:feature-list-width",
+    defaultSize: 240,
     minSize: 160,
-    maxSize: 600,
+    maxSize: 400,
   });
 
   const applyResponse = useCallback(
@@ -106,15 +108,33 @@ export function FeatureBrowserPage({
       clearAllDrafts();
       setGraph(response.graph);
       setXmlText(response.xml);
-      setSelectedNodeName(response.graph.root_category || null);
+      setSelectedNodeName(null);
       setDiags(response.diags || []);
       setSummaryOverride(
         `${response.summary.node_count} nodes · ${response.summary.category_count} cat`
       );
       setStatus({ kind: "ready", fileName });
+      // Auto-select first category
+      const root = response.graph.categories[response.graph.root_category];
+      if (root && root.features.length > 0) {
+        const firstCat = root.features.find((f) => response.graph.categories[f]);
+        setSelectedCategory(firstCat ?? null);
+      }
     },
     [clearAllDrafts]
   );
+
+  // Close overflow menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [menuOpen]);
 
   // T7.2 — debounce search by 150 ms
   const handleSearchChange = useCallback((value: string) => {
@@ -304,6 +324,22 @@ export function FeatureBrowserPage({
     return `${nodeCount} nodes · ${categoryCount} cat`;
   }, [graph, summaryOverride]);
 
+  const breadcrumb = useMemo(() => {
+    const parts: Array<{ name: string; label: string }> = [];
+    if (!graph) return parts;
+    const rootCat = graph.categories[graph.root_category];
+    if (rootCat) parts.push({ name: graph.root_category, label: rootCat.display_name });
+    if (selectedCategory && selectedCategory !== graph.root_category) {
+      const cat = graph.categories[selectedCategory];
+      if (cat) parts.push({ name: selectedCategory, label: cat.display_name });
+    }
+    if (selectedNodeName && selectedNodeName !== selectedCategory) {
+      const node = graph.nodes_by_name[selectedNodeName];
+      if (node) parts.push({ name: selectedNodeName, label: nodeDisplayName(node) });
+    }
+    return parts;
+  }, [graph, selectedCategory, selectedNodeName]);
+
   const selectedNode = useMemo<UiNode | null>(() => {
     if (!graph || !selectedNodeName) return null;
     return graph.nodes_by_name[selectedNodeName] ?? null;
@@ -452,109 +488,20 @@ export function FeatureBrowserPage({
       <input ref={fileInputRef} type="file" accept=".xml,text/xml" onChange={onFileSelected} hidden />
       <input ref={presetInputRef} type="file" accept=".json,application/json" onChange={onPresetFileSelected} hidden />
 
-      {/* Compact toolbar replacing the old top-bar */}
+      {/* Compact toolbar */}
       <div className="browser-toolbar">
-        <div className="browser-toolbar__group">
-          <button type="button" className="btn--secondary" onClick={onLoadXml}>
-            Load XML
-          </button>
-        </div>
-
-        {fixtures.length > 0 && provider.loadFixture && (
-          <>
-            <div className="browser-toolbar__sep" />
-            <div className="browser-toolbar__group fixture-loader">
-              <select
-                value={selectedFixture}
-                onChange={(e) => setSelectedFixture(e.target.value)}
-              >
-                {fixtures.map((f) => (
-                  <option key={f} value={f}>{f}</option>
-                ))}
-              </select>
-              <button type="button" className="btn--secondary" onClick={onLoadFixture}>
-                Load
-              </button>
-            </div>
-          </>
-        )}
-
-        <div className="browser-toolbar__sep" />
-
-        {/* T7.3 — Preset buttons */}
-        <div className="browser-toolbar__group">
-          <button
-            type="button"
-            className="btn--ghost"
-            onClick={onExportPreset}
-            disabled={!graph}
-            title="Export current draft values as a JSON preset file"
-          >
-            Export Preset
-          </button>
-          <button
-            type="button"
-            className="btn--ghost"
-            onClick={onImportPreset}
-            disabled={!graph}
-            title="Import a JSON preset file and restore draft values"
-          >
-            Import Preset
-          </button>
-          {/* FB-05 — Export all live values as a state snapshot */}
-          <button
-            type="button"
-            className="btn--ghost"
-            onClick={onExportLiveState}
-            disabled={!graph || !liveValues || liveValues.size === 0}
-            title={
-              liveValues && liveValues.size > 0
-                ? `Export all ${liveValues.size} live device values as genicam-state.json`
-                : "Connect to a device to export live state"
-            }
-          >
-            Export State
-          </button>
-        </div>
-
-        {/* FB-02 — Batch apply */}
-        {canApply && (
-          <>
-            <div className="browser-toolbar__sep" />
-            <div className="browser-toolbar__group">
-              <button
-                type="button"
-                className="btn"
-                onClick={handleBatchApply}
-                disabled={applicableDraftCount === 0 || batchProgress !== null}
-                title={
-                  applicableDraftCount === 0
-                    ? "No valid drafts to apply"
-                    : `Apply all ${applicableDraftCount} pending draft${applicableDraftCount !== 1 ? "s" : ""} to device`
-                }
-              >
-                Apply All
-                {applicableDraftCount > 0 && ` (${applicableDraftCount})`}
-              </button>
-            </div>
-          </>
-        )}
-
-        <div className="browser-toolbar__sep" />
-
-        {/* T7.2 — Search with debounce */}
+        {/* Search */}
         <div className="browser-toolbar__search">
-          <span className="browser-toolbar__search-icon">&#x2315;</span>
           <input
             ref={searchInputRef}
             className="browser-toolbar__search-input"
             type="search"
-            placeholder="Search  (Ctrl+F)"
+            placeholder={"Filter features\u2026  Ctrl+F"}
             value={searchInput}
             onChange={(e) => handleSearchChange(e.target.value)}
             onKeyDown={handleSearchKeyDown}
           />
-          {searchInput && (
+          {searchInput ? (
             <button
               type="button"
               className="browser-toolbar__search-clear"
@@ -564,14 +511,19 @@ export function FeatureBrowserPage({
                 searchInputRef.current?.focus();
               }}
             >
-              ×
+              {"\u00D7"}
             </button>
+          ) : (
+            <svg className="browser-toolbar__search-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.5" />
+              <line x1="10.5" y1="10.5" x2="14" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
           )}
         </div>
 
         <div className="browser-toolbar__sep" />
 
-        {/* T7.1 — Visibility filter toggle group */}
+        {/* Visibility filter */}
         <div className="vis-filter" role="group" aria-label="Visibility filter">
           {(["Beginner", "Expert", "Guru", "All"] as VisibilityFilter[]).map((level) => (
             <button
@@ -586,21 +538,75 @@ export function FeatureBrowserPage({
           ))}
         </div>
 
-        {onRefreshAll && isConnected && (
-          <>
-            <div className="browser-toolbar__sep" />
-            <button
-              type="button"
-              className="btn--ghost"
-              onClick={onRefreshAll}
-              title="Refresh all node values from device"
-            >
-              Refresh
-            </button>
-          </>
+        <div className="browser-toolbar__sep" />
+
+        {/* Batch apply (inline icon) */}
+        {canApply && applicableDraftCount > 0 && (
+          <button
+            type="button"
+            className="btn btn--sm"
+            onClick={handleBatchApply}
+            disabled={batchProgress !== null}
+            title={`Apply all ${applicableDraftCount} pending draft${applicableDraftCount !== 1 ? "s" : ""}`}
+          >
+            Apply {applicableDraftCount}
+          </button>
         )}
 
-        <span className="browser-toolbar__summary" title={summary}>{summary}</span>
+        {/* Refresh */}
+        {onRefreshAll && isConnected && (
+          <button
+            type="button"
+            className="browser-toolbar__icon-btn"
+            onClick={onRefreshAll}
+            title="Refresh all node values"
+          >
+            {"\u21BB"}
+          </button>
+        )}
+
+        {/* Overflow menu */}
+        <div className="browser-toolbar__overflow" ref={menuRef}>
+          <button
+            type="button"
+            className="browser-toolbar__icon-btn"
+            onClick={() => setMenuOpen((p) => !p)}
+            title="More actions"
+            aria-expanded={menuOpen}
+          >
+            {"\u2261"}
+          </button>
+          {menuOpen && (
+            <div className="browser-toolbar__menu">
+              <button type="button" onClick={() => { onLoadXml(); setMenuOpen(false); }}>
+                {"Load XML\u2026"}
+              </button>
+              <button
+                type="button"
+                disabled={!graph}
+                onClick={() => { onExportPreset(); setMenuOpen(false); }}
+              >
+                Export Preset
+              </button>
+              <button
+                type="button"
+                disabled={!graph}
+                onClick={() => { onImportPreset(); setMenuOpen(false); }}
+              >
+                Import Preset
+              </button>
+              <button
+                type="button"
+                disabled={!graph || !liveValues || liveValues.size === 0}
+                onClick={() => { onExportLiveState(); setMenuOpen(false); }}
+              >
+                Export State
+              </button>
+            </div>
+          )}
+        </div>
+
+        <span className="browser-toolbar__summary">{summary}</span>
       </div>
 
       {/* Status strip */}
@@ -611,52 +617,64 @@ export function FeatureBrowserPage({
       )}
       {status.kind === "loading" && (
         <div className="browser-status browser-status--info browser-status--shimmer">
-          Loading {status.fileName}\u2026
+          Loading {status.fileName}{"\u2026"}
         </div>
       )}
       {status.kind === "error" && (
         <div className="browser-status browser-status--error">{status.message}</div>
       )}
-      {status.kind === "ready" && (
-        <div className="browser-status browser-status--success">
-          Loaded {status.fileName}
-        </div>
-      )}
 
-      {/* Two-pane body with drag splitter */}
+      {/* Three-column body */}
       <div
         className="feature-browser__body"
-        style={{ gridTemplateColumns: `${treeWidth}px 8px 1fr` }}
+        style={{ gridTemplateColumns: searchText.trim()
+          ? `1fr 8px 1fr`
+          : `160px ${featureListWidth}px 8px 1fr`
+        }}
       >
-        <aside className="pane pane--left">
-          <div className="pane__scroll">
-            {searchText.trim().length > 0 ? (
-              <SearchResults
-                results={searchResults}
-                query={searchText.trim()}
-                selectedNodeName={selectedNodeName}
-                focusIndex={searchFocusIndex}
-                onSelectNode={onSelectNode}
-                liveValues={liveValues}
-              />
-            ) : (
-              <CategoryTree
+        {searchText.trim() ? (
+          /* Search mode: results replace categories + feature list */
+          <>
+            <aside className="pane pane--left">
+              <div className="pane__scroll">
+                <SearchResults
+                  results={searchResults}
+                  query={searchText.trim()}
+                  selectedNodeName={selectedNodeName}
+                  focusIndex={searchFocusIndex}
+                  onSelectNode={onSelectNode}
+                  liveValues={liveValues}
+                />
+              </div>
+            </aside>
+            <div className="splitter-handle" />
+          </>
+        ) : (
+          /* Normal mode: three columns */
+          <>
+            <aside className="pane pane--categories">
+              <CategoryList
                 graph={graph}
-                hideUnknown={hideUnknown}
+                selectedCategory={selectedCategory}
+                onSelectCategory={setSelectedCategory}
+              />
+            </aside>
+            <aside className="pane pane--features">
+              <FeatureList
+                graph={graph}
+                categoryName={selectedCategory}
                 visibilityFilter={visibilityFilter}
                 selectedNodeName={selectedNodeName}
                 onSelectNode={onSelectNode}
+                onSelectCategory={setSelectedCategory}
                 liveValues={liveValues}
-                favorites={favorites}
-                onToggleFavorite={toggleFavorite}
               />
-            )}
-          </div>
-        </aside>
+            </aside>
+            <div {...featureListSplitterProps} />
+          </>
+        )}
 
-        <div {...treeSplitterProps} />
-
-        <section className="pane pane--right">
+        <section className="pane pane--editor">
           <FeaturePanel
             graph={graph}
             selectedNode={selectedNode}
@@ -677,6 +695,31 @@ export function FeatureBrowserPage({
             onSelectNode={onSelectNode}
           />
         </section>
+      </div>
+
+      {/* Breadcrumb status bar */}
+      <div className="browser-breadcrumb">
+        {breadcrumb.map((part, i) => (
+          <span key={part.name}>
+            {i > 0 && <span className="browser-breadcrumb__sep">{"\u203A"}</span>}
+            <button
+              type="button"
+              className="browser-breadcrumb__link"
+              onClick={() => {
+                if (graph?.categories[part.name]) {
+                  setSelectedCategory(part.name);
+                } else {
+                  onSelectNode(part.name);
+                }
+              }}
+            >
+              {part.label}
+            </button>
+          </span>
+        ))}
+        {status.kind === "ready" && (
+          <span className="browser-breadcrumb__file">{status.fileName}</span>
+        )}
       </div>
     </div>
   );

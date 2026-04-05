@@ -56,14 +56,30 @@ export function ImageFormatSection({
   const offsetXStep = resolveIntStep(offsetXC);
   const offsetYStep = resolveIntStep(offsetYC);
 
-  const [widthDraft, setWidthDraft] = useState<number>(widthC.min);
-  const [widthText, setWidthText] = useState<string>(String(widthC.min));
-  const [heightDraft, setHeightDraft] = useState<number>(heightC.min);
-  const [heightText, setHeightText] = useState<string>(String(heightC.min));
-  const [offsetXDraft, setOffsetXDraft] = useState<number>(offsetXC.min);
-  const [offsetXText, setOffsetXText] = useState<string>(String(offsetXC.min));
-  const [offsetYDraft, setOffsetYDraft] = useState<number>(offsetYC.min);
-  const [offsetYText, setOffsetYText] = useState<string>(String(offsetYC.min));
+  const [widthDraft, setWidthDraft] = useState<number>(
+    () => getLiveNumber(liveValues, "Width") ?? widthC.min
+  );
+  const [widthText, setWidthText] = useState<string>(
+    () => String(getLiveNumber(liveValues, "Width") ?? widthC.min)
+  );
+  const [heightDraft, setHeightDraft] = useState<number>(
+    () => getLiveNumber(liveValues, "Height") ?? heightC.min
+  );
+  const [heightText, setHeightText] = useState<string>(
+    () => String(getLiveNumber(liveValues, "Height") ?? heightC.min)
+  );
+  const [offsetXDraft, setOffsetXDraft] = useState<number>(
+    () => getLiveNumber(liveValues, "OffsetX") ?? offsetXC.min
+  );
+  const [offsetXText, setOffsetXText] = useState<string>(
+    () => String(getLiveNumber(liveValues, "OffsetX") ?? offsetXC.min)
+  );
+  const [offsetYDraft, setOffsetYDraft] = useState<number>(
+    () => getLiveNumber(liveValues, "OffsetY") ?? offsetYC.min
+  );
+  const [offsetYText, setOffsetYText] = useState<string>(
+    () => String(getLiveNumber(liveValues, "OffsetY") ?? offsetYC.min)
+  );
 
   const widthDragging = useRef(false);
   const heightDragging = useRef(false);

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useSplitter } from "../Layout/useSplitter";
 import type { Diag, UiGraph, UiNode, UiNodeKind } from "../../xml_model/uigraph";
 import type { NodeValue, ValueError } from "../../xml_model/values";
 import type { NodeValueEntry } from "../../device/types";
@@ -51,7 +52,15 @@ export function FeaturePanel({
   onSelectNode,
 }: FeaturePanelProps) {
   const [infoOpen, setInfoOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState<"raw" | "debug" | "diagnostics">("raw");
+  const [debugOpen, setDebugOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"raw" | "debug" | "diagnostics">("debug");
+  const { size: debugHeight, handleProps: debugSplitterProps } = useSplitter({
+    storageKey: "genicam-studio:debug-panel-height",
+    defaultSize: 200,
+    minSize: 80,
+    maxSize: 500,
+    orientation: "vertical",
+  });
 
   const infoText = useMemo(() => {
     if (!selectedNode) return null;
@@ -72,29 +81,6 @@ export function FeaturePanel({
     return (
       <div className="feature-panel feature-panel--empty">
         <p>Select a feature to view details.</p>
-        <div className="feature-panel__tabs">
-          <div className="tabs">
-            {(["raw", "debug", "diagnostics"] as const).map((t) => (
-              <button
-                key={t}
-                type="button"
-                className={activeTab === t ? "tab tab--active" : "tab"}
-                onClick={() => setActiveTab(t)}
-              >
-                {tabLabel(t)}
-              </button>
-            ))}
-          </div>
-          <div className="tab-panel">
-            {activeTab === "raw" ? (
-              <textarea readOnly value={xmlText || "(no XML loaded)"} />
-            ) : activeTab === "debug" ? (
-              <pre>(no selection)</pre>
-            ) : (
-              diagnosticsPanel
-            )}
-          </div>
-        </div>
       </div>
     );
   }
@@ -108,153 +94,179 @@ export function FeaturePanel({
   const kindClass = kindBadgeClass(selectedNode.kind);
 
   return (
-    <div className="feature-panel">
-      <header className="feature-panel__header">
-        <h2 className="feature-panel__name">{nodeDisplayName(selectedNode)}</h2>
-        <div className="feature-panel__meta">
-          <span className={`kind-badge ${kindClass}`}>{kindLabel}</span>
-          <span className="feature-panel__raw-name">{selectedNode.name}</span>
-          {liveValue !== undefined && (
-            <span className="live-badge">
-              <span className="live-badge__dot" />
-              <span className="live-badge__value">{String(liveValue.value)}</span>
-            </span>
-          )}
-          {(liveValue?.access_mode ?? selectedNode.access_mode) && (
-            <span className="feature-panel__access">
-              {liveValue?.access_mode ?? selectedNode.access_mode}
-            </span>
-          )}
-          {selectedNode.visibility && (
-            <span className="feature-panel__visibility">{selectedNode.visibility}</span>
-          )}
-        </div>
-        {draftSummary && (
-          <div className="draft-summary">
-            <span className="draft-summary__dot" />
-            {draftSummary}
+    <div
+      className="feature-panel"
+      style={{
+        gridTemplateRows: debugOpen ? `1fr 8px ${debugHeight}px` : "1fr",
+      }}
+    >
+      {/* Upper pane: editor content (scrollable) */}
+      <div className="feature-panel__upper">
+        <header className="feature-panel__header">
+          <h2 className="feature-panel__name">{nodeDisplayName(selectedNode)}</h2>
+          <div className="feature-panel__meta">
+            <span className={`kind-badge ${kindClass}`}>{kindLabel}</span>
+            <span className="feature-panel__raw-name">{selectedNode.name}</span>
+            {liveValue !== undefined && (
+              <span className="live-badge">
+                <span className="live-badge__dot" />
+                <span className="live-badge__value">{String(liveValue.value)}</span>
+              </span>
+            )}
+            {(liveValue?.access_mode ?? selectedNode.access_mode) && (
+              <span className="feature-panel__access">
+                {liveValue?.access_mode ?? selectedNode.access_mode}
+              </span>
+            )}
+            {selectedNode.visibility && (
+              <span className="feature-panel__visibility">{selectedNode.visibility}</span>
+            )}
           </div>
-        )}
-      </header>
-
-      {infoText && (
-        <section className="info" style={{ marginTop: "12px" }}>
-          <button
-            type="button"
-            className="info__toggle"
-            onClick={() => setInfoOpen((prev) => !prev)}
-          >
-            <span className="info__toggle-caret">{infoOpen ? "▾" : "▸"}</span>
-            Info
-          </button>
-          {infoOpen && <pre className="info__content">{infoText}</pre>}
-        </section>
-      )}
-
-      <section className="feature-panel__body">
-        {renderEditor(
-          selectedNode,
-          draftValue,
-          draftErrors,
-          onDraftChange,
-          canExecute,
-          executeDisabledReason,
-          onExecute
-        )}
-      </section>
-
-      {editable && (
-        <section className="editor-actions">
-          <button
-            type="button"
-            className="btn--secondary"
-            onClick={onDraftReset}
-            disabled={!hasDraft}
-          >
-            Reset
-          </button>
-          <button
-            type="button"
-            className="btn"
-            onClick={onApply}
-            disabled={applyDisabled}
-            title={applyTitle}
-          >
-            Apply
-          </button>
-        </section>
-      )}
-
-      {((selectedNode.dependencies?.length ?? 0) > 0 || (selectedNode.dependents?.length ?? 0) > 0) && (
-        <section className="feature-panel__deps">
-          {(selectedNode.dependencies?.length ?? 0) > 0 && (
-            <div className="dep-group">
-              <span className="dep-group__label">Depends on:</span>
-              <div className="dep-group__links">
-                {selectedNode.dependencies!.map((dep) => (
-                  <button
-                    key={dep}
-                    type="button"
-                    className="dep-link"
-                    onClick={() => onSelectNode?.(dep)}
-                    title={`Navigate to ${dep}`}
-                  >
-                    {dep}
-                  </button>
-                ))}
-              </div>
+          {draftSummary && (
+            <div className="draft-summary">
+              <span className="draft-summary__dot" />
+              {draftSummary}
             </div>
           )}
-          {(selectedNode.dependents?.length ?? 0) > 0 && (
-            <div className="dep-group">
-              <span className="dep-group__label">Invalidates:</span>
-              <div className="dep-group__links">
-                {selectedNode.dependents!.map((dep) => (
-                  <button
-                    key={dep}
-                    type="button"
-                    className="dep-link dep-link--dependent"
-                    onClick={() => onSelectNode?.(dep)}
-                    title={`Navigate to ${dep}`}
-                  >
-                    {dep}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          {selectedNode.expression && (
-            <div className="dep-group">
-              <span className="dep-group__label">Expression:</span>
-              <code className="dep-expression">{selectedNode.expression}</code>
-            </div>
-          )}
-        </section>
-      )}
+        </header>
 
-      <section className="feature-panel__tabs">
-        <div className="tabs">
-          {(["raw", "debug", "diagnostics"] as const).map((t) => (
+        {infoText && (
+          <section className="info" style={{ marginTop: "12px" }}>
             <button
-              key={t}
               type="button"
-              className={activeTab === t ? "tab tab--active" : "tab"}
-              onClick={() => setActiveTab(t)}
+              className="info__toggle"
+              onClick={() => setInfoOpen((prev) => !prev)}
             >
-              {tabLabel(t)}
+              <span className="info__toggle-caret">{infoOpen ? "\u25BE" : "\u25B8"}</span>
+              Info
             </button>
-          ))}
-        </div>
-        <div className="tab-panel">
-          {activeTab === "raw" ? (
-            <textarea readOnly value={xmlText || "(no XML loaded)"} />
-          ) : activeTab === "debug" ? (
-            <pre>{JSON.stringify(selectedNode, null, 2)}</pre>
-          ) : (
-            diagnosticsPanel
+            {infoOpen && <pre className="info__content">{infoText}</pre>}
+          </section>
+        )}
+
+        <section className="feature-panel__body">
+          {renderEditor(
+            selectedNode,
+            draftValue,
+            draftErrors,
+            onDraftChange,
+            canExecute,
+            executeDisabledReason,
+            onExecute
           )}
+        </section>
+
+        {editable && (
+          <section className="editor-actions">
+            <button
+              type="button"
+              className="btn--secondary"
+              onClick={onDraftReset}
+              disabled={!hasDraft}
+            >
+              Reset
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={onApply}
+              disabled={applyDisabled}
+              title={applyTitle}
+            >
+              Apply
+            </button>
+          </section>
+        )}
+
+        {((selectedNode.dependencies?.length ?? 0) > 0 || (selectedNode.dependents?.length ?? 0) > 0) && (
+          <section className="feature-panel__deps">
+            {(selectedNode.dependencies?.length ?? 0) > 0 && (
+              <div className="dep-group">
+                <span className="dep-group__label">Depends on:</span>
+                <div className="dep-group__links">
+                  {selectedNode.dependencies!.map((dep) => (
+                    <button
+                      key={dep}
+                      type="button"
+                      className="dep-link"
+                      onClick={() => onSelectNode?.(dep)}
+                      title={`Navigate to ${dep}`}
+                    >
+                      {dep}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {(selectedNode.dependents?.length ?? 0) > 0 && (
+              <div className="dep-group">
+                <span className="dep-group__label">Invalidates:</span>
+                <div className="dep-group__links">
+                  {selectedNode.dependents!.map((dep) => (
+                    <button
+                      key={dep}
+                      type="button"
+                      className="dep-link dep-link--dependent"
+                      onClick={() => onSelectNode?.(dep)}
+                      title={`Navigate to ${dep}`}
+                    >
+                      {dep}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {selectedNode.expression && (
+              <div className="dep-group">
+                <span className="dep-group__label">Expression:</span>
+                <code className="dep-expression">{selectedNode.expression}</code>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Developer toggle at the bottom of the editor pane */}
+        <div className="feature-panel__debug-toggle-bar">
+          <button
+            type="button"
+            className="feature-panel__debug-toggle"
+            onClick={() => setDebugOpen((p) => !p)}
+          >
+            <span className="info__toggle-caret">{debugOpen ? "\u25BE" : "\u25B8"}</span>
+            Developer
+          </button>
         </div>
-      </section>
+      </div>
+
+      {/* Splitter + Debug pane (only when open) */}
+      {debugOpen && (
+        <>
+          <div {...debugSplitterProps} />
+          <div className="feature-panel__debug-content">
+            <div className="tabs tabs--sm">
+              {(["raw", "debug", "diagnostics"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  className={activeTab === t ? "tab tab--active" : "tab"}
+                  onClick={() => setActiveTab(t)}
+                >
+                  {tabLabel(t)}
+                </button>
+              ))}
+            </div>
+            <div className="tab-panel tab-panel--dev">
+              {activeTab === "raw" ? (
+                <pre className="dev-pre">{extractNodeXml(xmlText, selectedNode.name) || "(no XML match)"}</pre>
+              ) : activeTab === "debug" ? (
+                <pre className="dev-pre">{JSON.stringify(selectedNode, null, 2)}</pre>
+              ) : (
+                diagnosticsPanel
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -383,6 +395,32 @@ function renderDiagnostics(diags: Diag[]) {
       ))}
     </ul>
   );
+}
+
+/** Extract the XML block for a given node name from the full XML text. */
+function extractNodeXml(xmlText: string, nodeName: string): string | null {
+  if (!xmlText || !nodeName) return null;
+  // Try to find an element with Name="nodeName" attribute
+  const nameAttr = `Name="${nodeName}"`;
+  const idx = xmlText.indexOf(nameAttr);
+  if (idx === -1) return null;
+  // Walk backward to find the opening <
+  let start = idx;
+  while (start > 0 && xmlText[start] !== "<") start--;
+  // Find the tag name
+  const tagMatch = xmlText.slice(start).match(/^<(\w+)/);
+  if (!tagMatch) return null;
+  const tag = tagMatch[1];
+  // Find the closing tag
+  const closeTag = `</${tag}>`;
+  const closeIdx = xmlText.indexOf(closeTag, start);
+  if (closeIdx === -1) {
+    // Self-closing? Find />
+    const selfClose = xmlText.indexOf("/>", idx);
+    if (selfClose !== -1) return xmlText.slice(start, selfClose + 2).trim();
+    return null;
+  }
+  return xmlText.slice(start, closeIdx + closeTag.length).trim();
 }
 
 function isEnumValue(value: NodeValue): value is { enumName: string } {
