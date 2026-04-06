@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useEffectEvent, useRef, useState } from "react";
 import { fitContain, mouseToImageCoords, mouseToImageCoordsClamped } from "./viewerUtils";
 import { useZoomPan } from "./useZoomPan";
 import type { ZoomPanState } from "./useZoomPan";
@@ -66,6 +66,7 @@ export function ViewerCanvas({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const lastFrameRef = useRef<Uint8Array | null>(null);
+  const hasRenderedFrameRef = useRef(false);
 
   const [imgSize, setImgSize] = useState({ w: 0, h: 0 });
   const [boxSize, setBoxSize] = useState({ w: 0, h: 0 });
@@ -153,19 +154,64 @@ export function ViewerCanvas({
     };
   }, [resetZoomRef, zoomPan.onDoubleClick]);
 
+  const emitFrameStats = useEffectEvent((fps: number) => {
+    onFrameStats(fps);
+  });
+
+  const emitFrame = useEffectEvent(() => {
+    onFrame?.();
+  });
+
+  const emitStreamInfoChange = useEffectEvent((info: StreamInfoFrame) => {
+    onStreamInfoChange?.(info);
+  });
+
   // WebSocket + render loop
   useEffect(() => {
     const ws = new WebSocket(wsUrl);
     ws.binaryType = "arraybuffer";
 
     const frameTimes: number[] = [];
+    let firstInfoLogged = false;
+    let firstBinaryLogged = false;
+    let disposed = false;
+
+    ws.onopen = () => {
+      console.info("[ViewerCanvas] WebSocket opened", { wsUrl });
+    };
+
+    ws.onerror = (event) => {
+      console.error("[ViewerCanvas] WebSocket error", { wsUrl, event });
+      if (!disposed) {
+        emitFrameStats(0);
+      }
+    };
+
+    ws.onclose = (event) => {
+      console.info("[ViewerCanvas] WebSocket closed", {
+        wsUrl,
+        code: event.code,
+        reason: event.reason,
+        wasClean: event.wasClean,
+      });
+      if (!disposed) {
+        emitFrameStats(0);
+      }
+    };
 
     ws.onmessage = (event) => {
       if (typeof event.data === "string") {
+        if (!firstInfoLogged) {
+          console.info("[ViewerCanvas] First stream info frame", {
+            wsUrl,
+            payload: event.data,
+          });
+          firstInfoLogged = true;
+        }
         try {
           const parsed = JSON.parse(event.data) as StreamInfoFrame;
           if (parsed.type === "info") {
-            onStreamInfoChange?.(parsed);
+            emitStreamInfoChange(parsed);
           }
         } catch {
           // ignore malformed text messages
@@ -177,12 +223,20 @@ export function ViewerCanvas({
       lastFrameRef.current = new Uint8Array(event.data);
       if (snapshotRef) snapshotRef.current = lastFrameRef.current;
 
+      if (!firstBinaryLogged) {
+        console.info("[ViewerCanvas] First binary frame received", {
+          wsUrl,
+          bytes: lastFrameRef.current.length,
+        });
+        firstBinaryLogged = true;
+      }
+
       const blob = new Blob([event.data]);
       createImageBitmap(blob)
         .then((bitmap) => {
           const canvas = canvasRef.current;
           const wrap = wrapRef.current;
-          if (!canvas || !wrap) {
+          if (disposed || !canvas || !wrap) {
             bitmap.close();
             return;
           }
@@ -208,6 +262,7 @@ export function ViewerCanvas({
             ctx.drawImage(bitmap, 0, 0, fit.width, fit.height);
           }
           bitmap.close();
+          hasRenderedFrameRef.current = true;
 
           // Update imgSize state only when dimensions actually change
           setImgSize((prev) => {
@@ -223,8 +278,8 @@ export function ViewerCanvas({
           while (frameTimes.length > 0 && now - frameTimes[0] > 1000) {
             frameTimes.shift();
           }
-          onFrameStats(frameTimes.length);
-          onFrame?.();
+          emitFrameStats(frameTimes.length);
+          emitFrame();
         })
         .catch(() => {
           // Ignore individual frame decode errors
@@ -232,9 +287,10 @@ export function ViewerCanvas({
     };
 
     return () => {
+      disposed = true;
       ws.close();
     };
-  }, [wsUrl, onFrameStats, onFrame, onStreamInfoChange]);
+  }, [wsUrl]);
 
   // rAF-throttled mouse move handler to avoid 60Hz React re-renders
   const rafPendingRef = useRef(false);
@@ -477,6 +533,9 @@ export function ViewerCanvas({
       />
       <RoiOverlay rect={roiMode ? roiOverlayRect : null} />
       <LineOverlay line={lineMode ? lineOverlay : null} />
+      {!isStreaming && hasRenderedFrameRef.current && (
+        <div className="iv-canvas-overlay">Acquisition stopped</div>
+      )}
       {snapshotRef && (
         <HistogramOverlay
           frameRef={snapshotRef}

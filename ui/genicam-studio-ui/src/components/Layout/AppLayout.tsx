@@ -132,8 +132,8 @@ function AppLayoutInner() {
   const handleStartAcquisition = useCallback(async () => {
     log("info", "Starting acquisition\u2026");
     try {
-      await startAcq();
       setActiveTab("image");
+      await startAcq();
       log("success", "Acquisition started");
       addToast("success", "Acquisition started");
     } catch (e) {

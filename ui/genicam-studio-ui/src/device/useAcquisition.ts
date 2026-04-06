@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { isTauri } from "../tauri";
-import type { AcquisitionStatus, StreamerInfo } from "./types";
+import type { AcquisitionStatus, ConnectionState, StreamerInfo } from "./types";
 
 export function useAcquisition() {
   const [status, setStatus] = useState<AcquisitionStatus>({
@@ -13,25 +13,34 @@ export function useAcquisition() {
   useEffect(() => {
     if (!isTauri()) return;
 
-    let unlisten: (() => void) | null = null;
+    let unlistenStatus: (() => void) | null = null;
+    let unlistenConnection: (() => void) | null = null;
     let cancelled = false;
 
     import("@tauri-apps/api/event").then(({ listen }) => {
       if (cancelled) return;
       listen<AcquisitionStatus>("acquisition-status", (e) => {
         setStatus(e.payload);
-        if (!e.payload.active) {
+      }).then((fn) => {
+        if (cancelled) fn();
+        else unlistenStatus = fn;
+      });
+
+      listen<ConnectionState>("connection-state-changed", (e) => {
+        const kind = e.payload.kind;
+        if (kind === "disconnected" || kind === "error") {
           setStreamerInfo(null);
         }
       }).then((fn) => {
         if (cancelled) fn();
-        else unlisten = fn;
+        else unlistenConnection = fn;
       });
     });
 
     return () => {
       cancelled = true;
-      unlisten?.();
+      unlistenStatus?.();
+      unlistenConnection?.();
     };
   }, []);
 
@@ -45,7 +54,6 @@ export function useAcquisition() {
   const stop = useCallback(async () => {
     const { invoke } = await import("@tauri-apps/api/core");
     await invoke("stop_acquisition");
-    setStreamerInfo(null);
   }, []);
 
   return { status, streamerInfo, start, stop };

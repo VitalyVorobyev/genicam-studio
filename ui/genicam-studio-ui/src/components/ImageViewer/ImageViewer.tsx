@@ -85,6 +85,20 @@ export function ImageViewer({
     prevAcquiring.current = isAcquiring;
   }, [isAcquiring]);
 
+  useEffect(() => {
+    if (!isAcquiring) {
+      setFps(0);
+      setPixelHover(null);
+    }
+  }, [isAcquiring]);
+
+  useEffect(() => {
+    if (!streamerInfo) {
+      setWsStreamInfo(null);
+      snapshotRef.current = null;
+    }
+  }, [streamerInfo]);
+
   // Clear ROI when tool is turned off
   useEffect(() => {
     if (!showRoiTool) {
@@ -99,9 +113,13 @@ export function ImageViewer({
     }
   }, [showLineTool]);
 
-  const handleZoomPanChange = (s: ZoomPanState) => {
+  const handleZoomPanChange = useCallback((s: ZoomPanState) => {
     setZoomLabel(s.zoomLabel);
-  };
+  }, []);
+
+  const handleFrame = useCallback(() => {
+    setFrameCount((count) => count + 1);
+  }, []);
 
   const handleResetZoom = useCallback(() => {
     resetZoomRef.current?.();
@@ -214,12 +232,12 @@ export function ImageViewer({
         <ViewerCanvas
           wsUrl={streamerInfo.ws_url}
           onFrameStats={setFps}
-          onFrame={() => setFrameCount((c) => c + 1)}
+          onFrame={handleFrame}
           onZoomPanChange={handleZoomPanChange}
           pixelFormat={pixelFormat}
           onPixelHover={setPixelHover}
           resetZoomRef={resetZoomRef}
-          isStreaming={true}
+          isStreaming={isAcquiring}
           snapshotRef={snapshotRef}
           onStreamInfoChange={handleStreamInfoChange}
           showHistogram={showHistogram}
