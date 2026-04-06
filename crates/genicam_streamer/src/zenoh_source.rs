@@ -94,6 +94,9 @@ async fn run_inner(
     );
 
     let mut last_emit: Option<Instant> = None;
+    let mut logged_first_meta = false;
+    let mut logged_first_raw_frame = false;
+    let mut logged_first_bmp = false;
 
     loop {
         tokio::select! {
@@ -121,6 +124,18 @@ async fn run_inner(
                         continue;
                     }
                 };
+
+                if !logged_first_meta {
+                    info!(
+                        key = %source.meta_key,
+                        width = meta.width,
+                        height = meta.height,
+                        pixel_format = ?meta.pixel_format,
+                        payload_size = meta.payload_size,
+                        "First image/meta received"
+                    );
+                    logged_first_meta = true;
+                }
 
                 // Rebuild encoders only when dimensions change.
                 // Safety: the select! loop is single-threaded — no concurrent writers.
@@ -174,6 +189,19 @@ async fn run_inner(
                     }
                 };
 
+                if !logged_first_raw_frame {
+                    info!(
+                        key = %source.key_expr,
+                        seq = header.seq,
+                        width = header.width,
+                        height = header.height,
+                        pixel_format = ?header.pixel_format,
+                        bytes = raw.len(),
+                        "First raw image frame received"
+                    );
+                    logged_first_raw_frame = true;
+                }
+
                 // Validate pixel data size against the declared format.
                 let bpp = header.pixel_format.bytes_per_pixel();
                 let expected_pixels = match (header.width as usize).checked_mul(header.height as usize) {
@@ -223,8 +251,16 @@ async fn run_inner(
                     }
                 };
 
+                let bmp_len = frame.len();
                 if frame_tx.send(frame).is_err() {
                     warn!("No WebSocket clients are listening for frames");
+                } else if !logged_first_bmp {
+                    info!(
+                        seq = header.seq,
+                        bytes = bmp_len,
+                        "First BMP frame published to WebSocket broadcaster"
+                    );
+                    logged_first_bmp = true;
                 }
                 last_emit = Some(Instant::now());
             }

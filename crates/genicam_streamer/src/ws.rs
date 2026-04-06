@@ -107,6 +107,9 @@ async fn ws_handler(State(state): State<AppState>, upgrade: WebSocketUpgrade) ->
 async fn handle_socket(mut socket: WebSocket, state: AppState) {
     let mut frame_rx = state.frame_tx.subscribe();
     let mut info_rx = state.info_tx.subscribe();
+    let mut logged_first_bmp_send = false;
+
+    info!("WebSocket client connected");
 
     // Send the current info frame immediately on connect.
     let info_json = info_rx.borrow().to_json();
@@ -123,6 +126,12 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
             .is_err()
     {
         return;
+    } else if !initial.is_empty() {
+        info!(
+            bytes = initial.len(),
+            "Sent initial BMP frame to WebSocket client"
+        );
+        logged_first_bmp_send = true;
     }
 
     loop {
@@ -138,6 +147,12 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
                 if socket.send(Message::Binary(frame.to_vec())).await.is_err() {
                     warn!("WebSocket client disconnected");
                     break;
+                } else if !logged_first_bmp_send {
+                    info!(
+                        bytes = frame.len(),
+                        "Sent first live BMP frame to WebSocket client"
+                    );
+                    logged_first_bmp_send = true;
                 }
             }
 
