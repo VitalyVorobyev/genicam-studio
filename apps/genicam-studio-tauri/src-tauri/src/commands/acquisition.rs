@@ -44,9 +44,6 @@ pub async fn start_acquisition(
         (w, h)
     };
 
-    // Send start command to device service
-    send_acquisition_command(&session, &device_id, AcquisitionCommand::Start).await?;
-
     let image_key = genicam_zenoh_api::keys::image(&device_id);
     let meta_key = meta::derive_meta_key(&image_key);
 
@@ -76,7 +73,10 @@ pub async fn start_acquisition(
 
     tracing::info!("Embedded streamer WS on {ws_url}");
 
-    // Spawn Zenoh source task
+    // Spawn Zenoh source task BEFORE sending Start command to the service.
+    // This ensures the subscriber is ready to receive frames when the
+    // service begins publishing — avoids a race condition where early
+    // frames are dropped because no subscriber exists yet.
     let source_config = genicam_streamer::zenoh_source::ZenohSourceConfig {
         key_expr: image_key,
         meta_key,
@@ -131,6 +131,19 @@ pub async fn start_acquisition(
         acq.width = width;
         acq.height = height;
         acq.status.active = true;
+    }
+
+    // Allow Zenoh subscription interest to propagate to the service peer
+    // before telling it to start streaming. Without this, the service may
+    // publish frames that no subscriber is ready to receive.
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+    // NOW send start command — subscriber is ready to receive frames.
+    if let Err(e) = send_acquisition_command(&session, &device_id, AcquisitionCommand::Start).await
+    {
+        // Roll back: stop the streamer tasks we just spawned.
+        stop_streamer_tasks(&zenoh).await;
+        return Err(e);
     }
 
     let _ = app.emit(
