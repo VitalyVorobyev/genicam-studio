@@ -10,13 +10,14 @@ arv-fake-gv-camera-0.8 -i 127.0.0.1
 **Terminal 2 — camera service:**
 ```bash
 cd ../genicam-rs/crates/genicam-service
-cargo run -- --iface lo0 --zenoh-config ../../../genicam-studio/config/zenoh-local.json5
+RUST_LOG=genicam_service=debug,genicam=info,warn \
+  cargo run -- --iface lo0 --zenoh-config ../../../genicam-studio/config/zenoh-local.json5 -v
 ```
 
 **Terminal 3 — studio:**
 ```bash
 cd apps/genicam-studio-tauri
-cargo tauri dev
+RUST_LOG=genicam_studio_tauri=info,genicam_streamer=debug,warn cargo tauri dev
 ```
 
 ## Test checklist
@@ -63,3 +64,11 @@ cargo tauri dev
 - [ ] Studio shows reconnecting banner
 - [ ] Restart service in Terminal 2
 - [ ] Studio reconnects automatically (or shows error after max attempts)
+
+## Debug checkpoints
+
+If the image view stays blank, use the logs from Terminal 2 and Terminal 3 to localize the break:
+
+- `genicam-service`: look for `first GVSP frame received` and `published first image frame to Zenoh`
+- `genicam_streamer`: look for `First image/meta received`, `First raw image frame received`, and `First BMP frame published to WebSocket broadcaster`
+- browser/Tauri console: look for `[ViewerCanvas] WebSocket opened` and `[ViewerCanvas] First binary frame received`

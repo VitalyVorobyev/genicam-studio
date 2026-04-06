@@ -68,7 +68,7 @@ Testing and bug fixes for end-to-end operation with genicam-service (real camera
 | RSI-02 | Streamer integration test (synthetic frames) | P0 | S | done | `tests/e2e/tests/streamer_e2e.rs`: publishes synthetic Mono8 frame on Zenoh, verifies BMP arrives over WebSocket. Tests exact Tauri code path without external binaries. |
 | RSI-03 | Fix node value type mismatch | P1 | S | done | Added `value_as_u32()` helper in `acquisition.rs` that handles both `Number(640)` and `String("640")` JSON values. Service sends strings; studio now parses them correctly for Width/Height. |
 | RSI-04 | Update CI to use genicam-rs `main` branch | P0 | S | done | Updated `.github/workflows/ci.yml` from `phase2_dev` to `main`. |
-| RSI-05 | Validate full pipeline with aravis fake camera | P0 | M | done | All 4 E2E tests pass against real genicam-service + aravis fake camera: discovery, node write (Width=320 roundtrip), acquisition start/stop. Streamer e2e test validates Zenoh→BMP→WebSocket path. Updated testing-cookbook.md with automated test instructions. GVSP frame reception on macOS loopback is a known platform limitation (verified in-process via genicam-rs). |
+| RSI-05 | Validate full pipeline with aravis fake camera | P0 | M | done | E2E tests pass against real genicam-service + aravis fake camera: discovery, node write, acquisition. Streaming fixed by CODEX: macOS needs control reconnect before AcquisitionStart, stream registers before start, trailing byte trim. `test_manual_topology_frames_and_ws_stream` validates full pipeline with TCP Zenoh topology. |
 
 ---
 

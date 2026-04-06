@@ -51,7 +51,7 @@ arv-fake-gv-camera-0.8 -i 127.0.0.1
 # Terminal 2: start the real camera service
 # (genicam-service is excluded from workspace, build from its crate directory)
 cd ../genicam-rs/crates/genicam-service
-cargo run -- --iface lo0   # macOS loopback
+cargo run -- --iface lo0 --zenoh-config ../../../genicam-studio/config/zenoh-local.json5
 # Or: cargo run -- --iface lo   # Linux loopback
 # Or: cargo run -- --iface en0  # real NIC
 
@@ -59,6 +59,9 @@ cargo run -- --iface lo0   # macOS loopback
 cd apps/genicam-studio-tauri
 cargo tauri dev
 ```
+
+In dev mode, Studio auto-loads `config/zenoh-studio.json5`, which connects to the
+service endpoint configured by `zenoh-local.json5`.
 
 ## What to Expect
 
@@ -167,13 +170,14 @@ cargo test -p e2e-tests --test streamer_e2e
 |------|-----------------|
 | `test_discovery_and_xml_fetch` | Device announce, XML download, UiGraph parsing |
 | `test_node_read_write` | Bulk read, write Width=320, readback, restore |
-| `test_acquisition_frames` | Start/stop acquisition, frame header decode (graceful on loopback) |
+| `test_acquisition_frames` | Start/stop acquisition, frame header decode (best-effort in the default harness) |
+| `test_manual_topology_frames_and_ws_stream` | Manual TCP-configured topology: service `zenoh-local.json5`, client `zenoh-studio.json5`, raw image + BMP over WebSocket |
 | `test_device_lost_detection` | Kill camera, verify disconnect status (graceful on loopback) |
 | `test_streamer_synthetic_frame` | Full Zenoh→FrameHeader→BMP→WebSocket pipeline |
 
 ### Known limitations
 
-- **GVSP on loopback (macOS)**: Frame reception in out-of-process tests may fail because GVSP UDP packets don't reliably cross separate processes on the loopback interface. The genicam-rs in-process tests confirm streaming works. The streamer test uses synthetic frames to bypass this.
+- **Default Zenoh peer-mode harness**: Early image samples can still be missed while peer topology and subscription interest settle. Use `test_manual_topology_frames_and_ws_stream` as the authoritative macOS/manual-topology check; it mirrors the real Studio setup with `zenoh-local.json5` + `zenoh-studio.json5`.
 - **Port conflicts**: Tests run with `--test-threads=1` because the fake camera binds to UDP port 3956.
 
 ## Troubleshooting
@@ -181,7 +185,7 @@ cargo test -p e2e-tests --test streamer_e2e
 ### No device discovered
 - Check that the fake camera is running: `arv-fake-gv-camera-0.8 -i 127.0.0.1`
 - If using `--iface`, ensure it matches the camera's subnet
-- Verify with: `arv-tool-0.8 -a 127.0.0.1` (should show the device)
+- Verify on macOS loopback with: `arv-tool-0.8 --gv-discovery-interface=lo0`
 - Ensure no firewall blocks UDP broadcast on port 3956
 
 ### Connection fails (XML parse error)
@@ -190,7 +194,9 @@ cargo test -p e2e-tests --test streamer_e2e
 
 ### No frames during acquisition
 - Service needs CCP (Control Channel Privilege) — this is handled automatically
-- Check service logs for "stream build failed" or "frame stream error"
+- Check service logs for `first GVSP frame received` and `published first image frame to Zenoh`
+- Check streamer logs for `First image/meta received`, `First raw image frame received`, and `First BMP frame published to WebSocket broadcaster`
+- If the service has been idle on macOS loopback before start, make sure you're using the current `genicam-service` build from `../genicam-rs/crates/genicam-service`
 - Verify the streamer (`genicam-ws-streamer`) is running if testing through the studio UI
 
 ### Node write returns error
