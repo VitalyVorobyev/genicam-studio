@@ -6,8 +6,10 @@
 //!
 //! Run: `cargo test -p e2e-tests -- --ignored --test-threads=1`
 
+use futures_util::StreamExt;
 use std::time::Duration;
 use tokio::time::timeout;
+use tokio_tungstenite::tungstenite::Message;
 
 use e2e_tests::*;
 use genicam_zenoh_api::{AcquisitionCommand, DeviceAnnounce, FrameHeader, HEADER_SIZE};
@@ -156,12 +158,16 @@ async fn test_acquisition_frames() {
     let session = harness.session().clone();
     let device_id = harness.device_id().to_string();
 
-    // Subscribe to image stream
+    // Subscribe to image stream BEFORE starting acquisition so the
+    // subscription interest propagates to the service peer first.
     let image_key = genicam_zenoh_api::keys::image(&device_id);
     let sub = session
         .declare_subscriber(&image_key)
         .await
         .expect("image subscriber");
+
+    // Allow Zenoh subscription interest to propagate to the service peer.
+    tokio::time::sleep(Duration::from_millis(500)).await;
 
     // Start acquisition
     send_acquisition_command(&session, &device_id, AcquisitionCommand::Start)
@@ -196,11 +202,12 @@ async fn test_acquisition_frames() {
         }
         Ok(Err(e)) => panic!("subscriber error: {e}"),
         Err(_) => {
-            // Frame reception may not work on loopback (UDP multicast limitation).
-            // Log warning but don't fail — this is a known CI limitation.
+            // The legacy/default-config harness can still miss early image samples
+            // while Zenoh peers finish topology setup. The explicit TCP-configured
+            // manual topology is covered by `test_manual_topology_frames_and_ws_stream`.
             tracing::warn!(
                 "No frames received within timeout. \
-                 This is expected on loopback if aravis uses multicast."
+                 This can still happen in the default-config harness while Zenoh topology settles."
             );
         }
     }
@@ -225,6 +232,148 @@ async fn test_acquisition_frames() {
         }
     }
 
+    harness.shutdown().await;
+}
+
+// ── E2E-04b: Manual Topology (service TCP config + WS streamer) ────────────
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn test_manual_topology_frames_and_ws_stream() {
+    let mut options = HarnessOptions::from_env();
+    options.service_zenoh_config = Some(
+        workspace_path("config/zenoh-local.json5")
+            .to_string_lossy()
+            .into_owned(),
+    );
+    options.client_zenoh_config = Some(
+        workspace_path("config/zenoh-studio.json5")
+            .to_string_lossy()
+            .into_owned(),
+    );
+
+    let mut harness = TestHarness::start_with_options(options)
+        .await
+        .expect("harness start");
+    let session = harness.session().clone();
+    let device_id = harness.device_id().to_string();
+
+    // 1. Subscribe to the raw image stream exactly as the embedded streamer does.
+    let image_key = genicam_zenoh_api::keys::image(&device_id);
+    let image_sub = session
+        .declare_subscriber(&image_key)
+        .await
+        .expect("image subscriber");
+
+    // 2. Seed the embedded streamer with the current image dimensions.
+    let bulk = read_bulk(&session, &device_id, &["Width", "Height"])
+        .await
+        .expect("bulk read");
+    let width = bulk
+        .values
+        .get("Width")
+        .and_then(|entry| json_value_as_u32(&entry.value))
+        .unwrap_or(512);
+    let height = bulk
+        .values
+        .get("Height")
+        .and_then(|entry| json_value_as_u32(&entry.value))
+        .unwrap_or(512);
+
+    let streamer = start_embedded_streamer(session.clone(), image_key.clone(), width, height)
+        .await
+        .expect("start embedded streamer");
+
+    // 3. Connect a WS client before starting acquisition so the first BMP can
+    //    travel through the same path the viewer uses.
+    let (mut ws_stream, _) = tokio_tungstenite::connect_async(&streamer.ws_url)
+        .await
+        .expect("WS connect failed");
+
+    let info_msg = timeout(Duration::from_secs(5), ws_stream.next())
+        .await
+        .expect("timeout waiting for info frame")
+        .expect("stream ended")
+        .expect("WS error");
+    match info_msg {
+        Message::Text(text) => {
+            let info: serde_json::Value =
+                serde_json::from_str(&text).expect("parse info frame JSON");
+            assert_eq!(info["type"], "info");
+            assert_eq!(info["encoding"], "BMP");
+            tracing::info!("Manual-topology streamer info: {text}");
+        }
+        other => panic!("expected text info frame, got {other:?}"),
+    }
+
+    // Allow both the raw image subscriber and embedded streamer subscriber
+    // interests to propagate to the service peer before acquisition starts.
+    tokio::time::sleep(Duration::from_millis(500)).await;
+
+    // 4. Start acquisition.
+    send_acquisition_command(&session, &device_id, AcquisitionCommand::Start)
+        .await
+        .expect("start acquisition");
+
+    // 5. Assert at least one raw image sample arrives over Zenoh.
+    let raw_sample = timeout(Duration::from_secs(10), image_sub.recv_async())
+        .await
+        .expect("timeout waiting for raw image")
+        .expect("image subscriber closed");
+    let raw_bytes = raw_sample.payload().to_bytes();
+    assert!(
+        raw_bytes.len() > HEADER_SIZE,
+        "raw image should have header + pixel data (got {} bytes)",
+        raw_bytes.len()
+    );
+
+    let (header, pixel_data) =
+        FrameHeader::decode(&raw_bytes).expect("decode raw image frame header");
+    assert!(header.width > 0, "raw frame width > 0");
+    assert!(header.height > 0, "raw frame height > 0");
+    assert!(
+        !pixel_data.is_empty(),
+        "raw image payload should not be empty"
+    );
+    tracing::info!(
+        "Manual-topology raw frame: {}x{} {:?} seq={} payload={}B",
+        header.width,
+        header.height,
+        header.pixel_format,
+        header.seq,
+        pixel_data.len()
+    );
+
+    // 6. Assert the embedded streamer delivers a BMP frame over WebSocket.
+    let bmp_msg = timeout(Duration::from_secs(10), async {
+        loop {
+            match ws_stream.next().await {
+                Some(Ok(Message::Binary(data))) => break data,
+                Some(Ok(Message::Text(text))) => {
+                    tracing::info!("Ignoring WS text frame while waiting for BMP: {text}");
+                }
+                Some(Ok(_)) => {}
+                Some(Err(err)) => panic!("WS error: {err}"),
+                None => panic!("WS stream ended before BMP arrived"),
+            }
+        }
+    })
+    .await
+    .expect("timeout waiting for BMP frame");
+
+    assert!(bmp_msg.len() > 54, "BMP should be larger than the header");
+    assert_eq!(bmp_msg[0], b'B', "BMP magic byte 0");
+    assert_eq!(bmp_msg[1], b'M', "BMP magic byte 1");
+    tracing::info!(
+        "Manual-topology BMP frame received: {} bytes",
+        bmp_msg.len()
+    );
+
+    // 7. Stop acquisition and clean up.
+    send_acquisition_command(&session, &device_id, AcquisitionCommand::Stop)
+        .await
+        .expect("stop acquisition");
+    streamer.shutdown().await;
     harness.shutdown().await;
 }
 

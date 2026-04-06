@@ -8,27 +8,43 @@
 //! cargo test -p e2e-tests -- --ignored --test-threads=1
 //! ```
 
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::Arc;
 use std::time::Duration;
 
+use bytes::Bytes;
 use tokio::process::{Child, Command};
+use tokio::sync::watch;
+use tokio::task::JoinHandle;
 use tokio::time::{sleep, timeout};
 
 use genicam_zenoh_api::DeviceAnnounce;
 
 /// Environment variable for the genicam-service binary path.
 const SERVICE_PATH_ENV: &str = "GENICAM_SERVICE_PATH";
-/// Default service binary path (assumes genicam-rs is a sibling directory).
-const SERVICE_PATH_DEFAULT: &str = "../genicam-rs/target/debug/genicam-service";
+/// Preferred default service binary path relative to the shared `vision/` parent.
+const SERVICE_PATH_PRIMARY_DEFAULT: &str =
+    "genicam-rs/crates/genicam-service/target/debug/genicam-service";
+/// Legacy fallback service binary path relative to the shared `vision/` parent.
+const SERVICE_PATH_FALLBACK_DEFAULT: &str = "genicam-rs/target/debug/genicam-service";
 
 /// Environment variable for the fake camera binary path.
 const FAKE_CAM_PATH_ENV: &str = "ARV_FAKE_CAMERA_PATH";
 /// Default: find in PATH.
 const FAKE_CAM_PATH_DEFAULT: &str = "arv-fake-gv-camera-0.8";
 
-/// Environment variable for a Zenoh config file (JSON5).
-const ZENOH_CONFIG_ENV: &str = "ZENOH_CONFIG";
+/// Environment variable for the service-side Zenoh config file (JSON5).
+const SERVICE_ZENOH_CONFIG_ENV: &str = "GENICAM_SERVICE_ZENOH_CONFIG";
+/// Environment variable for the client/test-side Zenoh config file (JSON5).
+const CLIENT_ZENOH_CONFIG_ENV: &str = "GENICAM_CLIENT_ZENOH_CONFIG";
+/// Legacy environment variable: applies the same Zenoh config to service + client.
+const LEGACY_ZENOH_CONFIG_ENV: &str = "ZENOH_CONFIG";
+
+/// Default service-side Zenoh config used by the manual macOS topology.
+const SERVICE_ZENOH_CONFIG_DEFAULT: &str = "config/zenoh-local.json5";
+/// Default client/test-side Zenoh config used by the manual macOS topology.
+const CLIENT_ZENOH_CONFIG_DEFAULT: &str = "config/zenoh-studio.json5";
 
 /// The device ID produced by the aravis fake camera (all-zero MAC).
 pub const FAKE_DEVICE_ID: &str = "cam-000000000000";
@@ -65,17 +81,59 @@ impl std::fmt::Display for HarnessError {
 
 impl std::error::Error for HarnessError {}
 
+#[derive(Debug, Clone)]
+pub struct HarnessOptions {
+    pub fake_cam_path: String,
+    pub service_path: String,
+    pub service_zenoh_config: Option<String>,
+    pub client_zenoh_config: Option<String>,
+}
+
+impl Default for HarnessOptions {
+    fn default() -> Self {
+        Self::from_env()
+    }
+}
+
+impl HarnessOptions {
+    pub fn from_env() -> Self {
+        let legacy_zenoh = std::env::var(LEGACY_ZENOH_CONFIG_ENV).ok();
+
+        Self {
+            fake_cam_path: std::env::var(FAKE_CAM_PATH_ENV)
+                .unwrap_or_else(|_| FAKE_CAM_PATH_DEFAULT.to_string()),
+            service_path: std::env::var(SERVICE_PATH_ENV)
+                .unwrap_or_else(|_| resolve_default_service_path()),
+            service_zenoh_config: std::env::var(SERVICE_ZENOH_CONFIG_ENV)
+                .ok()
+                .or_else(|| legacy_zenoh.clone())
+                .or_else(|| existing_workspace_path(SERVICE_ZENOH_CONFIG_DEFAULT)),
+            client_zenoh_config: std::env::var(CLIENT_ZENOH_CONFIG_ENV)
+                .ok()
+                .or(legacy_zenoh)
+                .or_else(|| existing_workspace_path(CLIENT_ZENOH_CONFIG_DEFAULT)),
+        }
+    }
+}
+
 impl TestHarness {
     /// Start the fake camera, genicam-service, and a Zenoh test session.
     ///
     /// Waits for the service to publish its first announce message before returning.
     pub async fn start() -> Result<Self, HarnessError> {
+        Self::start_with_options(HarnessOptions::from_env()).await
+    }
+
+    /// Start the harness with explicit process paths and Zenoh configs.
+    pub async fn start_with_options(options: HarnessOptions) -> Result<Self, HarnessError> {
         init_tracing();
 
-        let fake_cam_path =
-            std::env::var(FAKE_CAM_PATH_ENV).unwrap_or_else(|_| FAKE_CAM_PATH_DEFAULT.to_string());
-        let service_path =
-            std::env::var(SERVICE_PATH_ENV).unwrap_or_else(|_| SERVICE_PATH_DEFAULT.to_string());
+        let HarnessOptions {
+            fake_cam_path,
+            service_path,
+            service_zenoh_config,
+            client_zenoh_config,
+        } = options;
 
         // 1. Start the fake GigE camera on loopback
         tracing::info!("Starting fake camera: {fake_cam_path}");
@@ -105,26 +163,31 @@ impl TestHarness {
                 "lo"
             })
             .stdout(Stdio::null())
-            .stderr(Stdio::piped());
+            // Inherit stderr so manual/ignored e2e runs show service-side
+            // acquisition diagnostics such as the first GVSP/image frame.
+            .stderr(Stdio::inherit());
 
-        // Pass zenoh config if available
-        let zenoh_config_path = std::env::var(ZENOH_CONFIG_ENV).ok();
-        if let Some(ref cfg_path) = zenoh_config_path {
+        // Pass service-side Zenoh config if available.
+        if let Some(ref cfg_path) = service_zenoh_config {
+            tracing::info!("Service Zenoh config: {cfg_path}");
             svc_cmd.arg("--zenoh-config").arg(cfg_path);
         }
 
         let service = svc_cmd.spawn().map_err(|e| {
             HarnessError::ServiceSpawn(format!(
-                "{e} (path: {service_path}). Build it with: cd ../genicam-rs && cargo build -p genicam-service"
+                "{e} (path: {service_path}). Build it with: cd ../genicam-rs/crates/genicam-service && cargo build"
             ))
         })?;
 
-        // 4. Open Zenoh session (load config if provided)
-        let zenoh_config = match &zenoh_config_path {
+        // 4. Open the client-side Zenoh session.
+        let zenoh_config = match &client_zenoh_config {
             Some(path) => zenoh::Config::from_file(path)
                 .map_err(|e| HarnessError::ZenohOpen(format!("config {path}: {e}")))?,
             None => zenoh::Config::default(),
         };
+        if let Some(ref cfg_path) = client_zenoh_config {
+            tracing::info!("Client Zenoh config: {cfg_path}");
+        }
         let session = Arc::new(
             zenoh::open(zenoh_config)
                 .await
@@ -194,12 +257,122 @@ impl TestHarness {
     }
 }
 
+pub struct EmbeddedStreamerHarness {
+    pub ws_url: String,
+    shutdown_tx: watch::Sender<bool>,
+    task_handles: Vec<JoinHandle<()>>,
+}
+
+impl EmbeddedStreamerHarness {
+    pub async fn shutdown(self) {
+        let _ = self.shutdown_tx.send(true);
+        for handle in self.task_handles {
+            handle.abort();
+            let _ = handle.await;
+        }
+    }
+}
+
 impl Drop for TestHarness {
     fn drop(&mut self) {
         // Best-effort synchronous kill (async Drop not available)
         let _ = self.service.start_kill();
         let _ = self.fake_camera.start_kill();
     }
+}
+
+pub fn workspace_path(relative: &str) -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join(relative)
+}
+
+pub fn json_value_as_u32(v: &serde_json::Value) -> Option<u32> {
+    v.as_u64()
+        .map(|n| n as u32)
+        .or_else(|| v.as_f64().map(|f| f as u32))
+        .or_else(|| v.as_str().and_then(|s| s.parse::<u32>().ok()))
+}
+
+pub async fn start_embedded_streamer(
+    session: Arc<zenoh::Session>,
+    image_key: String,
+    width: u32,
+    height: u32,
+) -> Result<EmbeddedStreamerHarness, String> {
+    let meta_key = genicam_streamer::meta::derive_meta_key(&image_key);
+
+    let (frame_tx, _) = watch::channel(Bytes::new());
+    let info_tx = watch::channel(genicam_streamer::ws::StreamInfo::from_image_meta(
+        &genicam_streamer::meta::default_image_meta(width, height),
+    ))
+    .0;
+    let shared_meta = Arc::new(tokio::sync::RwLock::new(
+        genicam_streamer::meta::default_image_meta(width, height),
+    ));
+    let (shutdown_tx, shutdown_rx) = watch::channel(false);
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .map_err(|e| format!("bind WS listener: {e}"))?;
+    let port = listener
+        .local_addr()
+        .map_err(|e| format!("get WS local address: {e}"))?
+        .port();
+    let ws_url = format!("ws://127.0.0.1:{port}/ws");
+
+    tracing::info!("Embedded streamer test WS on {ws_url}");
+
+    let source_config = genicam_streamer::zenoh_source::ZenohSourceConfig {
+        key_expr: image_key,
+        meta_key,
+        fps_limit: Some(30),
+    };
+
+    let zenoh_handle = tokio::spawn({
+        let session = session.clone();
+        let shared_meta = shared_meta.clone();
+        let frame_tx = frame_tx.clone();
+        let info_tx = info_tx.clone();
+        let shutdown_rx = shutdown_rx.clone();
+        async move {
+            if let Err(err) = genicam_streamer::zenoh_source::run_with_session(
+                session,
+                source_config,
+                shared_meta,
+                frame_tx,
+                info_tx,
+                shutdown_rx,
+            )
+            .await
+            {
+                tracing::error!("Embedded streamer Zenoh source failed: {err}");
+            }
+        }
+    });
+
+    let ws_handle = tokio::spawn({
+        let state = genicam_streamer::ws::AppState { frame_tx, info_tx };
+        let shutdown_rx = shutdown_rx.clone();
+        async move {
+            if let Err(err) = genicam_streamer::ws::run_server_with_listener(
+                listener,
+                "/ws".to_string(),
+                state,
+                shutdown_rx,
+            )
+            .await
+            {
+                tracing::error!("Embedded streamer WS server failed: {err}");
+            }
+        }
+    });
+
+    Ok(EmbeddedStreamerHarness {
+        ws_url,
+        shutdown_tx,
+        task_handles: vec![zenoh_handle, ws_handle],
+    })
 }
 
 fn init_tracing() {
@@ -209,6 +382,34 @@ fn init_tracing() {
                 .unwrap_or_else(|_| "e2e_tests=info,warn".into()),
         )
         .try_init();
+}
+
+fn resolve_default_service_path() -> String {
+    for candidate in [SERVICE_PATH_PRIMARY_DEFAULT, SERVICE_PATH_FALLBACK_DEFAULT] {
+        let path = sibling_path(candidate);
+        if path.exists() {
+            let path = path.canonicalize().unwrap_or(path);
+            return path.to_string_lossy().into_owned();
+        }
+    }
+    sibling_path(SERVICE_PATH_PRIMARY_DEFAULT)
+        .to_string_lossy()
+        .into_owned()
+}
+
+fn existing_workspace_path(relative: &str) -> Option<String> {
+    let path = workspace_path(relative);
+    if !path.exists() {
+        return None;
+    }
+    let path = path.canonicalize().unwrap_or(path);
+    Some(path.to_string_lossy().into_owned())
+}
+
+fn sibling_path(relative: &str) -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../..")
+        .join(relative)
 }
 
 // ── Helpers for tests ────────────────────────────────────────────────────────
