@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import type { ParseXmlResponse } from "../../xml_model/uigraph";
 import type { NodeValueEntry } from "../../device/types";
 import { isTauri } from "../../tauri";
+import { getLiveNumber } from "./liveValueUtils";
 import {
   extractNumericConstraints,
   clampValue,
@@ -62,9 +63,9 @@ export function TransportLayerSection({
 
   useEffect(() => {
     if (packetSizeDragging.current) return;
-    const entry = liveValues.get("GevSCPSPacketSize");
-    if (entry !== undefined && typeof entry.value === "number") {
-      const clamped = clampValue(entry.value, packetSizeC.min, packetSizeC.max);
+    const v = getLiveNumber(liveValues, "GevSCPSPacketSize");
+    if (v !== null) {
+      const clamped = clampValue(v, packetSizeC.min, packetSizeC.max);
       setPacketSizeDraft(clamped);
       setPacketSizeText(String(clamped));
     }
@@ -72,9 +73,9 @@ export function TransportLayerSection({
 
   useEffect(() => {
     if (interPacketDelayDragging.current) return;
-    const entry = liveValues.get("GevSCPD");
-    if (entry !== undefined && typeof entry.value === "number") {
-      const clamped = clampValue(entry.value, interPacketDelayC.min, interPacketDelayC.max);
+    const v = getLiveNumber(liveValues, "GevSCPD");
+    if (v !== null) {
+      const clamped = clampValue(v, interPacketDelayC.min, interPacketDelayC.max);
       setInterPacketDelayDraft(clamped);
       setInterPacketDelayText(String(clamped));
     }

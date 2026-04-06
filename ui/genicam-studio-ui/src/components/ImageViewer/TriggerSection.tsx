@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import type { ParseXmlResponse } from "../../xml_model/uigraph";
 import type { NodeValueEntry } from "../../device/types";
 import { isTauri } from "../../tauri";
+import { getLiveNumber } from "./liveValueUtils";
 import {
   extractNumericConstraints,
   clampValue,
@@ -58,9 +59,9 @@ export function TriggerSection({
   // Sync delay draft from liveValues when not dragging
   useEffect(() => {
     if (delayDragging.current) return;
-    const entry = liveValues.get("TriggerDelay");
-    if (entry !== undefined && typeof entry.value === "number") {
-      const clamped = clampValue(entry.value, delayConstraints.min, delayConstraints.max);
+    const v = getLiveNumber(liveValues, "TriggerDelay");
+    if (v !== null) {
+      const clamped = clampValue(v, delayConstraints.min, delayConstraints.max);
       setDelayDraft(clamped);
       setDelayText(String(clamped));
     }

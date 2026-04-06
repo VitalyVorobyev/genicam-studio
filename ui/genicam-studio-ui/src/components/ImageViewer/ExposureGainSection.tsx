@@ -10,6 +10,7 @@ import {
   resolveAutoState,
   isAutoContinuous,
 } from "./exposureGainUtils";
+import { getLiveNumber } from "./liveValueUtils";
 
 interface ExposureGainSectionProps {
   isConnected: boolean;
@@ -60,9 +61,9 @@ export function ExposureGainSection({
   // Sync draft from liveValues when not dragging
   useEffect(() => {
     if (expDragging.current) return;
-    const entry = liveValues.get("ExposureTime");
-    if (entry !== undefined && typeof entry.value === "number") {
-      const clamped = clampValue(entry.value, expConstraints.min, expConstraints.max);
+    const v = getLiveNumber(liveValues, "ExposureTime");
+    if (v !== null) {
+      const clamped = clampValue(v, expConstraints.min, expConstraints.max);
       setExpDraft(clamped);
       setExpText(String(clamped));
     }
@@ -70,9 +71,9 @@ export function ExposureGainSection({
 
   useEffect(() => {
     if (gainDragging.current) return;
-    const entry = liveValues.get("Gain");
-    if (entry !== undefined && typeof entry.value === "number") {
-      const clamped = clampValue(entry.value, gainConstraints.min, gainConstraints.max);
+    const v = getLiveNumber(liveValues, "Gain");
+    if (v !== null) {
+      const clamped = clampValue(v, gainConstraints.min, gainConstraints.max);
       setGainDraft(clamped);
       setGainText(String(clamped));
     }
@@ -166,26 +167,28 @@ export function ExposureGainSection({
           <span className="slider-row__name">Exposure Time</span>
           <span className="slider-row__value">{formatExposureLabel(expDraft)}</span>
         </div>
-        <input
-          type="range"
-          className="iv-slider"
-          min={expConstraints.min}
-          max={expConstraints.max}
-          step="any"
-          value={expDraft}
-          disabled={expAutoContinuous}
-          onPointerDown={handleExpSliderPointerDown}
-          onPointerUp={handleExpSliderPointerUp}
-          onChange={handleExpSliderChange}
-        />
-        <input
-          type="number"
-          className="iv-text-input"
-          value={expText}
-          disabled={expAutoContinuous}
-          onChange={handleExpTextChange}
-          onBlur={handleExpTextBlur}
-        />
+        <div className="slider-row__input-group">
+          <input
+            type="range"
+            className="iv-slider"
+            min={expConstraints.min}
+            max={expConstraints.max}
+            step="any"
+            value={expDraft}
+            disabled={expAutoContinuous}
+            onPointerDown={handleExpSliderPointerDown}
+            onPointerUp={handleExpSliderPointerUp}
+            onChange={handleExpSliderChange}
+          />
+          <input
+            type="number"
+            className="iv-text-input"
+            value={expText}
+            disabled={expAutoContinuous}
+            onChange={handleExpTextChange}
+            onBlur={handleExpTextBlur}
+          />
+        </div>
         {expAutoEntries.length > 0 && (
           <div className="auto-toggle-row">
             <span className="slider-row__name">Exposure Auto</span>
@@ -210,26 +213,28 @@ export function ExposureGainSection({
           <span className="slider-row__name">Gain</span>
           <span className="slider-row__value">{formatGainLabel(gainDraft)}</span>
         </div>
-        <input
-          type="range"
-          className="iv-slider"
-          min={gainConstraints.min}
-          max={gainConstraints.max}
-          step="any"
-          value={gainDraft}
-          disabled={gainAutoContinuous}
-          onPointerDown={handleGainSliderPointerDown}
-          onPointerUp={handleGainSliderPointerUp}
-          onChange={handleGainSliderChange}
-        />
-        <input
-          type="number"
-          className="iv-text-input"
-          value={gainText}
-          disabled={gainAutoContinuous}
-          onChange={handleGainTextChange}
-          onBlur={handleGainTextBlur}
-        />
+        <div className="slider-row__input-group">
+          <input
+            type="range"
+            className="iv-slider"
+            min={gainConstraints.min}
+            max={gainConstraints.max}
+            step="any"
+            value={gainDraft}
+            disabled={gainAutoContinuous}
+            onPointerDown={handleGainSliderPointerDown}
+            onPointerUp={handleGainSliderPointerUp}
+            onChange={handleGainSliderChange}
+          />
+          <input
+            type="number"
+            className="iv-text-input"
+            value={gainText}
+            disabled={gainAutoContinuous}
+            onChange={handleGainTextChange}
+            onBlur={handleGainTextBlur}
+          />
+        </div>
         {gainAutoEntries.length > 0 && (
           <div className="auto-toggle-row">
             <span className="slider-row__name">Gain Auto</span>

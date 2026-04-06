@@ -118,11 +118,13 @@ export function ControlSidebar({
     >
       <button
         type="button"
-        className="iv-sidebar__toggle"
-        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        className={`iv-sidebar__toggle${collapsed ? " iv-sidebar__toggle--collapsed" : ""}`}
+        aria-label={collapsed ? "Show controls" : "Hide controls"}
+        title={collapsed ? "Show controls" : "Hide controls"}
         onClick={onToggle}
       >
-        {collapsed ? "›" : "‹"}
+        <span className="iv-sidebar__toggle-arrow" />
+        {!collapsed && <span className="iv-sidebar__toggle-label">Controls</span>}
       </button>
 
       {collapsed ? (

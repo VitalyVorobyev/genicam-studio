@@ -1634,6 +1634,20 @@ input[type="checkbox"] {
   box-shadow: none;
 }
 
+.iv-canvas-overlay {
+  position: absolute;
+  top: var(--sp-4);
+  right: var(--sp-4);
+  pointer-events: none;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.58);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.02em;
+}
+
 .iv-statusbar {
   height: var(--iv-statusbar-h);
   background: var(--iv-statusbar-bg);
@@ -1677,22 +1691,43 @@ input[type="checkbox"] {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: var(--sp-2);
   width: 100%;
-  height: var(--iv-toolbar-h);
+  height: 28px;
   background: transparent;
   border: none;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-subtle);
   color: var(--text-muted);
   cursor: pointer;
   flex-shrink: 0;
-  font-size: 14px;
-  padding: 0;
+  font-size: var(--text-xs);
+  padding: 0 var(--sp-3);
   border-radius: 0;
 }
 
 .iv-sidebar__toggle:hover {
   background: var(--bg-elevated);
   color: var(--text-primary);
+}
+
+.iv-sidebar__toggle-arrow {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 5px solid currentColor;
+  transition: transform var(--transition-fast);
+}
+
+.iv-sidebar__toggle--collapsed .iv-sidebar__toggle-arrow {
+  transform: rotate(180deg);
+}
+
+.iv-sidebar__toggle-label {
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: var(--fw-semibold);
 }
 
 .iv-sidebar__rail {
@@ -1781,7 +1816,7 @@ input[type="checkbox"] {
 }
 
 .sidebar-section__body {
-  padding: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
 }
 
 .sidebar-section__body--hidden {
@@ -1801,8 +1836,8 @@ input[type="checkbox"] {
 .acq-section {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-4);
-  padding: var(--sp-2) 0;
+  gap: var(--sp-3);
+  padding: var(--sp-1) 0;
 }
 
 .acq-btn {
@@ -1860,14 +1895,30 @@ input[type="checkbox"] {
 .exp-gain-section {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-5);
-  padding: var(--sp-2) 0;
+  gap: var(--sp-3);
+  padding: var(--sp-1) 0;
 }
 
 .slider-row {
   display: flex;
   flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.slider-row__input-group {
+  display: flex;
+  align-items: center;
   gap: var(--sp-2);
+}
+
+.slider-row__input-group .iv-slider {
+  flex: 1;
+  min-width: 0;
+}
+
+.slider-row__input-group .iv-text-input {
+  width: 72px;
+  flex-shrink: 0;
 }
 
 .slider-row__header {
@@ -2004,7 +2055,8 @@ input[type="checkbox"] {
 .img-format-section {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-5);
+  gap: var(--sp-3);
+  padding: var(--sp-1) 0;
 }
 
 .if-enum-row {

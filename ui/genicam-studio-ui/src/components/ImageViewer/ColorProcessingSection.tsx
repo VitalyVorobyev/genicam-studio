@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import type { ParseXmlResponse } from "../../xml_model/uigraph";
 import type { NodeValueEntry } from "../../device/types";
 import { isTauri } from "../../tauri";
+import { getLiveNumber } from "./liveValueUtils";
 import {
   extractNumericConstraints,
   clampValue,
@@ -57,13 +58,9 @@ export function ColorProcessingSection({
 
   useEffect(() => {
     if (balanceRatioDragging.current) return;
-    const entry = liveValues.get("BalanceRatio");
-    if (entry !== undefined && typeof entry.value === "number") {
-      const clamped = clampValue(
-        entry.value,
-        balanceRatioConstraints.min,
-        balanceRatioConstraints.max,
-      );
+    const v = getLiveNumber(liveValues, "BalanceRatio");
+    if (v !== null) {
+      const clamped = clampValue(v, balanceRatioConstraints.min, balanceRatioConstraints.max);
       setBalanceRatioDraft(clamped);
       setBalanceRatioText(String(clamped));
     }
@@ -71,9 +68,9 @@ export function ColorProcessingSection({
 
   useEffect(() => {
     if (gammaDragging.current) return;
-    const entry = liveValues.get("Gamma");
-    if (entry !== undefined && typeof entry.value === "number") {
-      const clamped = clampValue(entry.value, gammaConstraints.min, gammaConstraints.max);
+    const v = getLiveNumber(liveValues, "Gamma");
+    if (v !== null) {
+      const clamped = clampValue(v, gammaConstraints.min, gammaConstraints.max);
       setGammaDraft(clamped);
       setGammaText(String(clamped));
     }

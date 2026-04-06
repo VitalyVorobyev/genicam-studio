@@ -9,6 +9,7 @@ import {
   formatPixelDimension,
   deriveOffsetMax,
 } from "./imageFormatUtils";
+import { getLiveNumber } from "./liveValueUtils";
 
 interface ImageFormatSectionProps {
   isConnected: boolean;
@@ -29,13 +30,6 @@ async function writeNode(nodeName: string, value: number | string): Promise<void
   } catch (err) {
     console.error(`write_node(${nodeName}) failed:`, err);
   }
-}
-
-function getLiveNumber(liveValues: Map<string, NodeValueEntry>, name: string): number | null {
-  const entry = liveValues.get(name);
-  if (entry === undefined) return null;
-  if (typeof entry.value !== "number") return null;
-  return entry.value;
 }
 
 export function ImageFormatSection({
@@ -322,24 +316,26 @@ export function ImageFormatSection({
           <span className="slider-row__name">Width</span>
           <span className="slider-row__value">{formatPixelDimension(widthDraft)}</span>
         </div>
-        <input
-          type="range"
-          className="iv-slider"
-          min={widthC.min}
-          max={widthC.max}
-          step={widthStep}
-          value={widthDraft}
-          onPointerDown={handleWidthPointerDown}
-          onPointerUp={handleWidthPointerUp}
-          onChange={handleWidthSliderChange}
-        />
-        <input
-          type="number"
-          className="iv-text-input"
-          value={widthText}
-          onChange={handleWidthTextChange}
-          onBlur={handleWidthTextBlur}
-        />
+        <div className="slider-row__input-group">
+          <input
+            type="range"
+            className="iv-slider"
+            min={widthC.min}
+            max={widthC.max}
+            step={widthStep}
+            value={widthDraft}
+            onPointerDown={handleWidthPointerDown}
+            onPointerUp={handleWidthPointerUp}
+            onChange={handleWidthSliderChange}
+          />
+          <input
+            type="number"
+            className="iv-text-input"
+            value={widthText}
+            onChange={handleWidthTextChange}
+            onBlur={handleWidthTextBlur}
+          />
+        </div>
       </div>
 
       {/* Height */}
@@ -348,24 +344,26 @@ export function ImageFormatSection({
           <span className="slider-row__name">Height</span>
           <span className="slider-row__value">{formatPixelDimension(heightDraft)}</span>
         </div>
-        <input
-          type="range"
-          className="iv-slider"
-          min={heightC.min}
-          max={heightC.max}
-          step={heightStep}
-          value={heightDraft}
-          onPointerDown={handleHeightPointerDown}
-          onPointerUp={handleHeightPointerUp}
-          onChange={handleHeightSliderChange}
-        />
-        <input
-          type="number"
-          className="iv-text-input"
-          value={heightText}
-          onChange={handleHeightTextChange}
-          onBlur={handleHeightTextBlur}
-        />
+        <div className="slider-row__input-group">
+          <input
+            type="range"
+            className="iv-slider"
+            min={heightC.min}
+            max={heightC.max}
+            step={heightStep}
+            value={heightDraft}
+            onPointerDown={handleHeightPointerDown}
+            onPointerUp={handleHeightPointerUp}
+            onChange={handleHeightSliderChange}
+          />
+          <input
+            type="number"
+            className="iv-text-input"
+            value={heightText}
+            onChange={handleHeightTextChange}
+            onBlur={handleHeightTextBlur}
+          />
+        </div>
       </div>
 
       {/* OffsetX */}
@@ -374,24 +372,26 @@ export function ImageFormatSection({
           <span className="slider-row__name">Offset X</span>
           <span className="slider-row__value">{formatPixelDimension(offsetXDraft)}</span>
         </div>
-        <input
-          type="range"
-          className="iv-slider"
-          min={offsetXC.min}
-          max={effectiveOffsetXMax}
-          step={offsetXStep}
-          value={offsetXDraft}
-          onPointerDown={handleOffsetXPointerDown}
-          onPointerUp={handleOffsetXPointerUp}
-          onChange={handleOffsetXSliderChange}
-        />
-        <input
-          type="number"
-          className="iv-text-input"
-          value={offsetXText}
-          onChange={handleOffsetXTextChange}
-          onBlur={handleOffsetXTextBlur}
-        />
+        <div className="slider-row__input-group">
+          <input
+            type="range"
+            className="iv-slider"
+            min={offsetXC.min}
+            max={effectiveOffsetXMax}
+            step={offsetXStep}
+            value={offsetXDraft}
+            onPointerDown={handleOffsetXPointerDown}
+            onPointerUp={handleOffsetXPointerUp}
+            onChange={handleOffsetXSliderChange}
+          />
+          <input
+            type="number"
+            className="iv-text-input"
+            value={offsetXText}
+            onChange={handleOffsetXTextChange}
+            onBlur={handleOffsetXTextBlur}
+          />
+        </div>
       </div>
 
       {/* OffsetY */}
@@ -400,24 +400,26 @@ export function ImageFormatSection({
           <span className="slider-row__name">Offset Y</span>
           <span className="slider-row__value">{formatPixelDimension(offsetYDraft)}</span>
         </div>
-        <input
-          type="range"
-          className="iv-slider"
-          min={offsetYC.min}
-          max={effectiveOffsetYMax}
-          step={offsetYStep}
-          value={offsetYDraft}
-          onPointerDown={handleOffsetYPointerDown}
-          onPointerUp={handleOffsetYPointerUp}
-          onChange={handleOffsetYSliderChange}
-        />
-        <input
-          type="number"
-          className="iv-text-input"
-          value={offsetYText}
-          onChange={handleOffsetYTextChange}
-          onBlur={handleOffsetYTextBlur}
-        />
+        <div className="slider-row__input-group">
+          <input
+            type="range"
+            className="iv-slider"
+            min={offsetYC.min}
+            max={effectiveOffsetYMax}
+            step={offsetYStep}
+            value={offsetYDraft}
+            onPointerDown={handleOffsetYPointerDown}
+            onPointerUp={handleOffsetYPointerUp}
+            onChange={handleOffsetYSliderChange}
+          />
+          <input
+            type="number"
+            className="iv-text-input"
+            value={offsetYText}
+            onChange={handleOffsetYTextChange}
+            onBlur={handleOffsetYTextBlur}
+          />
+        </div>
       </div>
 
       {/* Binning (optional — only when nodes exist in UiGraph) */}
