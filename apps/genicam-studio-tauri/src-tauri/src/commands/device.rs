@@ -452,22 +452,12 @@ async fn do_emergency_disconnect(
         reason: message.clone(),
     };
     emit_connection_state(app, zenoh).await;
-    let _ = app.emit(
-        "disconnect-reason",
-        DisconnectReason {
-            message,
-            device_id,
-        },
-    );
+    let _ = app.emit("disconnect-reason", DisconnectReason { message, device_id });
 }
 
 /// Spawns a reconnection attempt loop. Called when a device is lost.
 /// Watches the discovery registry for the device to reappear, then reconnects.
-pub fn spawn_reconnect_task(
-    zenoh: Arc<ZenohState>,
-    app: AppHandle,
-    device_id: String,
-) {
+pub fn spawn_reconnect_task(zenoh: Arc<ZenohState>, app: AppHandle, device_id: String) {
     tauri::async_runtime::spawn(async move {
         let backoff_secs = [1, 2, 4, 8, 15];
 
@@ -483,7 +473,7 @@ pub fn spawn_reconnect_task(
                 let conn = zenoh.connection.lock().await;
                 match &*conn {
                     ConnectionState::Reconnecting { .. } => {} // still us
-                    _ => return, // user changed state, stop trying
+                    _ => return,                               // user changed state, stop trying
                 }
             }
 
@@ -529,17 +519,39 @@ pub fn spawn_reconnect_task(
 
                     let z = zenoh.clone();
                     let tasks = vec![
-                        spawn_node_value_sub(session.clone(), device_id.clone(), z.clone(), app.clone()),
-                        spawn_status_sub(session.clone(), device_id.clone(), z.clone(), app.clone()),
-                        spawn_acq_status_sub(session.clone(), device_id.clone(), z.clone(), app.clone()),
-                        spawn_image_meta_sub(session.clone(), device_id.clone(), z.clone(), app.clone()),
+                        spawn_node_value_sub(
+                            session.clone(),
+                            device_id.clone(),
+                            z.clone(),
+                            app.clone(),
+                        ),
+                        spawn_status_sub(
+                            session.clone(),
+                            device_id.clone(),
+                            z.clone(),
+                            app.clone(),
+                        ),
+                        spawn_acq_status_sub(
+                            session.clone(),
+                            device_id.clone(),
+                            z.clone(),
+                            app.clone(),
+                        ),
+                        spawn_image_meta_sub(
+                            session.clone(),
+                            device_id.clone(),
+                            z.clone(),
+                            app.clone(),
+                        ),
                     ];
                     zenoh.sub_tasks.lock().await.extend(tasks);
 
                     let (device_name, device_model) = {
                         let registry = zenoh.registry.lock().await;
                         (
-                            registry.get_name(&device_id).unwrap_or_else(|| device_id.clone()),
+                            registry
+                                .get_name(&device_id)
+                                .unwrap_or_else(|| device_id.clone()),
                             registry.get_model(&device_id).unwrap_or_default(),
                         )
                     };
@@ -575,7 +587,9 @@ pub fn spawn_reconnect_task(
         }
 
         // Exhausted attempts
-        tracing::warn!("Reconnection to {device_id} failed after {MAX_RECONNECT_ATTEMPTS} attempts");
+        tracing::warn!(
+            "Reconnection to {device_id} failed after {MAX_RECONNECT_ATTEMPTS} attempts"
+        );
         *zenoh.connection.lock().await = ConnectionState::Error {
             message: format!(
                 "Device '{}' lost. Reconnection failed after {} attempts.",

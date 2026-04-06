@@ -15,7 +15,7 @@ fn ping() -> &'static str {
 
 /// Load Zenoh configuration, checking these sources in order:
 /// 1. `ZENOH_CONFIG` environment variable (path to a JSON5 config file)
-/// 2. `config/zenoh-local.json5` relative to the workspace root (dev mode)
+/// 2. `config/zenoh-studio.json5` relative to the workspace root (dev mode)
 /// 3. Default config (multicast scouting — works on Linux, often fails on macOS)
 fn load_zenoh_config() -> zenoh::Config {
     // 1. Env var
@@ -31,8 +31,14 @@ fn load_zenoh_config() -> zenoh::Config {
 
     // 2. Dev-mode config adjacent to the workspace
     let dev_candidates = [
-        concat!(env!("CARGO_MANIFEST_DIR"), "/../../../../config/zenoh-studio.json5"),
-        concat!(env!("CARGO_MANIFEST_DIR"), "/../../../config/zenoh-studio.json5"),
+        concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../../config/zenoh-studio.json5"
+        ),
+        concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../config/zenoh-studio.json5"
+        ),
     ];
     for candidate in &dev_candidates {
         if std::path::Path::new(candidate).exists() {

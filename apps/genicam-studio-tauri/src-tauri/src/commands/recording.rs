@@ -8,9 +8,7 @@ use crate::state::device_state::{ConnectionState, ZenohState};
 use genicam_streamer::recording::{self, GsrHeader, RecordingStatus};
 
 #[tauri::command]
-pub async fn start_recording(
-    zenoh: State<'_, Arc<ZenohState>>,
-) -> Result<RecordingStatus, String> {
+pub async fn start_recording(zenoh: State<'_, Arc<ZenohState>>) -> Result<RecordingStatus, String> {
     let device_id = connected_device_id(&zenoh).await.humanize()?;
 
     let mut acq = zenoh.acquisition.lock().await;
@@ -53,9 +51,7 @@ pub async fn start_recording(
 }
 
 #[tauri::command]
-pub async fn stop_recording(
-    zenoh: State<'_, Arc<ZenohState>>,
-) -> Result<RecordingStatus, String> {
+pub async fn stop_recording(zenoh: State<'_, Arc<ZenohState>>) -> Result<RecordingStatus, String> {
     let mut acq = zenoh.acquisition.lock().await;
     let handle = acq
         .recording
