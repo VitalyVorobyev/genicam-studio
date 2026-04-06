@@ -59,7 +59,7 @@ jobs:
         with:
           repository: ${{ github.repository_owner }}/genicam-rs
           path: genicam-rs
-          ref: phase2_dev
+          ref: main
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable

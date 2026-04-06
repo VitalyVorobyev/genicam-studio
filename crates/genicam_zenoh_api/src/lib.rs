@@ -255,11 +255,11 @@ pub mod keys {
         format!("genicam/devices/{device_id}/image/meta")
     }
 
-    /// Extract node name from `genicam/devices/{id}/nodes/{name}/value`.
+    /// Extract node name from `genicam/devices/{id}/nodes/{name}/{suffix}`
+    /// where suffix is `"value"`, `"set"`, or `"execute"`.
     pub fn extract_node_name(key: &str) -> Option<&str> {
-        // Split by '/' and expect at least 6 segments ending in "value"
         let parts: Vec<&str> = key.split('/').collect();
-        if parts.len() >= 6 && parts[parts.len() - 1] == "value" {
+        if parts.len() >= 6 && parts[parts.len() - 3] == "nodes" {
             Some(parts[parts.len() - 2])
         } else {
             None
@@ -323,6 +323,43 @@ mod tests {
         assert_eq!(d.max, Some(4096.0));
         assert_eq!(d.inc, Some(1.0));
         assert_eq!(d.access_mode, "RW");
+    }
+
+    #[test]
+    fn test_extract_node_name_value_key() {
+        assert_eq!(
+            keys::extract_node_name("genicam/devices/cam0/nodes/Width/value"),
+            Some("Width")
+        );
+    }
+
+    #[test]
+    fn test_extract_node_name_set_key() {
+        assert_eq!(
+            keys::extract_node_name("genicam/devices/cam0/nodes/Width/set"),
+            Some("Width")
+        );
+    }
+
+    #[test]
+    fn test_extract_node_name_execute_key() {
+        assert_eq!(
+            keys::extract_node_name("genicam/devices/cam0/nodes/AcquisitionStart/execute"),
+            Some("AcquisitionStart")
+        );
+    }
+
+    #[test]
+    fn test_extract_node_name_too_short() {
+        assert_eq!(keys::extract_node_name("genicam/devices/cam0"), None);
+    }
+
+    #[test]
+    fn test_extract_node_name_non_node_key() {
+        assert_eq!(
+            keys::extract_node_name("genicam/devices/cam0/acquisition/control/something"),
+            None
+        );
     }
 
     #[test]

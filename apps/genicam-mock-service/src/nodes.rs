@@ -91,7 +91,7 @@ pub async fn run_set_queryable(
                     Ok(query) => {
                         let key_expr = query.key_expr().as_str().to_string();
                         // Extract node name from key: genicam/devices/{id}/nodes/{name}/set
-                        let node_name = extract_node_name_from_key(&key_expr, "set");
+                        let node_name = genicam_zenoh_api::keys::extract_node_name(&key_expr);
                         let node_name = match node_name {
                             Some(n) => n,
                             None => {
@@ -110,7 +110,7 @@ pub async fn run_set_queryable(
                         let resp = match request {
                             Ok(req) => {
                                 info!("Set {node_name} = {:?}", req.value);
-                                match store.set(&node_name, req.value).await {
+                                match store.set(node_name, req.value).await {
                                     Ok(_) => NodeOpResponse { ok: true, error: None },
                                     Err(e) => {
                                         warn!("Set {node_name} failed: {e}");
@@ -159,8 +159,8 @@ pub async fn run_execute_queryable(
                 match query {
                     Ok(query) => {
                         let key_expr = query.key_expr().as_str().to_string();
-                        let node_name = extract_node_name_from_key(&key_expr, "execute")
-                            .unwrap_or_else(|| "unknown".to_string());
+                        let node_name = genicam_zenoh_api::keys::extract_node_name(&key_expr)
+                            .unwrap_or("unknown");
                         info!("Execute command: {node_name}");
                         let resp = NodeOpResponse { ok: true, error: None };
                         let _ = query.reply(&key_expr, serde_json::to_vec(&resp).unwrap_or_default()).await;
@@ -234,12 +234,3 @@ pub async fn run_bulk_read_queryable(
     }
 }
 
-/// Extract node name from key expression like `genicam/devices/{id}/nodes/{name}/{suffix}`.
-fn extract_node_name_from_key(key: &str, suffix: &str) -> Option<String> {
-    let parts: Vec<&str> = key.split('/').collect();
-    if parts.len() >= 6 && parts[parts.len() - 1] == suffix {
-        Some(parts[parts.len() - 2].to_string())
-    } else {
-        None
-    }
-}

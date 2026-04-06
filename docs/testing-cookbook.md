@@ -6,7 +6,7 @@ This document describes how to test GenICam Studio with the **real camera servic
 
 | Component | Location | Install |
 |-----------|----------|---------|
-| genicam-rs workspace | `../genicam-rs` | `git clone` (branch `phase2_dev`) |
+| genicam-rs workspace | `../genicam-rs` | `git clone` (branch `main`) |
 | aravis (fake camera) | system / `../aravis` | `brew install aravis` |
 | genicam-studio | this repo | — |
 
@@ -49,9 +49,11 @@ The mock service generates synthetic test patterns (Mono8 gradient, RGB8 color b
 arv-fake-gv-camera-0.8 -i 127.0.0.1
 
 # Terminal 2: start the real camera service
-cd ../genicam-rs
-cargo run -p genicam-service
-# Or with explicit interface: cargo run -p genicam-service -- --iface en0
+# (genicam-service is excluded from workspace, build from its crate directory)
+cd ../genicam-rs/crates/genicam-service
+cargo run -- --iface lo0   # macOS loopback
+# Or: cargo run -- --iface lo   # Linux loopback
+# Or: cargo run -- --iface en0  # real NIC
 
 # Terminal 3: start studio
 cd apps/genicam-studio-tauri
@@ -141,6 +143,38 @@ cargo test -p genicam --test fake_camera -- --ignored --test-threads=1
 ```
 
 Tests cover: discovery, connection, XML fetch, feature read/write, command execution, frame streaming, frame dimension validation, full lifecycle.
+
+## Automated E2E Tests
+
+The `tests/e2e/` crate runs automated tests that spawn the fake camera and service as child processes.
+
+```bash
+# Build the service first (excluded from genicam-rs workspace)
+cd ../genicam-rs/crates/genicam-service && cargo build
+
+# Run all E2E tests (discovery, node read/write, acquisition, device lost)
+GENICAM_SERVICE_PATH=../genicam-rs/crates/genicam-service/target/debug/genicam-service \
+  cargo test -p e2e-tests --test e2e -- --ignored --test-threads=1
+
+# Streamer integration test (no external binaries needed)
+# Publishes synthetic frames on Zenoh, verifies BMP arrives over WebSocket
+cargo test -p e2e-tests --test streamer_e2e
+```
+
+### Test coverage
+
+| Test | What it verifies |
+|------|-----------------|
+| `test_discovery_and_xml_fetch` | Device announce, XML download, UiGraph parsing |
+| `test_node_read_write` | Bulk read, write Width=320, readback, restore |
+| `test_acquisition_frames` | Start/stop acquisition, frame header decode (graceful on loopback) |
+| `test_device_lost_detection` | Kill camera, verify disconnect status (graceful on loopback) |
+| `test_streamer_synthetic_frame` | Full Zenoh→FrameHeader→BMP→WebSocket pipeline |
+
+### Known limitations
+
+- **GVSP on loopback (macOS)**: Frame reception in out-of-process tests may fail because GVSP UDP packets don't reliably cross separate processes on the loopback interface. The genicam-rs in-process tests confirm streaming works. The streamer test uses synthetic frames to bypass this.
+- **Port conflicts**: Tests run with `--test-threads=1` because the fake camera binds to UDP port 3956.
 
 ## Troubleshooting
 

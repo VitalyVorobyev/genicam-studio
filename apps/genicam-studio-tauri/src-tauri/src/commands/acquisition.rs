@@ -28,17 +28,19 @@ pub async fn start_acquisition(
     let session = zenoh.get_session().await.humanize()?;
     let device_id = connected_device_id(&zenoh).await.humanize()?;
 
-    // Read image dimensions from cached node values (Width / Height SFNC nodes)
+    // Read image dimensions from cached node values (Width / Height SFNC nodes).
+    // The camera service may publish values as JSON strings ("640") or numbers (640),
+    // so we handle both forms.
     let (width, height) = {
         let cache = zenoh.node_cache.read().await;
         let w = cache
             .get("Width")
-            .and_then(|e| e.value.as_u64())
-            .unwrap_or(640) as u32;
+            .and_then(|e| value_as_u32(&e.value))
+            .unwrap_or(640);
         let h = cache
             .get("Height")
-            .and_then(|e| e.value.as_u64())
-            .unwrap_or(480) as u32;
+            .and_then(|e| value_as_u32(&e.value))
+            .unwrap_or(480);
         (w, h)
     };
 
@@ -194,6 +196,14 @@ async fn connected_device_id(zenoh: &ZenohState) -> Result<String, String> {
         ConnectionState::Connected { device_id, .. } => Ok(device_id),
         _ => Err("Not connected to a device".to_string()),
     }
+}
+
+/// Extract a u32 from a JSON value that may be a number or a numeric string.
+fn value_as_u32(v: &serde_json::Value) -> Option<u32> {
+    v.as_u64()
+        .map(|n| n as u32)
+        .or_else(|| v.as_f64().map(|f| f as u32))
+        .or_else(|| v.as_str().and_then(|s| s.parse::<u32>().ok()))
 }
 
 async fn send_acquisition_command(
