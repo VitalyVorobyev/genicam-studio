@@ -80,7 +80,7 @@ pub async fn start_acquisition(
     let source_config = genicam_streamer::zenoh_source::ZenohSourceConfig {
         key_expr: image_key,
         meta_key,
-        fps_limit: Some(30),
+        fps_limit: Some(15),
     };
     let zenoh_handle = tauri::async_runtime::spawn({
         let session = session.clone();

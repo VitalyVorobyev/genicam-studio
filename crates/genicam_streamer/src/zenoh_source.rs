@@ -213,13 +213,15 @@ async fn run_inner(
                 };
                 let expected_bytes = (expected_pixels as f32 * bpp) as usize;
 
-                if pixel_data.len() != expected_bytes {
+                if pixel_data.len() < expected_bytes {
                     warn!(
-                        "Dropped frame seq={}: pixel data size mismatch (expected {}, got {})",
+                        "Dropped frame seq={}: pixel data too small (expected {}, got {})",
                         header.seq, expected_bytes, pixel_data.len()
                     );
                     continue;
                 }
+                // Truncate trailing bytes (e.g. GVSP row padding) if payload is oversized.
+                let pixel_data = &pixel_data[..expected_bytes];
 
                 // Rebuild encoders when frame-header dimensions differ from cache.
                 {
@@ -267,6 +269,7 @@ async fn run_inner(
         }
     }
 
+    info!("Zenoh source loop exited");
     Ok(())
 }
 

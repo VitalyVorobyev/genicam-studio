@@ -140,7 +140,7 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
                 if result.is_err() {
                     break;
                 }
-                let frame = frame_rx.borrow().clone();
+                let frame = frame_rx.borrow_and_update().clone();
                 if frame.is_empty() {
                     continue;
                 }
@@ -160,7 +160,7 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
                 if result.is_err() {
                     break;
                 }
-                let info_json = info_rx.borrow().to_json();
+                let info_json = info_rx.borrow_and_update().to_json();
                 if socket.send(Message::Text(info_json)).await.is_err() {
                     warn!("WebSocket client disconnected while sending info frame");
                     break;
