@@ -377,7 +377,100 @@ async fn test_manual_topology_frames_and_ws_stream() {
     harness.shutdown().await;
 }
 
-// ── E2E-05: Device Lost Detection ───────────────────────────────────────────
+// ── E2E-05: Sustained Streaming (heartbeat timeout regression) ─────────────
+
+/// Stream for 15 seconds and verify frames keep arriving without a gap
+/// longer than the camera's heartbeat timeout (~3 s).  This catches the
+/// regression where `refresh_connection` on macOS revokes CCP from the old
+/// socket while the heartbeat is still holding the camera mutex, starving
+/// the new socket's CCP timer.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore] // Requires external binaries
+async fn test_sustained_streaming() {
+    let mut options = HarnessOptions::from_env();
+    options.service_zenoh_config = Some(
+        workspace_path("config/zenoh-local.json5")
+            .to_string_lossy()
+            .into_owned(),
+    );
+    options.client_zenoh_config = Some(
+        workspace_path("config/zenoh-studio.json5")
+            .to_string_lossy()
+            .into_owned(),
+    );
+
+    let mut harness = TestHarness::start_with_options(options)
+        .await
+        .expect("harness start");
+    let session = harness.session().clone();
+    let device_id = harness.device_id().to_string();
+
+    // Subscribe to raw image stream before starting acquisition.
+    let image_key = genicam_zenoh_api::keys::image(&device_id);
+    let sub = session
+        .declare_subscriber(&image_key)
+        .await
+        .expect("image subscriber");
+
+    tokio::time::sleep(Duration::from_millis(500)).await;
+
+    // Start acquisition.
+    send_acquisition_command(&session, &device_id, AcquisitionCommand::Start)
+        .await
+        .expect("start acquisition");
+
+    // Collect frames for 15 seconds, tracking inter-frame gaps.
+    let stream_duration = Duration::from_secs(15);
+    let max_allowed_gap = Duration::from_secs(3);
+    let deadline = tokio::time::Instant::now() + stream_duration;
+    let mut frame_count: u64 = 0;
+    let mut last_frame = tokio::time::Instant::now();
+    let mut max_observed_gap = Duration::ZERO;
+
+    while tokio::time::Instant::now() < deadline {
+        match timeout(Duration::from_secs(5), sub.recv_async()).await {
+            Ok(Ok(_sample)) => {
+                let now = tokio::time::Instant::now();
+                let gap = now - last_frame;
+                if gap > max_observed_gap {
+                    max_observed_gap = gap;
+                }
+                last_frame = now;
+                frame_count += 1;
+            }
+            Ok(Err(_)) => panic!("image subscriber closed unexpectedly"),
+            Err(_) => panic!(
+                "no frame received for 5 s (heartbeat timeout?); frames so far: {frame_count}"
+            ),
+        }
+    }
+
+    tracing::info!(
+        frame_count,
+        max_gap_ms = max_observed_gap.as_millis() as u64,
+        "sustained streaming finished"
+    );
+
+    assert!(
+        frame_count > 50,
+        "expected >50 frames in 15 s, got {frame_count}"
+    );
+    assert!(
+        max_observed_gap < max_allowed_gap,
+        "max inter-frame gap {:?} exceeds {:?} (likely heartbeat timeout); \
+         total frames: {frame_count}",
+        max_observed_gap,
+        max_allowed_gap,
+    );
+
+    // Stop acquisition and clean up.
+    send_acquisition_command(&session, &device_id, AcquisitionCommand::Stop)
+        .await
+        .expect("stop acquisition");
+    harness.shutdown().await;
+}
+
+// ── E2E-06: Device Lost Detection ───────────────────────────────────────────
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]
