@@ -1,10 +1,22 @@
 import type { ImageRect } from "./roiUtils";
 import { formatRoiLabel, roiIsValid } from "./roiUtils";
+import {
+  Ruler,
+  BarChart3,
+  Scan,
+  Maximize,
+  Camera,
+  Circle,
+  Square,
+} from "lucide-react";
+
+const ICON_SIZE = 15;
 
 interface ViewerToolbarProps {
   zoomLabel?: string;
   deviceName?: string;
   onResetZoom: () => void;
+  onZoomTo100?: () => void;
   onSnapshot?: () => void;
   showHistogram?: boolean;
   onToggleHistogram?: () => void;
@@ -24,6 +36,7 @@ export function ViewerToolbar({
   zoomLabel,
   deviceName,
   onResetZoom,
+  onZoomTo100,
   onSnapshot,
   showHistogram,
   onToggleHistogram,
@@ -48,6 +61,7 @@ export function ViewerToolbar({
     <div className="iv-toolbar">
       <span className={titleClass}>{deviceName ?? "Image Viewer"}</span>
       <span className="iv-toolbar__spacer" />
+
       {/* ROI apply button — only visible when a valid selection exists */}
       {hasValidRoi && onApplyRoi !== undefined && (
         <button
@@ -60,6 +74,8 @@ export function ViewerToolbar({
           Apply {roiRect!.w}×{roiRect!.h}
         </button>
       )}
+
+      {/* ── Analysis tools ── */}
       {onToggleLineTool !== undefined && (
         <button
           type="button"
@@ -69,7 +85,7 @@ export function ViewerToolbar({
           aria-label="Toggle line profile tool"
           aria-pressed={showLineTool}
         >
-          ╱
+          <Ruler size={ICON_SIZE} />
         </button>
       )}
       {onToggleRoiTool !== undefined && (
@@ -81,27 +97,7 @@ export function ViewerToolbar({
           aria-label="Toggle ROI selection tool"
           aria-pressed={showRoiTool}
         >
-          ⊡
-        </button>
-      )}
-      <button
-        type="button"
-        className="iv-toolbar__btn"
-        onClick={onResetZoom}
-        title="Fit to window"
-        aria-label="Fit to window"
-      >
-        ⤢
-      </button>
-      {zoomLabel !== undefined && (
-        <button
-          type="button"
-          className="iv-toolbar__zoom"
-          onClick={onResetZoom}
-          title="Reset zoom"
-          aria-label="Reset zoom"
-        >
-          {zoomLabel}
+          <Scan size={ICON_SIZE} />
         </button>
       )}
       {onToggleHistogram !== undefined && (
@@ -113,9 +109,48 @@ export function ViewerToolbar({
           aria-label="Toggle histogram"
           aria-pressed={showHistogram}
         >
-          ▤
+          <BarChart3 size={ICON_SIZE} />
         </button>
       )}
+
+      <div className="iv-toolbar__sep" />
+
+      {/* ── Zoom controls ── */}
+      <button
+        type="button"
+        className="iv-toolbar__btn"
+        onClick={onResetZoom}
+        title="Fit to window"
+        aria-label="Fit to window"
+      >
+        <Maximize size={ICON_SIZE} />
+      </button>
+      {onZoomTo100 !== undefined && (
+        <button
+          type="button"
+          className={`iv-toolbar__btn${zoomLabel === "100%" ? " iv-toolbar__btn--active" : ""}`}
+          onClick={onZoomTo100}
+          title="Zoom to 100% (1:1 pixels)"
+          aria-label="Zoom to 100%"
+        >
+          <span className="iv-toolbar__btn-label">1:1</span>
+        </button>
+      )}
+      {zoomLabel !== undefined && (
+        <button
+          type="button"
+          className="iv-toolbar__zoom"
+          onClick={onResetZoom}
+          title="Reset zoom"
+          aria-label="Reset zoom"
+        >
+          {zoomLabel}
+        </button>
+      )}
+
+      <div className="iv-toolbar__sep" />
+
+      {/* ── Capture tools ── */}
       {onToggleRecording !== undefined && (
         <button
           type="button"
@@ -124,7 +159,7 @@ export function ViewerToolbar({
           title={isRecording ? `Recording: ${recordingFrameCount ?? 0} frames, ${(recordingElapsed ?? 0).toFixed(1)}s` : "Start recording"}
           aria-label={isRecording ? "Stop recording" : "Start recording"}
         >
-          {isRecording ? "\u25A0" : "\u25CF"}
+          {isRecording ? <Square size={ICON_SIZE} /> : <Circle size={ICON_SIZE} />}
         </button>
       )}
       <button
@@ -135,7 +170,7 @@ export function ViewerToolbar({
         title="Save snapshot"
         aria-label="Save snapshot"
       >
-        ⊙
+        <Camera size={ICON_SIZE} />
       </button>
     </div>
   );

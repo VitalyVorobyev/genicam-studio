@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type { EnumEntry } from "../../xml_model/uigraph";
 import { isTauri } from "../../tauri";
 import { formatFrameCount } from "./viewerUtils";
@@ -16,29 +15,11 @@ export function AcquisitionSection({
   isConnected,
   isAcquiring,
   frameCount,
-  onStartAcq,
-  onStopAcq,
   acquisitionModeEntries,
 }: AcquisitionSectionProps) {
-  const [busy, setBusy] = useState(false);
-
   if (!isConnected) {
     return <p className="sidebar-placeholder">No device connected.</p>;
   }
-
-  const handleToggle = async () => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      if (isAcquiring) {
-        await onStopAcq();
-      } else {
-        await onStartAcq();
-      }
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const handleModeChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newMode = e.target.value;
@@ -52,32 +33,15 @@ export function AcquisitionSection({
   };
 
   const frameDisplay =
-    !isAcquiring && frameCount === 0 ? "—" : formatFrameCount(frameCount);
+    !isAcquiring && frameCount === 0 ? "\u2014" : formatFrameCount(frameCount);
 
   return (
-    <div className="acq-section">
-      <button
-        type="button"
-        className={isAcquiring ? "acq-btn acq-btn--stop" : "acq-btn"}
-        disabled={busy}
-        onClick={handleToggle}
-      >
-        {busy
-          ? isAcquiring
-            ? "Stopping…"
-            : "Starting…"
-          : isAcquiring
-          ? "Stop Acquisition"
-          : "Start Acquisition"}
-      </button>
-
+    <div className="acq-section acq-section--compact">
       {acquisitionModeEntries.length > 0 && (
-        <div className="acq-mode">
-          <label className="editor__label" htmlFor="acq-mode-select">
-            Acquisition Mode
-          </label>
+        <div className="acq-compact-row">
+          <span className="slider-row__name">Mode</span>
           <select
-            id="acq-mode-select"
+            className="iv-auto-select"
             disabled={isAcquiring}
             onChange={handleModeChange}
           >
@@ -89,9 +53,8 @@ export function AcquisitionSection({
           </select>
         </div>
       )}
-
-      <div className="frame-counter">
-        <span className="editor__label">Frames received</span>
+      <div className="acq-compact-row">
+        <span className="slider-row__name">Frames</span>
         <span className="frame-counter__value">{frameDisplay}</span>
       </div>
     </div>

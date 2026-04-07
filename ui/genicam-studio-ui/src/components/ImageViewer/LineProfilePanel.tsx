@@ -2,8 +2,6 @@ import { useEffect, useRef } from "react";
 import { sampleLineProfile, renderLineProfile } from "./lineProfileUtils";
 import type { LineSegment } from "./lineProfileUtils";
 
-const CANVAS_W = 260;
-const CANVAS_H = 80;
 const REFRESH_MS = 200; // ~5 fps refresh
 
 interface LineProfilePanelProps {
@@ -12,19 +10,31 @@ interface LineProfilePanelProps {
   visible: boolean;
 }
 
-/**
- * Floating line intensity profile panel for the Image Viewer.
- *
- * Positioned at the bottom-left of the canvas area (histogram occupies
- * bottom-right). Polls the latest BMP frame via `frameRef` every 200 ms
- * and renders the intensity profile along `lineSegment`.
- *
- * - 8bpp BMP frames → single gray polyline.
- * - 24bpp BMP frames → per-channel R, G, B polylines.
- * pointer-events: none — does not block canvas interactions.
- */
 export function LineProfilePanel({ frameRef, lineSegment, visible }: LineProfilePanelProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  // Track container size and resize canvas accordingly
+  useEffect(() => {
+    if (!visible || !lineSegment) return;
+    const wrap = wrapRef.current;
+    const canvas = canvasRef.current;
+    if (!wrap || !canvas) return;
+
+    const updateSize = () => {
+      const w = Math.round(wrap.clientWidth);
+      const h = Math.round(wrap.clientHeight);
+      if (w > 0 && h > 0) {
+        canvas.width = w;
+        canvas.height = h;
+      }
+    };
+
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(wrap);
+    updateSize();
+    return () => observer.disconnect();
+  }, [visible, lineSegment]);
 
   useEffect(() => {
     if (!visible || !lineSegment) return;
@@ -41,13 +51,13 @@ export function LineProfilePanel({ frameRef, lineSegment, visible }: LineProfile
       );
       if (!data) return;
       const canvas = canvasRef.current;
-      if (!canvas) return;
+      if (!canvas || canvas.width === 0 || canvas.height === 0) return;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
-      renderLineProfile(ctx, data, CANVAS_W, CANVAS_H);
+      renderLineProfile(ctx, data, canvas.width, canvas.height);
     };
 
-    tick(); // render immediately when shown or segment changes
+    tick();
     const id = setInterval(tick, REFRESH_MS);
     return () => clearInterval(id);
   }, [visible, lineSegment, frameRef]);
@@ -55,13 +65,8 @@ export function LineProfilePanel({ frameRef, lineSegment, visible }: LineProfile
   if (!visible || !lineSegment) return null;
 
   return (
-    <div className="iv-line-profile" aria-label="Line profile">
-      <canvas
-        ref={canvasRef}
-        width={CANVAS_W}
-        height={CANVAS_H}
-        className="iv-line-profile__canvas"
-      />
+    <div ref={wrapRef} className="iv-line-profile" aria-label="Line profile">
+      <canvas ref={canvasRef} className="iv-line-profile__canvas" />
     </div>
   );
 }

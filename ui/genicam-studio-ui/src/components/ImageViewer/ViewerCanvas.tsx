@@ -6,14 +6,12 @@ import { buildTransform } from "./zoomPanUtils";
 import { samplePixel, formatPixelSample } from "./pixelInspectorUtils";
 import type { PixelHoverInfo } from "./pixelInspectorUtils";
 import { CrosshairOverlay } from "./CrosshairOverlay";
-import { HistogramOverlay } from "./HistogramOverlay";
 import { RoiOverlay } from "./RoiOverlay";
 import type { ScreenRect } from "./RoiOverlay";
 import { buildImageRect, clampRoiToImage } from "./roiUtils";
 import type { ImageRect } from "./roiUtils";
 import { LineOverlay } from "./LineOverlay";
 import type { ScreenLine } from "./LineOverlay";
-import { LineProfilePanel } from "./LineProfilePanel";
 import type { LineSegment } from "./lineProfileUtils";
 
 export type { PixelHoverInfo };
@@ -37,12 +35,11 @@ interface ViewerCanvasProps {
   isStreaming?: boolean;
   snapshotRef?: React.RefObject<Uint8Array | null>;
   onStreamInfoChange?: (info: StreamInfoFrame) => void;
-  showHistogram?: boolean;
+  zoomTo100Ref?: React.RefObject<(() => void) | null>;
   roiMode?: boolean;
   onRoiSelect?: (roi: ImageRect | null) => void;
   lineMode?: boolean;
   onLineSelect?: (seg: LineSegment | null) => void;
-  lineSegment?: LineSegment | null;
 }
 
 export function ViewerCanvas({
@@ -56,12 +53,11 @@ export function ViewerCanvas({
   isStreaming,
   snapshotRef,
   onStreamInfoChange,
-  showHistogram,
+  zoomTo100Ref,
   roiMode,
   onRoiSelect,
   lineMode,
   onLineSelect,
-  lineSegment,
 }: ViewerCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -153,6 +149,15 @@ export function ViewerCanvas({
       resetZoomRef.current = null;
     };
   }, [resetZoomRef, zoomPan.onDoubleClick]);
+
+  // Expose zoom-to-100% callback to parent via ref
+  useEffect(() => {
+    if (!zoomTo100Ref) return;
+    zoomTo100Ref.current = zoomPan.zoomTo100;
+    return () => {
+      zoomTo100Ref.current = null;
+    };
+  }, [zoomTo100Ref, zoomPan.zoomTo100]);
 
   const emitFrameStats = useEffectEvent((fps: number) => {
     onFrameStats(fps);
@@ -536,19 +541,7 @@ export function ViewerCanvas({
       {!isStreaming && hasRenderedFrameRef.current && (
         <div className="iv-canvas-overlay">Acquisition stopped</div>
       )}
-      {snapshotRef && (
-        <HistogramOverlay
-          frameRef={snapshotRef}
-          visible={showHistogram ?? false}
-        />
-      )}
-      {snapshotRef && (
-        <LineProfilePanel
-          frameRef={snapshotRef}
-          lineSegment={lineSegment ?? null}
-          visible={lineMode ?? false}
-        />
-      )}
+      {/* Histogram and line profile moved to AnalysisPanel dock */}
     </div>
   );
 }

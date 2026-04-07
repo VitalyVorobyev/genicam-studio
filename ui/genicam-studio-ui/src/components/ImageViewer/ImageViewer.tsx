@@ -7,6 +7,7 @@ import { ViewerCanvas } from "./ViewerCanvas";
 import type { PixelHoverInfo, StreamInfoFrame } from "./ViewerCanvas";
 import { ViewerStatusBar } from "./ViewerStatusBar";
 import { ControlSidebar } from "./ControlSidebar";
+import { AnalysisPanel } from "./AnalysisPanel";
 import { useViewerLayout } from "./useViewerLayout";
 import { frameToImageData, encodeImageDataToPng, suggestFilename } from "./snapshotUtils";
 import { saveSnapshot } from "./snapshotSave";
@@ -76,6 +77,7 @@ export function ImageViewer({
   const snapshotRef = useRef<Uint8Array | null>(null);
   const { sidebarCollapsed, toggleSidebar } = useViewerLayout();
   const resetZoomRef = useRef<(() => void) | null>(null);
+  const zoomTo100Ref = useRef<(() => void) | null>(null);
 
   // Reset frame counter each time acquisition transitions false → true
   useEffect(() => {
@@ -123,6 +125,10 @@ export function ImageViewer({
 
   const handleResetZoom = useCallback(() => {
     resetZoomRef.current?.();
+  }, []);
+
+  const handleZoomTo100 = useCallback(() => {
+    zoomTo100Ref.current?.();
   }, []);
 
   const handleStreamInfoChange = useCallback((info: StreamInfoFrame) => {
@@ -209,6 +215,7 @@ export function ImageViewer({
           zoomLabel={zoomLabel}
           deviceName={deviceName}
           onResetZoom={handleResetZoom}
+          onZoomTo100={handleZoomTo100}
           onSnapshot={isSnapshotBusy ? undefined : handleSnapshot}
           showHistogram={showHistogram}
           onToggleHistogram={() => setShowHistogram((v) => !v)}
@@ -240,12 +247,17 @@ export function ImageViewer({
           isStreaming={isAcquiring}
           snapshotRef={snapshotRef}
           onStreamInfoChange={handleStreamInfoChange}
-          showHistogram={showHistogram}
+          zoomTo100Ref={zoomTo100Ref}
           roiMode={showRoiTool}
           onRoiSelect={setRoiRect}
           lineMode={showLineTool}
           onLineSelect={setLineSegment}
+        />
+        <AnalysisPanel
+          showHistogram={showHistogram}
+          showLineTool={showLineTool}
           lineSegment={lineSegment}
+          frameRef={snapshotRef}
         />
         <ViewerStatusBar
           fps={fps}

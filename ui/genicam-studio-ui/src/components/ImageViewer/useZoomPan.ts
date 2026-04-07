@@ -162,6 +162,11 @@ export function useZoomPan(
     dispatch({ type: "RESET", fitScale: fitScaleRef.current });
   }, []);
 
+  const zoomTo100 = useCallback(() => {
+    const clamped = clampPan(0, 0, 1.0, imgW, imgH, boxW, boxH);
+    dispatch({ type: "SET", scale: 1.0, panX: clamped.panX, panY: clamped.panY });
+  }, [imgW, imgH, boxW, boxH]);
+
   /**
    * Returns a stable native WheelEvent handler for attaching via addEventListener.
    * Uses refs for all state access to avoid stale closures.
@@ -231,6 +236,7 @@ export function useZoomPan(
     onPointerMove,
     onPointerUp,
     onDoubleClick,
+    zoomTo100,
     getWheelHandler,
     isDraggingRef,
     buildTransform: () =>
