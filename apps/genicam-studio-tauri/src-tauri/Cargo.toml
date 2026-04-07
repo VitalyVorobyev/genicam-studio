@@ -2,7 +2,7 @@
 name = "genicam_studio_tauri"
 version = "0.1.0"
 description = "GenICam Studio desktop app"
-edition = "2021"
+edition = "2024"
 build = "build.rs"
 
 [dependencies]
@@ -22,7 +22,7 @@ tokio = { version = "1", features = ["sync", "time", "net"] }
 tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-zenoh = "1.8"
+zenoh = "1"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

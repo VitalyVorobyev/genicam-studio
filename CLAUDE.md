@@ -132,6 +132,10 @@ Every `UiNode` has a `kind` (Category | Integer | Float | Boolean | String | Enu
 - **No `unwrap()`/`expect()` outside tests** — return `Result` with context.
 - **JSON contract is stable** — breaking changes require explicit request.
 
+### Working principles
+- **Ask, don't assume.** When requirements, expected behavior, or scope are ambiguous, stop and ask the user for clarification before proceeding. Wrong assumptions waste more time than a quick question.
+- **Evidence over intuition.** Every conclusion (root cause of a bug, correctness of a fix, performance claim) must be backed by evidence — a failing test that now passes, a log line, a reproducible scenario. Do not declare something "fixed" or "working" without a confirmable, reproducible test that proves it.
+
 ## Fixtures & Tests
 
 Fixtures live in `crates/genicam_xml_model/fixtures/`. Integration tests in `crates/genicam_xml_model/tests/` compare parser output against `expected_*.json` snapshots. Update snapshots intentionally when parser behavior changes. Every fixture must include at least one unknown node to keep the preservation invariant covered.

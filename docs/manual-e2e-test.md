@@ -4,7 +4,7 @@
 
 **Terminal 1 — fake camera:**
 ```bash
-arv-fake-gv-camera-0.8 -i 127.0.0.1
+arv-fake-gv-camera-0.8 -i 127.0.0.1 -d all
 ```
 
 **Terminal 2 — camera service:**

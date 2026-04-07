@@ -63,7 +63,12 @@ async fn test_streamer_synthetic_frame() {
         let shutdown_rx = shutdown_rx.clone();
         async move {
             let _ = genicam_streamer::zenoh_source::run_with_session(
-                session, source_config, shared_meta, frame_tx, info_tx, shutdown_rx,
+                session,
+                source_config,
+                shared_meta,
+                frame_tx,
+                info_tx,
+                shutdown_rx,
             )
             .await;
         }
