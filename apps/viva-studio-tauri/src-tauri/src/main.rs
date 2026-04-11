@@ -9,10 +9,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing_subscriber::prelude::*;
 
-use backend::DeviceBackend;
-
-/// Managed Tauri state wrapping the active device backend.
-pub type BackendState = Arc<dyn DeviceBackend>;
+use backend::BackendState;
 
 #[tauri::command]
 fn ping() -> &'static str {
@@ -199,6 +196,10 @@ fn main() {
             commands::embedded_device::embedded_bulk_read,
             commands::embedded_device::embedded_start_acquisition,
             commands::embedded_device::embedded_stop_acquisition,
+            // IP configuration (embedded mode only)
+            commands::ip_config::force_ip,
+            commands::ip_config::get_network_config,
+            commands::ip_config::set_persistent_ip,
         ])
         .run(tauri::generate_context!())
     {

@@ -35,6 +35,16 @@ pub struct ConnectResult {
     pub model: String,
 }
 
+/// Network configuration of a GigE Vision camera.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct NetworkConfig {
+    pub current_ip: String,
+    pub persistent_ip: String,
+    pub persistent_subnet: String,
+    pub persistent_gateway: String,
+    pub mac: String,
+}
+
 /// Trait abstracting device communication for both embedded and remote modes.
 #[async_trait]
 pub trait DeviceBackend: Send + Sync + 'static {
@@ -69,5 +79,26 @@ pub trait DeviceBackend: Send + Sync + 'static {
     async fn stop_acquisition(&self) -> Result<(), String>;
 
     /// Return the raw GenICam XML of the connected device.
+    #[allow(dead_code)]
     async fn get_xml(&self) -> Result<String, String>;
+
+    // ── IP Configuration (GigE only) ────────────────────────────────────────
+
+    /// Read the network configuration of the connected camera.
+    async fn get_network_config(&self) -> Result<NetworkConfig, String> {
+        Err("Network configuration not supported in this mode".to_string())
+    }
+
+    /// Set persistent IP configuration on the connected camera.
+    async fn set_persistent_ip(
+        &self,
+        _ip: std::net::Ipv4Addr,
+        _subnet: std::net::Ipv4Addr,
+        _gateway: std::net::Ipv4Addr,
+    ) -> Result<(), String> {
+        Err("Persistent IP not supported in this mode".to_string())
+    }
 }
+
+/// Type alias for the managed backend state in Tauri.
+pub type BackendState = std::sync::Arc<dyn DeviceBackend>;

@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use tauri::{AppHandle, Emitter, State};
 use tokio::sync::RwLock;
 
-use crate::BackendState;
+use crate::backend::BackendState;
 use crate::commands::xml_model::{ModelSummary, ParseXmlResponse};
 use crate::state::ModelState;
 use crate::state::device_state::{ConnectionState, DeviceInfo, NodeValueEntry, StreamerInfo};

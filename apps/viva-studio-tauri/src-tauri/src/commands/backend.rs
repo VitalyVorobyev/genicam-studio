@@ -2,8 +2,7 @@
 
 use tauri::State;
 
-use crate::BackendState;
-use crate::backend::BackendMode;
+use crate::backend::{BackendMode, BackendState};
 
 /// Return the current backend mode (Embedded or Remote).
 #[tauri::command]

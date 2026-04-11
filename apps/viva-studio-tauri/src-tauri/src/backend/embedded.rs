@@ -25,7 +25,7 @@ use viva_genicam::{Camera, FrameStream, GigeRegisterIo};
 
 use crate::state::device_state::{DeviceInfo, NodeValueEntry, StreamerInfo};
 
-use super::{BackendMode, ConnectResult, DeviceBackend};
+use super::{BackendMode, ConnectResult, DeviceBackend, NetworkConfig};
 
 // ── Internal types ──────────────────────────────────────────────────────────
 
@@ -39,6 +39,7 @@ struct ConnectedCamera {
     /// Kept for logging and disconnect matching.
     #[allow(dead_code)]
     device_id: String,
+    #[allow(dead_code)]
     xml: String,
 }
 
@@ -541,6 +542,80 @@ impl DeviceBackend for EmbeddedBackend {
             .as_ref()
             .map(|c| c.xml.clone())
             .ok_or_else(|| "No camera connected".to_string())
+    }
+
+    async fn get_network_config(&self) -> Result<NetworkConfig, String> {
+        let guard = self
+            .camera
+            .lock()
+            .map_err(|_| "Camera mutex poisoned".to_string())?;
+        let connected = guard
+            .as_ref()
+            .ok_or_else(|| "No camera connected".to_string())?;
+
+        let mut device_guard = connected
+            .camera
+            .transport()
+            .lock_device()
+            .map_err(|e| format!("Failed to access device: {e}"))?;
+
+        let current_ip = device_guard.remote_addr().ip().to_string();
+
+        let handle = tokio::runtime::Handle::current();
+        let (pip, psub, pgw) = handle
+            .block_on(device_guard.read_persistent_ip())
+            .map_err(|e| format!("Failed to read persistent IP: {e}"))?;
+
+        // Get MAC from discovery cache.
+        let mac = {
+            let discovered = handle.block_on(self.discovered.read());
+            discovered
+                .iter()
+                .find(|d| d.id == connected.device_id)
+                .map(|d| d.serial.clone())
+                .unwrap_or_default()
+        };
+
+        Ok(NetworkConfig {
+            current_ip,
+            persistent_ip: pip.to_string(),
+            persistent_subnet: psub.to_string(),
+            persistent_gateway: pgw.to_string(),
+            mac,
+        })
+    }
+
+    async fn set_persistent_ip(
+        &self,
+        ip: Ipv4Addr,
+        subnet: Ipv4Addr,
+        gateway: Ipv4Addr,
+    ) -> Result<(), String> {
+        let guard = self
+            .camera
+            .lock()
+            .map_err(|_| "Camera mutex poisoned".to_string())?;
+        let connected = guard
+            .as_ref()
+            .ok_or_else(|| "No camera connected".to_string())?;
+
+        let mut device_guard = connected
+            .camera
+            .transport()
+            .lock_device()
+            .map_err(|e| format!("Failed to access device: {e}"))?;
+
+        let handle = tokio::runtime::Handle::current();
+        handle
+            .block_on(device_guard.write_persistent_ip(ip, subnet, gateway))
+            .map_err(|e| format!("Failed to write persistent IP: {e}"))?;
+
+        handle
+            .block_on(device_guard.enable_persistent_ip())
+            .map_err(|e| format!("Failed to enable persistent IP: {e}"))?;
+
+        info!(%ip, %subnet, %gateway, "Persistent IP configured and enabled");
+        Ok(())
     }
 }
 
