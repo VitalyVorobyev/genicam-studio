@@ -6,6 +6,8 @@ export interface DeviceInfo {
   name: string;
   model: string;
   serial: string;
+  /** Transport type: "gige", "usb3", or "zenoh" (remote service). */
+  transport?: string;
 }
 
 export type ConnectionState =

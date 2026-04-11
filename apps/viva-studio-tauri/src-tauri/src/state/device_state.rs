@@ -33,6 +33,13 @@ pub struct DeviceInfo {
     pub name: String,
     pub model: String,
     pub serial: String,
+    /// Transport type: "gige", "usb3", or "zenoh" (remote service).
+    #[serde(default = "default_transport")]
+    pub transport: String,
+}
+
+fn default_transport() -> String {
+    "gige".to_string()
 }
 
 /// Connection state, serialized with a `kind` tag so TypeScript can switch on it.

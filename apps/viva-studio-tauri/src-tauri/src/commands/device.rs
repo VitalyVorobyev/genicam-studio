@@ -246,6 +246,7 @@ async fn run_discovery_loop(zenoh: Arc<ZenohState>, app: AppHandle) {
                         name: announce.name,
                         model: announce.model,
                         serial: announce.serial,
+                        transport: "zenoh".to_string(),
                     };
                     let is_new = {
                         let mut registry = zenoh.registry.lock().await;

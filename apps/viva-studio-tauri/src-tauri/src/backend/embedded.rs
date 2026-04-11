@@ -634,6 +634,7 @@ async fn discover_gige_devices() -> Vec<DeviceInfo> {
                     "{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
                     d.mac[0], d.mac[1], d.mac[2], d.mac[3], d.mac[4], d.mac[5]
                 ),
+                transport: "gige".to_string(),
             })
             .collect(),
         Err(e) => {

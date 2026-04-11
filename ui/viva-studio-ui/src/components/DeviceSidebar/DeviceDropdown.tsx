@@ -132,6 +132,11 @@ export function DeviceDropdown({
                 <span className="device-dd__dot device-dd__dot--idle" />
                 <span className="device-dd__option-name">{d.name}</span>
                 <span className="device-dd__option-model">{d.model}</span>
+                {d.transport && (
+                  <span className={`device-dd__transport device-dd__transport--${d.transport}`}>
+                    {d.transport === "gige" ? "GigE" : d.transport === "usb3" ? "USB3" : d.transport}
+                  </span>
+                )}
               </button>
             ))}
         </div>
