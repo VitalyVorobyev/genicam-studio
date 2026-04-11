@@ -7,10 +7,9 @@ edition = "2021"
 path = "src/lib.rs"
 
 [dependencies]
-quick-xml = "0.31"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-genapi-xml = { path = "../../../genicam-rs/crates/genapi-xml", default-features = false }
-genapi-core = { path = "../../../genicam-rs/crates/genapi-core" }
+viva-genapi-xml = { version = "0.2.0", default-features = false }
+viva-genapi = "0.2.0"
 
 [dev-dependencies]

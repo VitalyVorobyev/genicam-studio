@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use e2e_tests::{send_acquisition_command, workspace_path};
-use genicam_zenoh_api::{AcquisitionCommand, DeviceAnnounce, FrameHeader, HEADER_SIZE};
+use viva_zenoh_api::{AcquisitionCommand, DeviceAnnounce, FrameHeader, HEADER_SIZE};
 use tokio::time::timeout;
 
 fn init_tracing() {
@@ -23,7 +23,7 @@ async fn discover_device_id(
     timeout_secs: u64,
 ) -> Result<String, String> {
     let sub = session
-        .declare_subscriber(genicam_zenoh_api::keys::ANNOUNCE_ALL)
+        .declare_subscriber(viva_zenoh_api::keys::ANNOUNCE_ALL)
         .await
         .map_err(|e| format!("declare announce subscriber: {e}"))?;
 
@@ -68,8 +68,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Err(_) => discover_device_id(&session, timeout_secs).await?,
     };
 
-    let image_key = genicam_zenoh_api::keys::image(&device_id);
-    let meta_key = genicam_zenoh_api::keys::image_meta(&device_id);
+    let image_key = viva_zenoh_api::keys::image(&device_id);
+    let meta_key = viva_zenoh_api::keys::image_meta(&device_id);
     let meta_sub = session.declare_subscriber(&meta_key).await?;
     let image_sub = session.declare_subscriber(&image_key).await?;
 
@@ -85,7 +85,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .await
         .map_err(|_| format!("timeout waiting for image/meta after {timeout_secs}s"))?
         .map_err(|e| format!("image/meta recv: {e}"))?;
-    let meta: genicam_zenoh_api::ImageMeta =
+    let meta: viva_zenoh_api::ImageMeta =
         serde_json::from_slice(&meta_sample.payload().to_bytes())
             .map_err(|e| format!("parse image/meta: {e}"))?;
     tracing::info!(

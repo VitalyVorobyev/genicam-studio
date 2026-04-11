@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use genicam_zenoh_api::PixelFormat;
+use viva_zenoh_api::PixelFormat;
 
 use crate::state::NodeEntry;
 

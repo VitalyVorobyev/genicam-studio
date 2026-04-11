@@ -7,7 +7,7 @@ use tokio::sync::watch;
 use crate::error::HumanizeExt;
 use crate::state::device_state::{ConnectionState, StreamerInfo, ZenohState};
 use genicam_streamer::meta;
-use genicam_zenoh_api::{
+use viva_zenoh_api::{
     AcquisitionCommand, AcquisitionControlRequest, AcquisitionStatus, NodeOpResponse,
 };
 
@@ -44,7 +44,7 @@ pub async fn start_acquisition(
         (w, h)
     };
 
-    let image_key = genicam_zenoh_api::keys::image(&device_id);
+    let image_key = viva_zenoh_api::keys::image(&device_id);
     let meta_key = meta::derive_meta_key(&image_key);
 
     // Stop any previously running streamer before starting a new one.
@@ -224,7 +224,7 @@ async fn send_acquisition_command(
     device_id: &str,
     command: AcquisitionCommand,
 ) -> Result<(), String> {
-    let key = genicam_zenoh_api::keys::acquisition_control(device_id);
+    let key = viva_zenoh_api::keys::acquisition_control(device_id);
     let payload =
         serde_json::to_vec(&AcquisitionControlRequest { command }).map_err(|e| e.to_string())?;
 

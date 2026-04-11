@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 
-use genicam_zenoh_api::{AcquisitionStatus, ImageMeta};
+use viva_zenoh_api::{AcquisitionStatus, ImageMeta};
 use serde::{Deserialize, Serialize};
 
 /// Payload for the `disconnect-reason` Tauri event emitted on unexpected loss of device.
@@ -15,7 +15,7 @@ pub struct DisconnectReason {
 /// Payload for the `api-version-mismatch` Tauri event.
 ///
 /// Emitted when the announced `api_version` of a discovered device does not
-/// match `genicam_zenoh_api::API_VERSION`, or is absent (old service).
+/// match `viva_zenoh_api::API_VERSION`, or is absent (old service).
 #[derive(Debug, Clone, Serialize)]
 pub struct ApiVersionMismatch {
     pub device_id: String,

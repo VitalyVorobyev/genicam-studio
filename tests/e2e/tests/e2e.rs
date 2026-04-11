@@ -12,7 +12,7 @@ use tokio::time::timeout;
 use tokio_tungstenite::tungstenite::Message;
 
 use e2e_tests::*;
-use genicam_zenoh_api::{AcquisitionCommand, DeviceAnnounce, FrameHeader, HEADER_SIZE};
+use viva_zenoh_api::{AcquisitionCommand, DeviceAnnounce, FrameHeader, HEADER_SIZE};
 
 // ── E2E-02: Discovery + Connect + XML Fetch ─────────────────────────────────
 
@@ -30,7 +30,7 @@ async fn test_discovery_and_xml_fetch() {
     // Subscribe to announce and verify fields
     let sub = harness
         .session()
-        .declare_subscriber(genicam_zenoh_api::keys::ANNOUNCE_ALL)
+        .declare_subscriber(viva_zenoh_api::keys::ANNOUNCE_ALL)
         .await
         .expect("subscriber");
 
@@ -160,7 +160,7 @@ async fn test_acquisition_frames() {
 
     // Subscribe to image stream BEFORE starting acquisition so the
     // subscription interest propagates to the service peer first.
-    let image_key = genicam_zenoh_api::keys::image(&device_id);
+    let image_key = viva_zenoh_api::keys::image(&device_id);
     let sub = session
         .declare_subscriber(&image_key)
         .await
@@ -218,7 +218,7 @@ async fn test_acquisition_frames() {
         .expect("stop acquisition");
 
     // Verify acquisition status reports inactive
-    let status_key = genicam_zenoh_api::keys::acquisition_status(&device_id);
+    let status_key = viva_zenoh_api::keys::acquisition_status(&device_id);
     let status_sub = session
         .declare_subscriber(&status_key)
         .await
@@ -227,7 +227,7 @@ async fn test_acquisition_frames() {
     let status_result = timeout(Duration::from_secs(5), status_sub.recv_async()).await;
     if let Ok(Ok(sample)) = status_result {
         let bytes = sample.payload().to_bytes();
-        if let Ok(status) = serde_json::from_slice::<genicam_zenoh_api::AcquisitionStatus>(&bytes) {
+        if let Ok(status) = serde_json::from_slice::<viva_zenoh_api::AcquisitionStatus>(&bytes) {
             assert!(!status.active, "acquisition should be inactive after stop");
         }
     }
@@ -259,7 +259,7 @@ async fn test_manual_topology_frames_and_ws_stream() {
     let device_id = harness.device_id().to_string();
 
     // 1. Subscribe to the raw image stream exactly as the embedded streamer does.
-    let image_key = genicam_zenoh_api::keys::image(&device_id);
+    let image_key = viva_zenoh_api::keys::image(&device_id);
     let image_sub = session
         .declare_subscriber(&image_key)
         .await
@@ -406,7 +406,7 @@ async fn test_sustained_streaming() {
     let device_id = harness.device_id().to_string();
 
     // Subscribe to raw image stream before starting acquisition.
-    let image_key = genicam_zenoh_api::keys::image(&device_id);
+    let image_key = viva_zenoh_api::keys::image(&device_id);
     let sub = session
         .declare_subscriber(&image_key)
         .await
@@ -480,7 +480,7 @@ async fn test_device_lost_detection() {
     let device_id = harness.device_id().to_string();
 
     // Subscribe to device status
-    let status_key = genicam_zenoh_api::keys::status(&device_id);
+    let status_key = viva_zenoh_api::keys::status(&device_id);
     let sub = session
         .declare_subscriber(&status_key)
         .await
@@ -496,7 +496,7 @@ async fn test_device_lost_detection() {
             if let Ok(sample) = sub.recv_async().await {
                 let bytes = sample.payload().to_bytes();
                 if let Ok(status) =
-                    serde_json::from_slice::<genicam_zenoh_api::DeviceStatus>(&bytes)
+                    serde_json::from_slice::<viva_zenoh_api::DeviceStatus>(&bytes)
                 {
                     if !status.connected {
                         return status;

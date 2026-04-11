@@ -3,7 +3,7 @@
 //! These functions are deliberately I/O-free so they can be unit-tested
 //! without a Zenoh session.
 
-use genicam_zenoh_api::{ImageMeta, PixelFormat};
+use viva_zenoh_api::{ImageMeta, PixelFormat};
 
 /// Derive the `image/meta` key from an image key expression.
 ///
@@ -58,7 +58,7 @@ mod tests {
         assert_eq!(meta.width, 1920);
         assert_eq!(meta.height, 1080);
         assert_eq!(meta.payload_size, 2073600);
-        assert_eq!(meta.pixel_format, genicam_zenoh_api::PixelFormat::Mono8);
+        assert_eq!(meta.pixel_format, viva_zenoh_api::PixelFormat::Mono8);
     }
 
     #[test]
@@ -73,6 +73,6 @@ mod tests {
         assert_eq!(meta.width, 320);
         assert_eq!(meta.height, 240);
         assert_eq!(meta.payload_size, 76800);
-        assert_eq!(meta.pixel_format, genicam_zenoh_api::PixelFormat::Mono8);
+        assert_eq!(meta.pixel_format, viva_zenoh_api::PixelFormat::Mono8);
     }
 }

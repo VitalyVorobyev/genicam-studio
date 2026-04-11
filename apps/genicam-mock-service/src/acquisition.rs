@@ -4,7 +4,7 @@ use std::time::Duration;
 use tokio::sync::watch;
 use tracing::{debug, error, info};
 
-use genicam_zenoh_api::{
+use viva_zenoh_api::{
     AcquisitionCommand, AcquisitionControlRequest, AcquisitionStatus, FrameHeader, ImageMeta,
     NodeOpResponse, PixelFormat,
 };
@@ -163,10 +163,10 @@ pub async fn run(
     store: Arc<NodeStore>,
     mut shutdown: watch::Receiver<bool>,
 ) {
-    let control_key = genicam_zenoh_api::keys::acquisition_control(&config.device_id);
-    let status_key = genicam_zenoh_api::keys::acquisition_status(&config.device_id);
-    let image_key = genicam_zenoh_api::keys::image(&config.device_id);
-    let meta_key = genicam_zenoh_api::keys::image_meta(&config.device_id);
+    let control_key = viva_zenoh_api::keys::acquisition_control(&config.device_id);
+    let status_key = viva_zenoh_api::keys::acquisition_status(&config.device_id);
+    let image_key = viva_zenoh_api::keys::image(&config.device_id);
+    let meta_key = viva_zenoh_api::keys::image_meta(&config.device_id);
 
     let queryable = match session.declare_queryable(&control_key).await {
         Ok(q) => q,

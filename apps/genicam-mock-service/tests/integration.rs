@@ -11,7 +11,7 @@ use std::time::Duration;
 use tokio::time::timeout;
 
 use genicam_mock_service::{config::MockConfig, state::NodeStore};
-use genicam_zenoh_api::{
+use viva_zenoh_api::{
     BulkReadRequest, BulkReadResponse, DeviceAnnounce, DeviceXmlResponse, NodeOpResponse,
     NodeSetRequest,
 };
@@ -47,7 +47,7 @@ async fn test_discovery_announcement() {
     let client = open_zenoh().await;
 
     let sub = client
-        .declare_subscriber(&genicam_zenoh_api::keys::announce(&config.device_id))
+        .declare_subscriber(&viva_zenoh_api::keys::announce(&config.device_id))
         .await
         .expect("declare subscriber");
 
@@ -72,9 +72,9 @@ async fn test_discovery_announcement() {
     assert_eq!(announce.serial, config.serial);
     assert_eq!(
         announce.api_version,
-        Some(genicam_zenoh_api::API_VERSION),
+        Some(viva_zenoh_api::API_VERSION),
         "api_version must equal API_VERSION={}",
-        genicam_zenoh_api::API_VERSION
+        viva_zenoh_api::API_VERSION
     );
 
     let _ = shutdown_tx.send(true);
@@ -98,7 +98,7 @@ async fn test_xml_queryable() {
     // Allow the queryable to register before issuing the GET.
     tokio::time::sleep(Duration::from_millis(200)).await;
 
-    let key = genicam_zenoh_api::keys::xml(&config.device_id);
+    let key = viva_zenoh_api::keys::xml(&config.device_id);
     let replies = client.get(&key).await.expect("get XML");
 
     let reply = timeout(Duration::from_secs(10), replies.recv_async())
@@ -139,7 +139,7 @@ async fn test_bulk_read_queryable() {
 
     tokio::time::sleep(Duration::from_millis(200)).await;
 
-    let key = genicam_zenoh_api::keys::nodes_bulk_read(&config.device_id);
+    let key = viva_zenoh_api::keys::nodes_bulk_read(&config.device_id);
     let req = BulkReadRequest {
         names: vec!["Width".to_string(), "Height".to_string()],
     };
@@ -202,7 +202,7 @@ async fn test_node_set_queryable() {
 
     tokio::time::sleep(Duration::from_millis(200)).await;
 
-    let key = genicam_zenoh_api::keys::node_set(&config.device_id, "Width");
+    let key = viva_zenoh_api::keys::node_set(&config.device_id, "Width");
     let req = NodeSetRequest {
         value: serde_json::json!(512),
     };

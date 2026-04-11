@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use genicam_xml_model::{UiGraph, UiNodeKind};
-use genicam_zenoh_api::NodeValueUpdate;
+use viva_zenoh_api::NodeValueUpdate;
 use tokio::sync::{broadcast, RwLock};
 
 use crate::config::MockConfig;
@@ -152,7 +152,7 @@ impl NodeStore {
         }
         if let Some(entry) = values.get_mut("PayloadSize") {
             // Default pixel format is Mono8; keep in sync with the PixelFormat default above.
-            let bpp = genicam_zenoh_api::PixelFormat::Mono8.bytes_per_pixel();
+            let bpp = viva_zenoh_api::PixelFormat::Mono8.bytes_per_pixel();
             let size = (config.width as f32 * config.height as f32 * bpp) as u64;
             entry.value = serde_json::json!(size);
         }

@@ -12,7 +12,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bytes::Bytes;
-use genicam_zenoh_api::{FrameHeader, ImageMeta, PixelFormat};
+use viva_zenoh_api::{FrameHeader, ImageMeta, PixelFormat};
 use tokio::sync::watch;
 
 /// Publish a synthetic Mono8 frame on Zenoh, run the embedded streamer,
@@ -30,7 +30,7 @@ async fn test_streamer_synthetic_frame() {
     // 1. Open Zenoh session (in-memory, no network).
     let session = Arc::new(zenoh::open(zenoh::Config::default()).await.unwrap());
 
-    let image_key = genicam_zenoh_api::keys::image(device_id);
+    let image_key = viva_zenoh_api::keys::image(device_id);
     let meta_key = genicam_streamer::meta::derive_meta_key(&image_key);
 
     // 2. Set up the embedded streamer (same code as Tauri's start_acquisition).

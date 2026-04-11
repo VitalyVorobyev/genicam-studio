@@ -10,7 +10,7 @@ use crate::state::device_state::{
 };
 use crate::state::ModelState;
 use genicam_xml_model::parse_genicam_xml;
-use genicam_zenoh_api::{DeviceAnnounce, DeviceXmlResponse, ImageMeta};
+use viva_zenoh_api::{DeviceAnnounce, DeviceXmlResponse, ImageMeta};
 
 // ── API version compatibility ─────────────────────────────────────────────────
 
@@ -206,7 +206,7 @@ async fn run_discovery_loop(zenoh: Arc<ZenohState>, app: AppHandle) {
     };
 
     let sub = match session
-        .declare_subscriber(genicam_zenoh_api::keys::ANNOUNCE_ALL)
+        .declare_subscriber(viva_zenoh_api::keys::ANNOUNCE_ALL)
         .await
     {
         Ok(s) => s,
@@ -238,7 +238,7 @@ async fn run_discovery_loop(zenoh: Arc<ZenohState>, app: AppHandle) {
                     // Check API version compatibility on first discovery of each device.
                     let version_status = check_api_version(
                         announce.api_version,
-                        genicam_zenoh_api::API_VERSION,
+                        viva_zenoh_api::API_VERSION,
                     );
 
                     let info = DeviceInfo {
@@ -266,7 +266,7 @@ async fn run_discovery_loop(zenoh: Arc<ZenohState>, app: AppHandle) {
                             ApiVersionMismatch {
                                 device_id: announce.id.clone(),
                                 device_version: announce.api_version,
-                                app_version: genicam_zenoh_api::API_VERSION,
+                                app_version: viva_zenoh_api::API_VERSION,
                             },
                         );
                     }
@@ -291,7 +291,7 @@ fn spawn_node_value_sub(
     app: AppHandle,
 ) -> tauri::async_runtime::JoinHandle<()> {
     tauri::async_runtime::spawn(async move {
-        let key = genicam_zenoh_api::keys::node_value_wildcard(&device_id);
+        let key = viva_zenoh_api::keys::node_value_wildcard(&device_id);
         let sub = match session.declare_subscriber(&key).await {
             Ok(s) => s,
             Err(e) => {
@@ -301,10 +301,10 @@ fn spawn_node_value_sub(
         };
         while let Ok(sample) = sub.recv_async().await {
             let bytes = sample.payload().to_bytes();
-            if let Ok(update) = serde_json::from_slice::<genicam_zenoh_api::NodeValueUpdate>(&bytes)
+            if let Ok(update) = serde_json::from_slice::<viva_zenoh_api::NodeValueUpdate>(&bytes)
             {
                 let key_str = sample.key_expr().as_str();
-                if let Some(node_name) = genicam_zenoh_api::keys::extract_node_name(key_str) {
+                if let Some(node_name) = viva_zenoh_api::keys::extract_node_name(key_str) {
                     let entry = NodeValueEntry {
                         value: update.value.clone(),
                         access_mode: update.access_mode.clone(),
@@ -341,7 +341,7 @@ fn spawn_status_sub(
     app: AppHandle,
 ) -> tauri::async_runtime::JoinHandle<()> {
     tauri::async_runtime::spawn(async move {
-        let key = genicam_zenoh_api::keys::status(&device_id);
+        let key = viva_zenoh_api::keys::status(&device_id);
         let sub = match session.declare_subscriber(&key).await {
             Ok(s) => s,
             Err(e) => {
@@ -351,7 +351,7 @@ fn spawn_status_sub(
         };
         while let Ok(sample) = sub.recv_async().await {
             let bytes = sample.payload().to_bytes();
-            if let Ok(status) = serde_json::from_slice::<genicam_zenoh_api::DeviceStatus>(&bytes) {
+            if let Ok(status) = serde_json::from_slice::<viva_zenoh_api::DeviceStatus>(&bytes) {
                 if !status.connected {
                     let msg = status
                         .error
@@ -373,7 +373,7 @@ fn spawn_acq_status_sub(
     app: AppHandle,
 ) -> tauri::async_runtime::JoinHandle<()> {
     tauri::async_runtime::spawn(async move {
-        let key = genicam_zenoh_api::keys::acquisition_status(&device_id);
+        let key = viva_zenoh_api::keys::acquisition_status(&device_id);
         let sub = match session.declare_subscriber(&key).await {
             Ok(s) => s,
             Err(e) => {
@@ -384,7 +384,7 @@ fn spawn_acq_status_sub(
         while let Ok(sample) = sub.recv_async().await {
             let bytes = sample.payload().to_bytes();
             if let Ok(status) =
-                serde_json::from_slice::<genicam_zenoh_api::AcquisitionStatus>(&bytes)
+                serde_json::from_slice::<viva_zenoh_api::AcquisitionStatus>(&bytes)
             {
                 zenoh.acquisition.lock().await.status = status.clone();
                 let _ = app.emit("acquisition-status", status);
@@ -400,7 +400,7 @@ fn spawn_image_meta_sub(
     app: AppHandle,
 ) -> tauri::async_runtime::JoinHandle<()> {
     tauri::async_runtime::spawn(async move {
-        let key = genicam_zenoh_api::keys::image_meta(&device_id);
+        let key = viva_zenoh_api::keys::image_meta(&device_id);
         let sub = match session.declare_subscriber(&key).await {
             Ok(s) => s,
             Err(e) => {
@@ -605,7 +605,7 @@ pub async fn stop_acquisition_child(zenoh: &ZenohState) {
 }
 
 async fn fetch_device_xml(session: &zenoh::Session, device_id: &str) -> Result<String, String> {
-    let key = genicam_zenoh_api::keys::xml(device_id);
+    let key = viva_zenoh_api::keys::xml(device_id);
     let replies = session
         .get(&key)
         .timeout(std::time::Duration::from_secs(5))

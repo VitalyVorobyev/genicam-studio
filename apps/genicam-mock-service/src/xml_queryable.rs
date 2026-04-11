@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tokio::sync::watch;
 use tracing::{debug, error};
 
-use genicam_zenoh_api::DeviceXmlResponse;
+use viva_zenoh_api::DeviceXmlResponse;
 
 use crate::config::MockConfig;
 
@@ -13,7 +13,7 @@ pub async fn run(
     xml: String,
     mut shutdown: watch::Receiver<bool>,
 ) {
-    let key = genicam_zenoh_api::keys::xml(&config.device_id);
+    let key = viva_zenoh_api::keys::xml(&config.device_id);
     let queryable = match session.declare_queryable(&key).await {
         Ok(q) => q,
         Err(e) => {

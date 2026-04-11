@@ -18,7 +18,7 @@ use std::time::Instant;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, watch, Mutex};
 
-use genicam_zenoh_api::{FrameHeader, HEADER_SIZE};
+use viva_zenoh_api::{FrameHeader, HEADER_SIZE};
 
 /// JSON header written at the start of a .gsr file.
 #[derive(Debug, Clone, Serialize, Deserialize)]

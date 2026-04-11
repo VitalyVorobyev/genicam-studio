@@ -4,7 +4,7 @@ use std::time::Duration;
 use tokio::sync::watch;
 use tracing::{debug, error};
 
-use genicam_zenoh_api::DeviceAnnounce;
+use viva_zenoh_api::DeviceAnnounce;
 
 use crate::config::MockConfig;
 
@@ -13,13 +13,13 @@ pub async fn run(
     config: MockConfig,
     mut shutdown: watch::Receiver<bool>,
 ) {
-    let key = genicam_zenoh_api::keys::announce(&config.device_id);
+    let key = viva_zenoh_api::keys::announce(&config.device_id);
     let announce = DeviceAnnounce {
         id: config.device_id.clone(),
         name: config.device_name.clone(),
         model: config.model.clone(),
         serial: config.serial.clone(),
-        api_version: Some(genicam_zenoh_api::API_VERSION),
+        api_version: Some(viva_zenoh_api::API_VERSION),
     };
     let payload = match serde_json::to_vec(&announce) {
         Ok(p) => p,

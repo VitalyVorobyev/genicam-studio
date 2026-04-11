@@ -26,7 +26,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use bytes::Bytes;
-use genicam_zenoh_api::{FrameHeader, ImageMeta, PixelFormat};
+use viva_zenoh_api::{FrameHeader, ImageMeta, PixelFormat};
 use tokio::sync::{watch, RwLock};
 use tracing::{info, warn};
 

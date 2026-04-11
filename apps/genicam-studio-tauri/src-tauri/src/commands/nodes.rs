@@ -8,7 +8,7 @@ use crate::error::HumanizeExt;
 use crate::state::device_state::{ConnectionState, NodeValueEntry, ZenohState};
 use crate::state::ModelState;
 use genicam_xml_model::{UiNode, UiNodeKind};
-use genicam_zenoh_api::{BulkReadRequest, BulkReadResponse, NodeOpResponse, NodeSetRequest};
+use viva_zenoh_api::{BulkReadRequest, BulkReadResponse, NodeOpResponse, NodeSetRequest};
 
 #[tauri::command]
 pub async fn get_node_value(
@@ -179,7 +179,7 @@ pub async fn write_node(
     let session = zenoh.get_session().await.humanize()?;
     let device_id = connected_device_id(&zenoh).await.humanize()?;
 
-    let key = genicam_zenoh_api::keys::node_set(&device_id, &node_name);
+    let key = viva_zenoh_api::keys::node_set(&device_id, &node_name);
     let payload = serde_json::to_vec(&NodeSetRequest { value }).map_err(|e| e.to_string())?;
 
     let replies = session
@@ -217,7 +217,7 @@ pub async fn execute_command(
     let session = zenoh.get_session().await.humanize()?;
     let device_id = connected_device_id(&zenoh).await.humanize()?;
 
-    let key = genicam_zenoh_api::keys::node_execute(&device_id, &node_name);
+    let key = viva_zenoh_api::keys::node_execute(&device_id, &node_name);
 
     let replies = session
         .get(&key)
@@ -279,7 +279,7 @@ pub async fn read_nodes_bulk(
     let session = zenoh.get_session().await.humanize()?;
     let device_id = connected_device_id(&zenoh).await.humanize()?;
 
-    let key = genicam_zenoh_api::keys::nodes_bulk_read(&device_id);
+    let key = viva_zenoh_api::keys::nodes_bulk_read(&device_id);
     let payload = serde_json::to_vec(&BulkReadRequest { names }).map_err(|e| e.to_string())?;
 
     let replies = session

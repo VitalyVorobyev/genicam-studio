@@ -29,7 +29,7 @@ pub struct StreamInfo {
 }
 
 impl StreamInfo {
-    pub fn from_image_meta(meta: &genicam_zenoh_api::ImageMeta) -> Self {
+    pub fn from_image_meta(meta: &viva_zenoh_api::ImageMeta) -> Self {
         let pixel_format = serde_json::to_string(&meta.pixel_format)
             .unwrap_or_else(|_| "\"Unknown\"".to_owned())
             .trim_matches('"')
@@ -173,7 +173,7 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use genicam_zenoh_api::{ImageMeta, PixelFormat};
+    use viva_zenoh_api::{ImageMeta, PixelFormat};
 
     fn make_meta(pixel_format: PixelFormat, width: u32, height: u32) -> ImageMeta {
         ImageMeta {

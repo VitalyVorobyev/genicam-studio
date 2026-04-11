@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tokio::sync::watch;
 use tracing::{debug, error, info, warn};
 
-use genicam_zenoh_api::{BulkReadRequest, BulkReadResponse, NodeOpResponse, NodeSetRequest};
+use viva_zenoh_api::{BulkReadRequest, BulkReadResponse, NodeOpResponse, NodeSetRequest};
 
 use crate::config::MockConfig;
 use crate::state::NodeStore;
@@ -18,7 +18,7 @@ pub async fn run_publisher(
     // Publish all initial values
     let all = store.all().await;
     for (name, update) in &all {
-        let key = genicam_zenoh_api::keys::node_value(&config.device_id, name);
+        let key = viva_zenoh_api::keys::node_value(&config.device_id, name);
         let payload = match serde_json::to_vec(update) {
             Ok(p) => p,
             Err(e) => {
@@ -42,7 +42,7 @@ pub async fn run_publisher(
             result = rx.recv() => {
                 match result {
                     Ok((name, update)) => {
-                        let key = genicam_zenoh_api::keys::node_value(&config.device_id, &name);
+                        let key = viva_zenoh_api::keys::node_value(&config.device_id, &name);
                         let payload = match serde_json::to_vec(&update) {
                             Ok(p) => p,
                             Err(e) => {
@@ -91,7 +91,7 @@ pub async fn run_set_queryable(
                     Ok(query) => {
                         let key_expr = query.key_expr().as_str().to_string();
                         // Extract node name from key: genicam/devices/{id}/nodes/{name}/set
-                        let node_name = genicam_zenoh_api::keys::extract_node_name(&key_expr);
+                        let node_name = viva_zenoh_api::keys::extract_node_name(&key_expr);
                         let node_name = match node_name {
                             Some(n) => n,
                             None => {
@@ -159,7 +159,7 @@ pub async fn run_execute_queryable(
                 match query {
                     Ok(query) => {
                         let key_expr = query.key_expr().as_str().to_string();
-                        let node_name = genicam_zenoh_api::keys::extract_node_name(&key_expr)
+                        let node_name = viva_zenoh_api::keys::extract_node_name(&key_expr)
                             .unwrap_or("unknown");
                         info!("Execute command: {node_name}");
                         let resp = NodeOpResponse { ok: true, error: None };
@@ -181,7 +181,7 @@ pub async fn run_bulk_read_queryable(
     store: Arc<NodeStore>,
     mut shutdown: watch::Receiver<bool>,
 ) {
-    let key = genicam_zenoh_api::keys::nodes_bulk_read(&config.device_id);
+    let key = viva_zenoh_api::keys::nodes_bulk_read(&config.device_id);
     let queryable = match session.declare_queryable(&key).await {
         Ok(q) => q,
         Err(e) => {

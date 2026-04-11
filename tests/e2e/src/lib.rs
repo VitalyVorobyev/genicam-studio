@@ -19,7 +19,7 @@ use tokio::sync::watch;
 use tokio::task::JoinHandle;
 use tokio::time::{sleep, timeout};
 
-use genicam_zenoh_api::DeviceAnnounce;
+use viva_zenoh_api::DeviceAnnounce;
 
 /// Environment variable for the genicam-service binary path.
 const SERVICE_PATH_ENV: &str = "GENICAM_SERVICE_PATH";
@@ -197,7 +197,7 @@ impl TestHarness {
         // 5. Wait for the first announce message
         tracing::info!("Waiting for device announce...");
         let sub = session
-            .declare_subscriber(genicam_zenoh_api::keys::ANNOUNCE_ALL)
+            .declare_subscriber(viva_zenoh_api::keys::ANNOUNCE_ALL)
             .await
             .map_err(|e| HarnessError::ZenohOpen(format!("subscriber: {e}")))?;
 
@@ -416,7 +416,7 @@ fn sibling_path(relative: &str) -> PathBuf {
 
 /// Fetch the GenICam XML for a device via Zenoh GET.
 pub async fn fetch_xml(session: &zenoh::Session, device_id: &str) -> Result<String, String> {
-    let key = genicam_zenoh_api::keys::xml(device_id);
+    let key = viva_zenoh_api::keys::xml(device_id);
     let replies = session
         .get(&key)
         .timeout(Duration::from_secs(10))
@@ -427,7 +427,7 @@ pub async fn fetch_xml(session: &zenoh::Session, device_id: &str) -> Result<Stri
         Ok(reply) => match reply.result() {
             Ok(sample) => {
                 let bytes = sample.payload().to_bytes();
-                let resp: genicam_zenoh_api::DeviceXmlResponse =
+                let resp: viva_zenoh_api::DeviceXmlResponse =
                     serde_json::from_slice(&bytes).map_err(|e| format!("parse: {e}"))?;
                 Ok(resp.xml)
             }
@@ -444,8 +444,8 @@ pub async fn write_node(
     node_name: &str,
     value: serde_json::Value,
 ) -> Result<(), String> {
-    let key = genicam_zenoh_api::keys::node_set(device_id, node_name);
-    let payload = serde_json::to_vec(&genicam_zenoh_api::NodeSetRequest { value })
+    let key = viva_zenoh_api::keys::node_set(device_id, node_name);
+    let payload = serde_json::to_vec(&viva_zenoh_api::NodeSetRequest { value })
         .map_err(|e| e.to_string())?;
 
     let replies = session
@@ -459,7 +459,7 @@ pub async fn write_node(
         Ok(reply) => match reply.result() {
             Ok(sample) => {
                 let bytes = sample.payload().to_bytes();
-                let resp: genicam_zenoh_api::NodeOpResponse =
+                let resp: viva_zenoh_api::NodeOpResponse =
                     serde_json::from_slice(&bytes).map_err(|e| format!("parse: {e}"))?;
                 if resp.ok {
                     Ok(())
@@ -478,9 +478,9 @@ pub async fn read_bulk(
     session: &zenoh::Session,
     device_id: &str,
     names: &[&str],
-) -> Result<genicam_zenoh_api::BulkReadResponse, String> {
-    let key = genicam_zenoh_api::keys::nodes_bulk_read(device_id);
-    let payload = serde_json::to_vec(&genicam_zenoh_api::BulkReadRequest {
+) -> Result<viva_zenoh_api::BulkReadResponse, String> {
+    let key = viva_zenoh_api::keys::nodes_bulk_read(device_id);
+    let payload = serde_json::to_vec(&viva_zenoh_api::BulkReadRequest {
         names: names.iter().map(|s| s.to_string()).collect(),
     })
     .map_err(|e| e.to_string())?;
@@ -508,10 +508,10 @@ pub async fn read_bulk(
 pub async fn send_acquisition_command(
     session: &zenoh::Session,
     device_id: &str,
-    command: genicam_zenoh_api::AcquisitionCommand,
+    command: viva_zenoh_api::AcquisitionCommand,
 ) -> Result<(), String> {
-    let key = genicam_zenoh_api::keys::acquisition_control(device_id);
-    let payload = serde_json::to_vec(&genicam_zenoh_api::AcquisitionControlRequest { command })
+    let key = viva_zenoh_api::keys::acquisition_control(device_id);
+    let payload = serde_json::to_vec(&viva_zenoh_api::AcquisitionControlRequest { command })
         .map_err(|e| e.to_string())?;
 
     let replies = session
@@ -525,7 +525,7 @@ pub async fn send_acquisition_command(
         Ok(reply) => match reply.result() {
             Ok(sample) => {
                 let bytes = sample.payload().to_bytes();
-                let resp: genicam_zenoh_api::NodeOpResponse =
+                let resp: viva_zenoh_api::NodeOpResponse =
                     serde_json::from_slice(&bytes).map_err(|e| format!("parse: {e}"))?;
                 if resp.ok {
                     Ok(())

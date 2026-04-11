@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tokio::sync::watch;
 use tracing::error;
 
-use genicam_zenoh_api::DeviceStatus;
+use viva_zenoh_api::DeviceStatus;
 
 use crate::config::MockConfig;
 
@@ -12,7 +12,7 @@ pub async fn run(
     config: MockConfig,
     mut shutdown: watch::Receiver<bool>,
 ) {
-    let key = genicam_zenoh_api::keys::status(&config.device_id);
+    let key = viva_zenoh_api::keys::status(&config.device_id);
     let status = DeviceStatus {
         connected: true,
         error: None,
