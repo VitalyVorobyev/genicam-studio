@@ -5,10 +5,10 @@ use tokio::sync::RwLock;
 
 use crate::commands::xml_model::{ModelSummary, ParseXmlResponse};
 use crate::error::HumanizeExt;
+use crate::state::ModelState;
 use crate::state::device_state::{
     ApiVersionMismatch, ConnectionState, DeviceInfo, DisconnectReason, NodeValueEntry, ZenohState,
 };
-use crate::state::ModelState;
 use viva_xml_model::parse_genicam_xml;
 use viva_zenoh_api::{DeviceAnnounce, DeviceXmlResponse, ImageMeta};
 
@@ -301,8 +301,7 @@ fn spawn_node_value_sub(
         };
         while let Ok(sample) = sub.recv_async().await {
             let bytes = sample.payload().to_bytes();
-            if let Ok(update) = serde_json::from_slice::<viva_zenoh_api::NodeValueUpdate>(&bytes)
-            {
+            if let Ok(update) = serde_json::from_slice::<viva_zenoh_api::NodeValueUpdate>(&bytes) {
                 let key_str = sample.key_expr().as_str();
                 if let Some(node_name) = viva_zenoh_api::keys::extract_node_name(key_str) {
                     let entry = NodeValueEntry {
@@ -351,16 +350,16 @@ fn spawn_status_sub(
         };
         while let Ok(sample) = sub.recv_async().await {
             let bytes = sample.payload().to_bytes();
-            if let Ok(status) = serde_json::from_slice::<viva_zenoh_api::DeviceStatus>(&bytes) {
-                if !status.connected {
-                    let msg = status
-                        .error
-                        .unwrap_or_else(|| "Device disconnected".to_string());
-                    do_emergency_disconnect(&zenoh, &app, device_id.clone(), msg).await;
-                    // Start auto-reconnection
-                    spawn_reconnect_task(zenoh.clone(), app.clone(), device_id.clone());
-                    break;
-                }
+            if let Ok(status) = serde_json::from_slice::<viva_zenoh_api::DeviceStatus>(&bytes)
+                && !status.connected
+            {
+                let msg = status
+                    .error
+                    .unwrap_or_else(|| "Device disconnected".to_string());
+                do_emergency_disconnect(&zenoh, &app, device_id.clone(), msg).await;
+                // Start auto-reconnection
+                spawn_reconnect_task(zenoh.clone(), app.clone(), device_id.clone());
+                break;
             }
         }
     })
@@ -383,8 +382,7 @@ fn spawn_acq_status_sub(
         };
         while let Ok(sample) = sub.recv_async().await {
             let bytes = sample.payload().to_bytes();
-            if let Ok(status) =
-                serde_json::from_slice::<viva_zenoh_api::AcquisitionStatus>(&bytes)
+            if let Ok(status) = serde_json::from_slice::<viva_zenoh_api::AcquisitionStatus>(&bytes)
             {
                 zenoh.acquisition.lock().await.status = status.clone();
                 let _ = app.emit("acquisition-status", status);
@@ -628,7 +626,7 @@ async fn fetch_device_xml(session: &zenoh::Session, device_id: &str) -> Result<S
 
 #[cfg(test)]
 mod tests {
-    use super::{check_api_version, ApiVersionStatus};
+    use super::{ApiVersionStatus, check_api_version};
     use crate::state::device_state::DisconnectReason;
 
     #[test]

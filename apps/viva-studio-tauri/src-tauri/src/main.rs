@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod backend;
 mod commands;
 mod error;
 mod state;
@@ -8,22 +9,31 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing_subscriber::prelude::*;
 
+use backend::DeviceBackend;
+
+/// Managed Tauri state wrapping the active device backend.
+pub type BackendState = Arc<dyn DeviceBackend>;
+
 #[tauri::command]
 fn ping() -> &'static str {
     "pong"
 }
 
-/// Load Zenoh configuration, checking these sources in order:
+/// Determine whether the app should run in remote (Zenoh) mode.
+///
+/// Returns `Some(config)` if a Zenoh config is found, `None` for embedded mode.
+/// Checked sources:
 /// 1. `ZENOH_CONFIG` environment variable (path to a JSON5 config file)
 /// 2. `config/zenoh-studio.json5` relative to the workspace root (dev mode)
-/// 3. Default config (multicast scouting — works on Linux, often fails on macOS)
-fn load_zenoh_config() -> zenoh::Config {
+///
+/// When neither is found, the app defaults to embedded mode (direct camera access).
+fn detect_zenoh_config() -> Option<zenoh::Config> {
     // 1. Env var
     if let Ok(path) = std::env::var("ZENOH_CONFIG") {
         match zenoh::Config::from_file(&path) {
             Ok(cfg) => {
-                tracing::info!("Loaded Zenoh config from ZENOH_CONFIG={path}");
-                return cfg;
+                tracing::info!("Loaded Zenoh config from ZENOH_CONFIG={path} — remote mode");
+                return Some(cfg);
             }
             Err(e) => tracing::warn!("Failed to load ZENOH_CONFIG={path}: {e}"),
         }
@@ -44,16 +54,16 @@ fn load_zenoh_config() -> zenoh::Config {
         if std::path::Path::new(candidate).exists() {
             match zenoh::Config::from_file(candidate) {
                 Ok(cfg) => {
-                    tracing::info!("Loaded Zenoh config from {candidate}");
-                    return cfg;
+                    tracing::info!("Loaded Zenoh config from {candidate} — remote mode");
+                    return Some(cfg);
                 }
                 Err(e) => tracing::warn!("Failed to load {candidate}: {e}"),
             }
         }
     }
 
-    tracing::info!("Using default Zenoh config (multicast scouting)");
-    zenoh::Config::default()
+    tracing::info!("No Zenoh config found — using embedded mode (direct camera access)");
+    None
 }
 
 fn dirs_log_path() -> std::path::PathBuf {
@@ -83,6 +93,11 @@ fn main() {
         .init();
 
     tracing::info!("Log directory: {}", log_dir.display());
+
+    // Detect backend mode: embedded (default) or remote (Zenoh).
+    let zenoh_config = detect_zenoh_config();
+    let is_remote_mode = zenoh_config.is_some();
+
     // ModelState: holds the last parsed UiGraph (used by xml_model commands).
     let model_state = RwLock::new(state::ModelState::default());
 
@@ -95,52 +110,76 @@ fn main() {
     let sfnc_groups_state: commands::sfnc_groups::SfncGroupsState =
         Arc::new(RwLock::new(None::<Vec<commands::sfnc_groups::SfncGroup>>));
 
+    // Create the appropriate backend.
+    let embedded_backend: Option<Arc<backend::embedded::EmbeddedBackend>> = if is_remote_mode {
+        tracing::info!("Starting in REMOTE mode (Zenoh service)");
+        None
+    } else {
+        tracing::info!("Starting in EMBEDDED mode (direct camera access)");
+        Some(Arc::new(backend::embedded::EmbeddedBackend::new()))
+    };
+
+    let backend_state: BackendState = match &embedded_backend {
+        Some(eb) => eb.clone(),
+        None => Arc::new(backend::remote::RemoteBackend),
+    };
+
+    // Clone for the setup closure.
+    let embedded_for_setup = embedded_backend.clone();
+
     if let Err(err) = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .manage(model_state)
         .manage(zenoh_state)
         .manage(sfnc_groups_state)
+        .manage(backend_state)
         .setup(move |app| {
             let app_handle = app.handle().clone();
-            let zenoh = zenoh_for_setup.clone();
 
-            // Initialize Zenoh and start the device-discovery background task.
-            tauri::async_runtime::spawn(async move {
-                let zenoh_config = load_zenoh_config();
-                match zenoh::open(zenoh_config).await {
-                    Ok(session) => {
-                        tracing::info!("Zenoh session open, ZID: {}", session.zid());
-                        *zenoh.session.lock().await = Some(Arc::new(session));
-                        commands::device::start_discovery_task(zenoh, app_handle);
+            if is_remote_mode {
+                // Remote mode: initialize Zenoh and start discovery via Zenoh subscribers.
+                let zenoh = zenoh_for_setup.clone();
+                let zenoh_config = zenoh_config.expect("zenoh_config must be Some in remote mode");
+                tauri::async_runtime::spawn(async move {
+                    match zenoh::open(zenoh_config).await {
+                        Ok(session) => {
+                            tracing::info!("Zenoh session open, ZID: {}", session.zid());
+                            *zenoh.session.lock().await = Some(Arc::new(session));
+                            commands::device::start_discovery_task(zenoh, app_handle);
+                        }
+                        Err(e) => {
+                            tracing::error!("Failed to open Zenoh session: {e}");
+                        }
                     }
-                    Err(e) => {
-                        tracing::error!("Failed to open Zenoh session: {e}");
-                        // App still starts; Zenoh commands will return errors.
-                    }
-                }
-            });
+                });
+            } else if let Some(embedded) = embedded_for_setup {
+                // Embedded mode: start direct device discovery.
+                embedded.start_discovery_task(app_handle, std::time::Duration::from_secs(3));
+            }
 
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             ping,
+            // Backend mode query
+            commands::backend::backend_mode,
             // XML model (offline + fixture mode)
             commands::xml_model::parse_xml,
             commands::xml_model::get_current_model,
             commands::xml_model::list_fixtures,
             commands::xml_model::load_fixture,
-            // Device discovery & connection
+            // Device discovery & connection (Zenoh-based, backward compatible)
             commands::device::list_discovered_devices,
             commands::device::get_connection_state,
             commands::device::connect_device,
             commands::device::disconnect_device,
-            // Node operations
+            // Node operations (Zenoh-based, backward compatible)
             commands::nodes::get_node_value,
             commands::nodes::write_node,
             commands::nodes::execute_command,
             commands::nodes::read_nodes_bulk,
-            // Acquisition
+            // Acquisition (Zenoh-based, backward compatible)
             commands::acquisition::get_acquisition_status,
             commands::acquisition::start_acquisition,
             commands::acquisition::stop_acquisition,
@@ -150,6 +189,16 @@ fn main() {
             commands::recording::get_recording_status,
             // SFNC groups config
             commands::sfnc_groups::get_sfnc_groups,
+            // Embedded backend commands
+            commands::embedded_device::embedded_discover,
+            commands::embedded_device::embedded_connect,
+            commands::embedded_device::embedded_disconnect,
+            commands::embedded_device::embedded_get_feature,
+            commands::embedded_device::embedded_set_feature,
+            commands::embedded_device::embedded_exec_command,
+            commands::embedded_device::embedded_bulk_read,
+            commands::embedded_device::embedded_start_acquisition,
+            commands::embedded_device::embedded_stop_acquisition,
         ])
         .run(tauri::generate_context!())
     {

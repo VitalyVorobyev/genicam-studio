@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 
-use viva_zenoh_api::{AcquisitionStatus, ImageMeta};
 use serde::{Deserialize, Serialize};
+use viva_zenoh_api::{AcquisitionStatus, ImageMeta};
 
 /// Payload for the `disconnect-reason` Tauri event emitted on unexpected loss of device.
 #[derive(Debug, Clone, Serialize)]

@@ -1,8 +1,8 @@
 use crate::state::{Diag, ModelState};
-use viva_xml_model::{parse_genicam_xml, UiGraph};
 use serde::Serialize;
 use tauri::State;
 use tokio::sync::RwLock;
+use viva_xml_model::{UiGraph, parse_genicam_xml};
 
 // Keep the response payload aligned with the WASM/TS UiGraph contract so the UI
 // can swap providers without changing how it renders.

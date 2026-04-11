@@ -1,5 +1,5 @@
-use viva_xml_model::UiGraph;
 use serde::Serialize;
+use viva_xml_model::UiGraph;
 
 // Diagnostics are intentionally minimal in the MVP so the UI can surface parser
 // warnings/errors without committing to a heavy schema.

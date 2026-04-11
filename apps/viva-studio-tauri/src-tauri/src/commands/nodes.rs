@@ -5,8 +5,8 @@ use tauri::State;
 use tokio::sync::RwLock;
 
 use crate::error::HumanizeExt;
-use crate::state::device_state::{ConnectionState, NodeValueEntry, ZenohState};
 use crate::state::ModelState;
+use crate::state::device_state::{ConnectionState, NodeValueEntry, ZenohState};
 use viva_xml_model::{UiNode, UiNodeKind};
 use viva_zenoh_api::{BulkReadRequest, BulkReadResponse, NodeOpResponse, NodeSetRequest};
 
@@ -127,30 +127,30 @@ fn validate_numeric_constraints(
     n: f64,
     node_name: &str,
 ) -> Result<(), String> {
-    if let Some(min) = min {
-        if n < min {
-            return Err(format!(
-                "Value {n} is below minimum {min} for node '{node_name}'"
-            ));
-        }
+    if let Some(min) = min
+        && n < min
+    {
+        return Err(format!(
+            "Value {n} is below minimum {min} for node '{node_name}'"
+        ));
     }
-    if let Some(max) = max {
-        if n > max {
-            return Err(format!(
-                "Value {n} exceeds maximum {max} for node '{node_name}'"
-            ));
-        }
+    if let Some(max) = max
+        && n > max
+    {
+        return Err(format!(
+            "Value {n} exceeds maximum {max} for node '{node_name}'"
+        ));
     }
-    if let Some(inc) = inc {
-        if inc > 0.0 {
-            let base = min.unwrap_or(0.0);
-            let remainder = ((n - base) / inc).fract().abs();
-            // Allow a small floating-point epsilon on either side of an integer step.
-            if remainder > 1e-9 && (1.0 - remainder) > 1e-9 {
-                return Err(format!(
-                    "Value {n} is not aligned to increment {inc} for node '{node_name}'"
-                ));
-            }
+    if let Some(inc) = inc
+        && inc > 0.0
+    {
+        let base = min.unwrap_or(0.0);
+        let remainder = ((n - base) / inc).fract().abs();
+        // Allow a small floating-point epsilon on either side of an integer step.
+        if remainder > 1e-9 && (1.0 - remainder) > 1e-9 {
+            return Err(format!(
+                "Value {n} is not aligned to increment {inc} for node '{node_name}'"
+            ));
         }
     }
     Ok(())
@@ -167,12 +167,12 @@ pub async fn write_node(
     // If no model is present (e.g., pure Zenoh mode without XML) we skip silently.
     {
         let model_guard = model.read().await;
-        if let Some(graph) = &model_guard.graph {
-            if let Some(node) = graph.nodes_by_name.get(&node_name) {
-                let cache = zenoh.node_cache.read().await;
-                let live = cache.get(&node_name);
-                validate_node_write(node, live, &value)?;
-            }
+        if let Some(graph) = &model_guard.graph
+            && let Some(node) = graph.nodes_by_name.get(&node_name)
+        {
+            let cache = zenoh.node_cache.read().await;
+            let live = cache.get(&node_name);
+            validate_node_write(node, live, &value)?;
         }
     }
 
@@ -314,8 +314,8 @@ async fn connected_device_id(zenoh: &ZenohState) -> Result<String, String> {
 mod tests {
     use super::{parse_bulk_response, validate_node_write, validate_numeric_constraints};
     use crate::state::device_state::NodeValueEntry;
-    use viva_xml_model::{EnumEntry, NumericConstraints, RawNode, UiNode, UiNodeKind};
     use std::collections::HashMap;
+    use viva_xml_model::{EnumEntry, NumericConstraints, RawNode, UiNode, UiNodeKind};
 
     fn raw_node(tag: &str) -> RawNode {
         RawNode {
