@@ -39,7 +39,11 @@ fn check_api_version(announced: Option<u32>, expected: u32) -> ApiVersionStatus 
 #[tauri::command]
 pub async fn list_discovered_devices(
     zenoh: State<'_, Arc<ZenohState>>,
+    backend: State<'_, crate::backend::BackendState>,
 ) -> Result<Vec<DeviceInfo>, String> {
+    if matches!(backend.mode(), crate::backend::BackendMode::Embedded) {
+        return Ok(backend.discover().await);
+    }
     Ok(zenoh.registry.lock().await.list())
 }
 
@@ -55,8 +59,55 @@ pub async fn connect_device(
     device_id: String,
     zenoh: State<'_, Arc<ZenohState>>,
     model: State<'_, RwLock<ModelState>>,
+    backend: State<'_, crate::backend::BackendState>,
     app: AppHandle,
 ) -> Result<ParseXmlResponse, String> {
+    // ── Embedded mode path ───────────────────────────────────────────────────
+    if matches!(backend.mode(), crate::backend::BackendMode::Embedded) {
+        *zenoh.connection.lock().await = ConnectionState::Connecting {
+            device_id: device_id.clone(),
+        };
+        emit_connection_state(&app, &zenoh).await;
+
+        let result = match backend.connect(&device_id).await {
+            Ok(r) => r,
+            Err(e) => {
+                *zenoh.connection.lock().await = ConnectionState::Error { message: e.clone() };
+                emit_connection_state(&app, &zenoh).await;
+                return Err(e);
+            }
+        };
+
+        let graph = parse_genicam_xml(&result.xml).map_err(|e| e.to_string())?;
+        let summary = ModelSummary {
+            node_count: graph.nodes_by_name.len(),
+            category_count: graph.categories.len(),
+            root_category: graph.root_category.clone(),
+        };
+        let response = ParseXmlResponse {
+            graph: graph.clone(),
+            xml: result.xml.clone(),
+            diags: vec![],
+            summary,
+        };
+        model.write().await.update(
+            result.xml,
+            graph,
+            vec![],
+            Some(device_id.clone()),
+        );
+
+        *zenoh.connection.lock().await = ConnectionState::Connected {
+            device_id,
+            device_name: result.device_name,
+            model: result.model,
+        };
+        emit_connection_state(&app, &zenoh).await;
+
+        return Ok(response);
+    }
+
+    // ── Remote mode path (Zenoh) ─────────────────────────────────────────────
     let session = zenoh.get_session().await.humanize()?;
 
     // Signal connecting
@@ -136,8 +187,19 @@ pub async fn connect_device(
 #[tauri::command]
 pub async fn disconnect_device(
     zenoh: State<'_, Arc<ZenohState>>,
+    backend: State<'_, crate::backend::BackendState>,
     app: AppHandle,
 ) -> Result<(), String> {
+    if matches!(backend.mode(), crate::backend::BackendMode::Embedded) {
+        let device_id = match zenoh.connection.lock().await.clone() {
+            ConnectionState::Connected { device_id, .. } => device_id,
+            _ => String::new(),
+        };
+        backend.disconnect(&device_id).await.ok();
+        *zenoh.connection.lock().await = ConnectionState::Disconnected;
+        emit_connection_state(&app, &zenoh).await;
+        return Ok(());
+    }
     abort_sub_tasks(&zenoh).await;
     stop_acquisition_child(&zenoh).await;
     zenoh.node_cache.write().await.clear();
