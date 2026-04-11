@@ -14,7 +14,11 @@ use viva_zenoh_api::{BulkReadRequest, BulkReadResponse, NodeOpResponse, NodeSetR
 pub async fn get_node_value(
     node_name: String,
     zenoh: State<'_, Arc<ZenohState>>,
+    backend: State<'_, crate::backend::BackendState>,
 ) -> Result<NodeValueEntry, String> {
+    if matches!(backend.mode(), crate::backend::BackendMode::Embedded) {
+        return backend.get_feature(&node_name).await;
+    }
     zenoh
         .node_cache
         .read()
@@ -162,6 +166,7 @@ pub async fn write_node(
     value: serde_json::Value,
     zenoh: State<'_, Arc<ZenohState>>,
     model: State<'_, RwLock<ModelState>>,
+    backend: State<'_, crate::backend::BackendState>,
 ) -> Result<(), String> {
     // Pre-flight: validate against UiGraph constraints when a model is loaded.
     // If no model is present (e.g., pure Zenoh mode without XML) we skip silently.
@@ -174,6 +179,10 @@ pub async fn write_node(
             let live = cache.get(&node_name);
             validate_node_write(node, live, &value)?;
         }
+    }
+
+    if matches!(backend.mode(), crate::backend::BackendMode::Embedded) {
+        return backend.set_feature(&node_name, &value).await;
     }
 
     let session = zenoh.get_session().await.humanize()?;
@@ -213,7 +222,11 @@ pub async fn write_node(
 pub async fn execute_command(
     node_name: String,
     zenoh: State<'_, Arc<ZenohState>>,
+    backend: State<'_, crate::backend::BackendState>,
 ) -> Result<(), String> {
+    if matches!(backend.mode(), crate::backend::BackendMode::Embedded) {
+        return backend.exec_command(&node_name).await;
+    }
     let session = zenoh.get_session().await.humanize()?;
     let device_id = connected_device_id(&zenoh).await.humanize()?;
 
@@ -275,7 +288,11 @@ fn parse_bulk_response(bytes: &[u8]) -> Result<HashMap<String, NodeValueEntry>, 
 pub async fn read_nodes_bulk(
     names: Vec<String>,
     zenoh: State<'_, Arc<ZenohState>>,
+    backend: State<'_, crate::backend::BackendState>,
 ) -> Result<HashMap<String, NodeValueEntry>, String> {
+    if matches!(backend.mode(), crate::backend::BackendMode::Embedded) {
+        return backend.bulk_read(&names).await;
+    }
     let session = zenoh.get_session().await.humanize()?;
     let device_id = connected_device_id(&zenoh).await.humanize()?;
 

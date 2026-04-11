@@ -23,8 +23,23 @@ pub async fn get_acquisition_status(
 #[tauri::command]
 pub async fn start_acquisition(
     zenoh: State<'_, Arc<ZenohState>>,
+    backend: State<'_, crate::backend::BackendState>,
     app: AppHandle,
 ) -> Result<StreamerInfo, String> {
+    if matches!(backend.mode(), crate::backend::BackendMode::Embedded) {
+        let info = backend.start_acquisition().await?;
+        let mut acq = zenoh.acquisition.lock().await;
+        acq.ws_url = Some(info.ws_url.clone());
+        acq.width = info.width;
+        acq.height = info.height;
+        acq.status.active = true;
+        let _ = app.emit(
+            "acquisition-status",
+            AcquisitionStatus { active: true, fps: None, dropped: 0 },
+        );
+        return Ok(info);
+    }
+
     let session = zenoh.get_session().await.humanize()?;
     let device_id = connected_device_id(&zenoh).await.humanize()?;
 
@@ -165,8 +180,21 @@ pub async fn start_acquisition(
 #[tauri::command]
 pub async fn stop_acquisition(
     zenoh: State<'_, Arc<ZenohState>>,
+    backend: State<'_, crate::backend::BackendState>,
     app: AppHandle,
 ) -> Result<(), String> {
+    if matches!(backend.mode(), crate::backend::BackendMode::Embedded) {
+        backend.stop_acquisition().await?;
+        let mut acq = zenoh.acquisition.lock().await;
+        acq.status.active = false;
+        acq.ws_url = None;
+        let _ = app.emit(
+            "acquisition-status",
+            AcquisitionStatus { active: false, fps: None, dropped: 0 },
+        );
+        return Ok(());
+    }
+
     let session = zenoh.get_session().await.humanize()?;
     let device_id = connected_device_id(&zenoh).await.humanize()?;
 
