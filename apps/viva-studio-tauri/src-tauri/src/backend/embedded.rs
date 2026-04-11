@@ -198,22 +198,15 @@ impl DeviceBackend for EmbeddedBackend {
 
     async fn get_feature(&self, name: &str) -> Result<NodeValueEntry, String> {
         let name = name.to_string();
-        // Clone the Arc-wrapped self is not possible since Camera is behind std::sync::Mutex.
-        // Instead, we do the blocking work inline — the std::sync::Mutex lock is held
-        // briefly and does not cross await points.
-        let value_str = {
-            let mut guard = self
-                .camera
-                .lock()
-                .map_err(|_| "Camera mutex poisoned".to_string())?;
-            let connected = guard
-                .as_mut()
-                .ok_or_else(|| "No camera connected".to_string())?;
-            connected
-                .camera
-                .get(&name)
-                .map_err(|e| format!("Failed to read feature '{name}': {e}"))?
-        };
+        let mut guard = self.camera.lock().map_err(|_| "Camera mutex poisoned".to_string())?;
+        let connected = guard.as_mut().ok_or("No camera connected".to_string())?;
+        // Camera::get() calls RegisterIo::read() which uses block_on() internally.
+        // block_in_place converts the current async thread to a blocking thread,
+        // allowing nested block_on to work without panic.
+        let value_str = tokio::task::block_in_place(|| {
+            connected.camera.get(&name)
+        })
+        .map_err(|e| format!("Failed to read feature '{name}': {e}"))?;
 
         Ok(NodeValueEntry {
             value: string_to_json_value(&value_str),
@@ -228,65 +221,51 @@ impl DeviceBackend for EmbeddedBackend {
         let value_str = json_value_to_string(value);
         let name = name.to_string();
 
-        let mut guard = self
-            .camera
-            .lock()
-            .map_err(|_| "Camera mutex poisoned".to_string())?;
-        let connected = guard
-            .as_mut()
-            .ok_or_else(|| "No camera connected".to_string())?;
-        connected
-            .camera
-            .set(&name, &value_str)
-            .map_err(|e| format!("Failed to write feature '{name}': {e}"))
+        let mut guard = self.camera.lock().map_err(|_| "Camera mutex poisoned".to_string())?;
+        let connected = guard.as_mut().ok_or("No camera connected".to_string())?;
+        tokio::task::block_in_place(|| {
+            connected.camera.set(&name, &value_str)
+        })
+        .map_err(|e| format!("Failed to write feature '{name}': {e}"))
     }
 
     async fn exec_command(&self, name: &str) -> Result<(), String> {
         let name = name.to_string();
 
-        let mut guard = self
-            .camera
-            .lock()
-            .map_err(|_| "Camera mutex poisoned".to_string())?;
-        let connected = guard
-            .as_mut()
-            .ok_or_else(|| "No camera connected".to_string())?;
-        connected
-            .camera
-            .set(&name, "")
-            .map_err(|e| format!("Failed to execute command '{name}': {e}"))
+        let mut guard = self.camera.lock().map_err(|_| "Camera mutex poisoned".to_string())?;
+        let connected = guard.as_mut().ok_or("No camera connected".to_string())?;
+        tokio::task::block_in_place(|| {
+            connected.camera.set(&name, "")
+        })
+        .map_err(|e| format!("Failed to execute command '{name}': {e}"))
     }
 
     async fn bulk_read(&self, names: &[String]) -> Result<HashMap<String, NodeValueEntry>, String> {
-        let mut guard = self
-            .camera
-            .lock()
-            .map_err(|_| "Camera mutex poisoned".to_string())?;
-        let connected = guard
-            .as_mut()
-            .ok_or_else(|| "No camera connected".to_string())?;
-
-        let mut result = HashMap::with_capacity(names.len());
-        for name in names {
-            match connected.camera.get(name) {
-                Ok(value_str) => {
-                    result.insert(
-                        name.clone(),
-                        NodeValueEntry {
-                            value: string_to_json_value(&value_str),
-                            access_mode: "RW".to_string(),
-                            min: None,
-                            max: None,
-                            inc: None,
-                        },
-                    );
-                }
-                Err(e) => {
-                    warn!(name, error = %e, "Failed to read feature in bulk_read");
+        let mut guard = self.camera.lock().map_err(|_| "Camera mutex poisoned".to_string())?;
+        let connected = guard.as_mut().ok_or("No camera connected".to_string())?;
+        let result = tokio::task::block_in_place(|| {
+            let mut result = HashMap::with_capacity(names.len());
+            for name in names {
+                match connected.camera.get(name) {
+                    Ok(value_str) => {
+                        result.insert(
+                            name.clone(),
+                            NodeValueEntry {
+                                value: string_to_json_value(&value_str),
+                                access_mode: "RW".to_string(),
+                                min: None,
+                                max: None,
+                                inc: None,
+                            },
+                        );
+                    }
+                    Err(e) => {
+                        tracing::warn!(name, error = %e, "Failed to read feature in bulk_read");
+                    }
                 }
             }
-        }
-
+            result
+        });
         Ok(result)
     }
 
@@ -294,7 +273,8 @@ impl DeviceBackend for EmbeddedBackend {
         // Stop any previous acquisition.
         self.stop_acquisition_inner().await;
 
-        // Read dimensions and build the stream while holding the camera lock.
+        // Build the stream and start acquisition on a blocking thread
+        // (GigeRegisterIo uses block_on() internally, must not run in async context).
         let (width, height, frame_stream) = {
             let mut guard = self
                 .camera
@@ -304,69 +284,37 @@ impl DeviceBackend for EmbeddedBackend {
                 .as_mut()
                 .ok_or_else(|| "No camera connected".to_string())?;
 
-            let width = connected
-                .camera
-                .get("Width")
-                .ok()
-                .and_then(|s| s.parse::<u32>().ok())
-                .unwrap_or(640);
-            let height = connected
-                .camera
-                .get("Height")
-                .ok()
-                .and_then(|s| s.parse::<u32>().ok())
-                .unwrap_or(480);
+            let cam_ptr = &mut connected.camera as *mut Camera<GigeRegisterIo>;
 
-            // Get the camera's IP to detect the network interface.
-            let camera_ip = connected
-                .camera
-                .transport()
-                .lock_device()
-                .map_err(|e| format!("Failed to access device: {e}"))?
-                .remote_addr()
-                .ip();
+            tokio::task::block_in_place(move || {
+                let cam = unsafe { &mut *cam_ptr };
 
-            let camera_ipv4 = match camera_ip {
-                std::net::IpAddr::V4(ip) => ip,
-                _ => {
-                    return Err("IPv6 cameras are not supported for streaming".to_string());
-                }
-            };
+                let width = cam.get("Width")
+                    .ok()
+                    .and_then(|s| s.parse::<u32>().ok())
+                    .unwrap_or(640);
+                let height = cam.get("Height")
+                    .ok()
+                    .and_then(|s| s.parse::<u32>().ok())
+                    .unwrap_or(480);
 
-            let iface = viva_genicam::gige::nic::Iface::from_ipv4(camera_ipv4)
-                .map_err(|e| format!("Failed to detect network interface: {e}"))?;
+                // Get device handle for stream building.
+                let mut device_guard = cam.transport()
+                    .lock_device()
+                    .map_err(|e| format!("Failed to access device: {e}"))?;
 
-            // Build the GVSP stream — needs &mut GigeDevice.
-            // We must hold the device lock for this blocking-async sequence.
-            // GigeRegisterIo::lock_device() returns a std::sync::MutexGuard.
-            // StreamBuilder::build() is async but doesn't cross thread boundaries
-            // in a problematic way — it just does socket operations.
-            //
-            // However, since GigeDevice is behind a std::sync::Mutex inside
-            // GigeRegisterIo, and StreamBuilder needs &mut GigeDevice, we need
-            // to work with the MutexGuard directly.
-            let mut device_guard = connected
-                .camera
-                .transport()
-                .lock_device()
-                .map_err(|e| format!("Failed to access device: {e}"))?;
+                let camera_ip = device_guard.remote_addr().ip();
+                let camera_ipv4 = match camera_ip {
+                    std::net::IpAddr::V4(ip) => ip,
+                    _ => return Err("IPv6 cameras are not supported".to_string()),
+                };
 
-            // We can't call .build().await while holding a std::sync::MutexGuard
-            // across an await point. Instead, we need to drop the guard and use a
-            // different approach: build the stream outside the guard.
-            //
-            // The issue is that StreamBuilder::new needs &mut GigeDevice.
-            // Let's build stream parameters here and construct later.
+                let iface = viva_genicam::gige::nic::Iface::from_ipv4(camera_ipv4)
+                    .map_err(|e| format!("Failed to detect network interface: {e}"))?;
 
-            // Actually, StreamBuilder::build() is async because it does network I/O
-            // (bind socket, configure device). But we have the MutexGuard which is
-            // not Send. We need to handle this carefully.
-            //
-            // Solution: use tokio::task::block_in_place to run the async build
-            // within the blocking context while holding the lock.
-            let handle = tokio::runtime::Handle::current();
-            let stream = handle
-                .block_on(
+                // StreamBuilder::build() is async — use block_on from the blocking context.
+                let handle = tokio::runtime::Handle::current();
+                let stream = handle.block_on(
                     viva_genicam::StreamBuilder::new(&mut device_guard)
                         .iface(iface)
                         .auto_packet_size(true)
@@ -374,17 +322,16 @@ impl DeviceBackend for EmbeddedBackend {
                 )
                 .map_err(|e| format!("Failed to build stream: {e}"))?;
 
-            drop(device_guard);
+                drop(device_guard);
 
-            let frame_stream = FrameStream::new(stream, None);
+                let frame_stream = FrameStream::new(stream, None);
 
-            // Start acquisition on the camera.
-            connected
-                .camera
-                .acquisition_start()
-                .map_err(|e| format!("Failed to start acquisition: {e}"))?;
+                // Start acquisition on the camera.
+                cam.acquisition_start()
+                    .map_err(|e| format!("Failed to start acquisition: {e}"))?;
 
-            (width, height, frame_stream)
+                Ok((width, height, frame_stream))
+            })?
         };
 
         // Create WS broadcast channels.
