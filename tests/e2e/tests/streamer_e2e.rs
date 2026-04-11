@@ -20,7 +20,7 @@ use tokio::sync::watch;
 #[tokio::test(flavor = "multi_thread")]
 async fn test_streamer_synthetic_frame() {
     let _ = tracing_subscriber::fmt()
-        .with_env_filter("e2e_tests=info,genicam_streamer=debug,warn")
+        .with_env_filter("e2e_tests=info,viva_streamer=debug,warn")
         .try_init();
 
     let width: u32 = 64;
@@ -31,16 +31,16 @@ async fn test_streamer_synthetic_frame() {
     let session = Arc::new(zenoh::open(zenoh::Config::default()).await.unwrap());
 
     let image_key = viva_zenoh_api::keys::image(device_id);
-    let meta_key = genicam_streamer::meta::derive_meta_key(&image_key);
+    let meta_key = viva_streamer::meta::derive_meta_key(&image_key);
 
     // 2. Set up the embedded streamer (same code as Tauri's start_acquisition).
     let (frame_tx, _) = watch::channel(Bytes::new());
-    let info_tx = watch::channel(genicam_streamer::ws::StreamInfo::from_image_meta(
-        &genicam_streamer::meta::default_image_meta(width, height),
+    let info_tx = watch::channel(viva_streamer::ws::StreamInfo::from_image_meta(
+        &viva_streamer::meta::default_image_meta(width, height),
     ))
     .0;
     let shared_meta = Arc::new(tokio::sync::RwLock::new(
-        genicam_streamer::meta::default_image_meta(width, height),
+        viva_streamer::meta::default_image_meta(width, height),
     ));
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
 
@@ -50,7 +50,7 @@ async fn test_streamer_synthetic_frame() {
     let ws_url = format!("ws://127.0.0.1:{port}/ws");
 
     // Spawn Zenoh source task.
-    let source_config = genicam_streamer::zenoh_source::ZenohSourceConfig {
+    let source_config = viva_streamer::zenoh_source::ZenohSourceConfig {
         key_expr: image_key.clone(),
         meta_key: meta_key.clone(),
         fps_limit: None,
@@ -62,7 +62,7 @@ async fn test_streamer_synthetic_frame() {
         let info_tx = info_tx.clone();
         let shutdown_rx = shutdown_rx.clone();
         async move {
-            let _ = genicam_streamer::zenoh_source::run_with_session(
+            let _ = viva_streamer::zenoh_source::run_with_session(
                 session,
                 source_config,
                 shared_meta,
@@ -76,13 +76,13 @@ async fn test_streamer_synthetic_frame() {
 
     // Spawn WS server task.
     let _ws_handle = tokio::spawn({
-        let state = genicam_streamer::ws::AppState {
+        let state = viva_streamer::ws::AppState {
             frame_tx: frame_tx.clone(),
             info_tx: info_tx.clone(),
         };
         let shutdown_rx = shutdown_rx.clone();
         async move {
-            let _ = genicam_streamer::ws::run_server_with_listener(
+            let _ = viva_streamer::ws::run_server_with_listener(
                 listener,
                 "/ws".to_string(),
                 state,

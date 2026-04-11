@@ -56,8 +56,8 @@ async fn test_discovery_and_xml_fetch() {
     );
     assert!(xml.len() > 100, "XML should be non-trivial");
 
-    // Parse XML with genicam_xml_model
-    let graph = genicam_xml_model::parse_genicam_xml(&xml).expect("parse XML");
+    // Parse XML with viva_xml_model
+    let graph = viva_xml_model::parse_genicam_xml(&xml).expect("parse XML");
     assert!(!graph.nodes_by_name.is_empty(), "should have nodes");
     assert!(
         graph.nodes_by_name.contains_key("Width"),

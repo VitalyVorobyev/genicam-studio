@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/viva-studio-logo-and-text_opt.svg" alt="viva genicam" width="360">
+</p>
+
 # GenICam Studio
 
 GenICam Studio is an early-stage toolkit for parsing GenICam XML and exploring the resulting feature model in a UI (browser or desktop).

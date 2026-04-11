@@ -300,15 +300,15 @@ pub async fn start_embedded_streamer(
     width: u32,
     height: u32,
 ) -> Result<EmbeddedStreamerHarness, String> {
-    let meta_key = genicam_streamer::meta::derive_meta_key(&image_key);
+    let meta_key = viva_streamer::meta::derive_meta_key(&image_key);
 
     let (frame_tx, _) = watch::channel(Bytes::new());
-    let info_tx = watch::channel(genicam_streamer::ws::StreamInfo::from_image_meta(
-        &genicam_streamer::meta::default_image_meta(width, height),
+    let info_tx = watch::channel(viva_streamer::ws::StreamInfo::from_image_meta(
+        &viva_streamer::meta::default_image_meta(width, height),
     ))
     .0;
     let shared_meta = Arc::new(tokio::sync::RwLock::new(
-        genicam_streamer::meta::default_image_meta(width, height),
+        viva_streamer::meta::default_image_meta(width, height),
     ));
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
 
@@ -323,7 +323,7 @@ pub async fn start_embedded_streamer(
 
     tracing::info!("Embedded streamer test WS on {ws_url}");
 
-    let source_config = genicam_streamer::zenoh_source::ZenohSourceConfig {
+    let source_config = viva_streamer::zenoh_source::ZenohSourceConfig {
         key_expr: image_key,
         meta_key,
         fps_limit: Some(30),
@@ -336,7 +336,7 @@ pub async fn start_embedded_streamer(
         let info_tx = info_tx.clone();
         let shutdown_rx = shutdown_rx.clone();
         async move {
-            if let Err(err) = genicam_streamer::zenoh_source::run_with_session(
+            if let Err(err) = viva_streamer::zenoh_source::run_with_session(
                 session,
                 source_config,
                 shared_meta,
@@ -352,10 +352,10 @@ pub async fn start_embedded_streamer(
     });
 
     let ws_handle = tokio::spawn({
-        let state = genicam_streamer::ws::AppState { frame_tx, info_tx };
+        let state = viva_streamer::ws::AppState { frame_tx, info_tx };
         let shutdown_rx = shutdown_rx.clone();
         async move {
-            if let Err(err) = genicam_streamer::ws::run_server_with_listener(
+            if let Err(err) = viva_streamer::ws::run_server_with_listener(
                 listener,
                 "/ws".to_string(),
                 state,
