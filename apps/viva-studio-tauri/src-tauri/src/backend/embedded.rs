@@ -86,7 +86,7 @@ impl EmbeddedBackend {
     /// Start a background task that periodically discovers GigE cameras.
     pub fn start_discovery_task(self: &Arc<Self>, app: tauri::AppHandle, interval: Duration) {
         let backend = self.clone();
-        tokio::spawn(async move {
+        tauri::async_runtime::spawn(async move {
             let mut ticker = tokio::time::interval(interval);
             loop {
                 ticker.tick().await;
