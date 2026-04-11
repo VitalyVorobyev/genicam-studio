@@ -18,14 +18,9 @@ fn ping() -> &'static str {
 
 /// Determine whether the app should run in remote (Zenoh) mode.
 ///
-/// Returns `Some(config)` if a Zenoh config is found, `None` for embedded mode.
-/// Checked sources:
-/// 1. `ZENOH_CONFIG` environment variable (path to a JSON5 config file)
-/// 2. `config/zenoh-studio.json5` relative to the workspace root (dev mode)
-///
-/// When neither is found, the app defaults to embedded mode (direct camera access).
+/// Returns `Some(config)` only if the `ZENOH_CONFIG` environment variable is set.
+/// Embedded mode (direct camera access) is the default for all other cases.
 fn detect_zenoh_config() -> Option<zenoh::Config> {
-    // 1. Env var
     if let Ok(path) = std::env::var("ZENOH_CONFIG") {
         match zenoh::Config::from_file(&path) {
             Ok(cfg) => {
@@ -36,30 +31,7 @@ fn detect_zenoh_config() -> Option<zenoh::Config> {
         }
     }
 
-    // 2. Dev-mode config adjacent to the workspace
-    let dev_candidates = [
-        concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../../../config/zenoh-studio.json5"
-        ),
-        concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../../config/zenoh-studio.json5"
-        ),
-    ];
-    for candidate in &dev_candidates {
-        if std::path::Path::new(candidate).exists() {
-            match zenoh::Config::from_file(candidate) {
-                Ok(cfg) => {
-                    tracing::info!("Loaded Zenoh config from {candidate} — remote mode");
-                    return Some(cfg);
-                }
-                Err(e) => tracing::warn!("Failed to load {candidate}: {e}"),
-            }
-        }
-    }
-
-    tracing::info!("No Zenoh config found — using embedded mode (direct camera access)");
+    tracing::info!("No ZENOH_CONFIG set — using embedded mode (direct camera access)");
     None
 }
 
