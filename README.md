@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/viva-studio-logo-and-text_opt.svg" alt="viva genicam" width="360">
+</p>
+
 # GenICam Studio
 
 GenICam Studio is an early-stage toolkit for parsing GenICam XML and exploring the resulting feature model in a UI (browser or desktop).
@@ -31,6 +35,7 @@ GenICam Studio is organized as a monorepo with a strict separation of responsibi
 - **WASM adapter (`crates/*_wasm`)**: thin `wasm-bindgen` wrappers so the browser can reuse the Rust parser.
 - **React UI (`ui/`)**: renders the `UiGraph` contract and provides a feature browser UX. No XML parsing here.
 - **Desktop shell (`apps/`)**: Tauri v2 app that hosts the UI and exposes native commands. No duplicated parsing.
+- **Streamer (`apps/`)**: standalone Zenoh → BMP → WebSocket bridge for Mono8 frames.
 
 ## Architecture (contract-first)
 
@@ -99,9 +104,9 @@ cargo test
 
 ```sh
 cd ui/genicam-studio-ui
-npm ci
-npm run wasm:build
-npm run dev
+bun install
+bun run wasm:build
+bun run dev
 ```
 
 Then load the sample XML fixture:
@@ -111,7 +116,7 @@ Then load the sample XML fixture:
 
 ```sh
 cd ui/genicam-studio-ui
-npm ci
+bun install
 ```
 
 ```sh
@@ -121,7 +126,7 @@ cargo tauri dev
 ```
 
 Notes:
-- `apps/genicam-studio-tauri/src-tauri/tauri.conf.json` points Tauri to the Vite dev server at `http://localhost:5173`.
+- `apps/genicam-studio-tauri/src-tauri/tauri.conf.json` points Tauri to the Vite dev server at `http://localhost:5183`.
 - The Tauri dev workflow starts the UI dev server via `beforeDevCommand`.
 
 ## Building (production)
@@ -130,8 +135,8 @@ Notes:
 
 ```sh
 cd ui/genicam-studio-ui
-npm ci
-npm run build
+bun install
+bun run build
 ```
 
 ### Build the desktop app
@@ -152,6 +157,41 @@ let xml = std::fs::read_to_string("camera.xml")?;
 let graph = parse_genicam_xml(&xml)?;
 println!("root category: {}", graph.root_category);
 ```
+
+## WebSocket Streamer (Zenoh → BMP → WebSocket)
+
+The streamer is a small standalone process that:
+
+- Subscribes to a Zenoh key that publishes **tightly-packed Mono8** frames (`width * height` bytes)
+- Encodes each frame as an 8‑bit BMP (grayscale palette)
+- Broadcasts the latest BMP to all WebSocket clients (latest-only, bounded memory)
+
+### Run
+
+```sh
+cargo run -p genicam-ws-streamer -- \
+  --image-key quiss/sensors/svcA/devices/cam0/image \
+  --width 640 \
+  --height 480
+```
+
+Optional flags:
+
+- `--bind 127.0.0.1:8081` (default)
+- `--path /ws` (default)
+- `--fps-limit 30` (drop frames above this rate)
+- `--zenoh-config <JSON5|FILE>` (inline JSON5 string or a config file path)
+
+### Quick test with `websocat`
+
+The server sends a small JSON info message first, then binary BMP frames.
+To verify the BMP stream quickly:
+
+```sh
+websocat ws://127.0.0.1:8081/ws --binary | head -c 2
+```
+
+You should see `BM` once the first frame arrives.
 
 ## Code map (modules + components)
 
@@ -187,6 +227,13 @@ println!("root category: {}", graph.root_category);
 
 - `apps/genicam-studio-tauri/src-tauri/src/commands/xml_model.rs`: native parse + fixture commands (returns the same `ParseXmlResponse` shape as WASM)
 - `apps/genicam-studio-tauri/src-tauri/src/state/model_state.rs`: stores the last loaded model to avoid re-parsing
+
+### Streamer (standalone)
+
+- `apps/genicam-ws-streamer/src/main.rs`: CLI + wiring + shutdown
+- `apps/genicam-ws-streamer/src/bmp.rs`: Mono8 BMP encoder + tests
+- `apps/genicam-ws-streamer/src/zenoh_source.rs`: Zenoh subscriber loop + FPS drop + watch channel
+- `apps/genicam-ws-streamer/src/ws.rs`: WebSocket server + fan-out
 
 ## Scripts and CI
 

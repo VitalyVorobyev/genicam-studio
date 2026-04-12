@@ -1,1 +1,0 @@
-{"main":{"identifier":"main","description":"Main window permissions (core APIs + app commands).","local":true,"windows":["main"],"permissions":["core:default","ping","xml-model"]}}
