@@ -13,6 +13,7 @@ pub mod remote;
 use std::collections::HashMap;
 
 use async_trait::async_trait;
+use viva_zenoh_api::FeatureState;
 
 use crate::state::device_state::{DeviceInfo, NodeValueEntry, StreamerInfo};
 
@@ -61,7 +62,41 @@ pub trait DeviceBackend: Send + Sync + 'static {
     async fn disconnect(&self, device_id: &str) -> Result<(), String>;
 
     /// Read a single feature value from the connected camera.
+    ///
+    /// Legacy projection of [`get_feature_state`] into the older shape kept
+    /// for compatibility during the [`FeatureState`] migration. New callers
+    /// should prefer `get_feature_state`.
     async fn get_feature(&self, name: &str) -> Result<NodeValueEntry, String>;
+
+    /// Read the full live state of a feature: value, access mode, kind, range,
+    /// available enum entries, unit, and implementation/availability flags.
+    ///
+    /// This is the authoritative snapshot the UI consumes as its single source
+    /// of truth. The default implementation projects from [`get_feature`] with
+    /// `kind: "Unknown"` and no range / enum data — good enough for remote
+    /// mode stubs during migration. Embedded backends override this to perform
+    /// typed reads and return full introspection.
+    async fn get_feature_state(&self, name: &str) -> Result<FeatureState, String> {
+        let entry = self.get_feature(name).await?;
+        let numeric = match (entry.min, entry.max) {
+            (Some(min), Some(max)) => Some(viva_zenoh_api::NumericRange {
+                min,
+                max,
+                inc: entry.inc,
+            }),
+            _ => None,
+        };
+        Ok(FeatureState {
+            value: entry.value,
+            access_mode: entry.access_mode,
+            kind: "Unknown".to_string(),
+            is_implemented: true,
+            is_available: true,
+            numeric,
+            enum_available: None,
+            unit: None,
+        })
+    }
 
     /// Write a feature value on the connected camera.
     async fn set_feature(&self, name: &str, value: &serde_json::Value) -> Result<(), String>;
@@ -71,6 +106,21 @@ pub trait DeviceBackend: Send + Sync + 'static {
 
     /// Read multiple feature values in a single round-trip.
     async fn bulk_read(&self, names: &[String]) -> Result<HashMap<String, NodeValueEntry>, String>;
+
+    /// Bulk variant of [`get_feature_state`]. Default implementation loops; an
+    /// embedded backend can override for a single camera-lock acquisition.
+    async fn bulk_feature_state(
+        &self,
+        names: &[String],
+    ) -> Result<HashMap<String, FeatureState>, String> {
+        let mut out = HashMap::with_capacity(names.len());
+        for name in names {
+            if let Ok(state) = self.get_feature_state(name).await {
+                out.insert(name.clone(), state);
+            }
+        }
+        Ok(out)
+    }
 
     /// Start image acquisition and return the WebSocket URL for the stream.
     async fn start_acquisition(&self) -> Result<StreamerInfo, String>;

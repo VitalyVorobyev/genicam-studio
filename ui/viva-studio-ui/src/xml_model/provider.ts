@@ -1,13 +1,32 @@
 import type { ParseXmlResponse, UiGraph } from "./uigraph";
 import type { NodeValue } from "./values";
+import type { CommandResult, FeatureState } from "../device/types";
 
 export interface XmlModelProvider {
   parseXml(xml: string): Promise<ParseXmlResponse>;
   listFixtures?(): Promise<string[]>;
   loadFixture?(name: string): Promise<ParseXmlResponse>;
   getCurrentModel?(): Promise<ParseXmlResponse | null>;
-  applyNodeValue?(nodeName: string, value: NodeValue): Promise<void>;
-  executeCommand?(nodeName: string): Promise<void>;
+  /**
+   * Apply a value to the device and return the refreshed `FeatureState` that
+   * results. Callers MUST reconcile their draft form state to
+   * `result.value` — devices routinely clamp or round writes, and that is the
+   * authoritative post-write state.
+   */
+  applyNodeValue?(nodeName: string, value: NodeValue): Promise<FeatureState>;
+  /**
+   * Execute a Command node. The returned [`CommandResult`] carries `ok`/error
+   * plus `affected_states` — a map of nodes whose value changed as a side
+   * effect (e.g. `AcquisitionStatus` after `AcquisitionStart`). Callers
+   * surface `error` to the user and cache `affected_states` as live state.
+   */
+  executeCommand?(nodeName: string): Promise<CommandResult>;
+  /**
+   * Read the authoritative live state of a single node. Used on selection to
+   * seed the editor with real values / ranges / enum entries rather than
+   * falling back to static XML.
+   */
+  queryFeatureState?(nodeName: string): Promise<FeatureState>;
 }
 
 // Tauri provider bridges the UI to native Rust parsing. It also exposes fixtures
@@ -29,12 +48,19 @@ export class TauriProvider implements XmlModelProvider {
     return await invokeNative<ParseXmlResponse | null>("get_current_model");
   }
 
-  async applyNodeValue(nodeName: string, value: NodeValue): Promise<void> {
-    await invokeNative("write_node", { nodeName, value: nodeValueToJson(value) });
+  async applyNodeValue(nodeName: string, value: NodeValue): Promise<FeatureState> {
+    return await invokeNative<FeatureState>("write_node", {
+      nodeName,
+      value: nodeValueToJson(value),
+    });
   }
 
-  async executeCommand(nodeName: string): Promise<void> {
-    await invokeNative("execute_command", { nodeName });
+  async executeCommand(nodeName: string): Promise<CommandResult> {
+    return await invokeNative<CommandResult>("execute_command", { nodeName });
+  }
+
+  async queryFeatureState(nodeName: string): Promise<FeatureState> {
+    return await invokeNative<FeatureState>("query_feature_state", { nodeName });
   }
 }
 

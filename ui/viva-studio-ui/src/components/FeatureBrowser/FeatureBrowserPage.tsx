@@ -8,7 +8,8 @@ import React, {
 import type { ChangeEvent, KeyboardEvent } from "react";
 import type { Diag, ParseXmlResponse, UiGraph, UiNode } from "../../xml_model/uigraph";
 import type { NodeValue } from "../../xml_model/values";
-import type { NodeValueEntry } from "../../device/types";
+import type { FeatureState, NodeValueEntry } from "../../device/types";
+import { useToast } from "../../context/ToastContext";
 import { TauriProvider, type XmlModelProvider } from "../../xml_model/provider";
 import { isUnknownKind, nodeDisplayName, nodeKindCssKey, nodeKindIcon } from "../../xml_model/helpers";
 import { useDraftValues } from "../../state/useDraftValues";
@@ -49,6 +50,16 @@ type ParseStatus =
 interface FeatureBrowserPageProps {
   externalModel?: ParseXmlResponse | null;
   liveValues?: Map<string, NodeValueEntry>;
+  /**
+   * Authoritative live state map keyed by node name. Preferred over
+   * `liveValues` for everything except legacy call-sites that only need the
+   * value/access_mode pair. When a node is in this map, the Feature Browser
+   * uses its `numeric` range, `enum_available`, and `access_mode` to drive the
+   * editor controls — no fallback to static XML.
+   */
+  liveStates?: Map<string, FeatureState>;
+  /** Merge a single `FeatureState` back into the live cache (post-apply/execute). */
+  onMergeState?: (name: string, state: FeatureState) => void;
   isConnected?: boolean;
   onRefreshAll?: () => Promise<void>;
 }
@@ -56,9 +67,12 @@ interface FeatureBrowserPageProps {
 export function FeatureBrowserPage({
   externalModel,
   liveValues = new Map(),
+  liveStates = new Map(),
+  onMergeState,
   isConnected = false,
   onRefreshAll,
 }: FeatureBrowserPageProps = {}) {
+  const toast = useToast();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const presetInputRef = useRef<HTMLInputElement | null>(null);
   // T7.2 — search input ref for Ctrl+F focus
@@ -351,6 +365,7 @@ export function FeatureBrowserPage({
     : false;
 
   const selectedLiveValue = selectedNode ? liveValues.get(selectedNode.name) : undefined;
+  const selectedLiveState = selectedNode ? liveStates.get(selectedNode.name) : undefined;
 
   const onSelectNode = useCallback(
     (name: string) => {
@@ -397,13 +412,54 @@ export function FeatureBrowserPage({
     if (!selectedHasDraft || selectedDraftErrors.length > 0) return;
     const value = drafts[selectedNode.name];
     if (value === undefined) return;
-    await provider.applyNodeValue(selectedNode.name, value);
-  }, [drafts, provider, selectedDraftErrors.length, selectedHasDraft, selectedNode]);
+    try {
+      const result = await provider.applyNodeValue(selectedNode.name, value);
+      // Merge the refreshed state into the cache so the form mirrors what
+      // the device actually accepted (clamping/rounding applies). Then clear
+      // the draft — the editor falls back to `liveState.value`, which is now
+      // correct, rather than rendering "(unset)".
+      if (onMergeState) {
+        onMergeState(selectedNode.name, result);
+      }
+      resetDraft(selectedNode.name);
+    } catch (e) {
+      toast.addToast("error", `Apply failed: ${formatErrorMessage(e)}`);
+    }
+  }, [
+    drafts,
+    provider,
+    selectedDraftErrors.length,
+    selectedHasDraft,
+    selectedNode,
+    resetDraft,
+    onMergeState,
+    toast,
+  ]);
 
   const onExecute = useCallback(async () => {
     if (!provider.executeCommand || !selectedNode) return;
-    await provider.executeCommand(selectedNode.name);
-  }, [provider, selectedNode]);
+    try {
+      const result = await provider.executeCommand(selectedNode.name);
+      if (!result.ok) {
+        toast.addToast(
+          "error",
+          `${selectedNode.name} failed${result.error ? `: ${result.error}` : ""}`,
+        );
+        return;
+      }
+      toast.addToast("success", `${selectedNode.name} executed`);
+      // Fold in any side-effect states (e.g. AcquisitionStatus.active after
+      // AcquisitionStart) so the UI reflects the post-execute world without
+      // a manual refresh.
+      if (onMergeState && result.affected_states) {
+        for (const [name, state] of Object.entries(result.affected_states)) {
+          onMergeState(name, state);
+        }
+      }
+    } catch (e) {
+      toast.addToast("error", `${selectedNode.name} failed: ${formatErrorMessage(e)}`);
+    }
+  }, [provider, selectedNode, onMergeState, toast]);
 
   const applicableDraftCount = useMemo(
     () => countApplicableDrafts(drafts, errors),
@@ -428,7 +484,8 @@ export function FeatureBrowserPage({
       const item = applicable[i];
       if (!item) continue;
       try {
-        await provider.applyNodeValue(item.name, item.value);
+        const result = await provider.applyNodeValue(item.name, item.value);
+        if (onMergeState) onMergeState(item.name, result);
         resetDraft(item.name);
       } catch {
         // Keep failed drafts in state so the user can inspect and retry.
@@ -437,7 +494,7 @@ export function FeatureBrowserPage({
     }
 
     setBatchProgress(null);
-  }, [provider, graph, drafts, errors, resetDraft]);
+  }, [provider, graph, drafts, errors, resetDraft, onMergeState]);
 
   // T7.1+T7.2 — filtered search results
   const searchResults = useMemo(() => {
@@ -691,6 +748,7 @@ export function FeatureBrowserPage({
             executeDisabledReason={executeDisabledReason}
             onExecute={onExecute}
             liveValue={selectedLiveValue}
+            liveState={selectedLiveState}
             onSelectNode={onSelectNode}
           />
         </section>

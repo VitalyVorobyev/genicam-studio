@@ -127,8 +127,56 @@ opaque string without `/`).
     }
   }
   ```
-- **Rust type:** request: `BulkReadRequest`; response: `BulkReadResponse` — both in `genicam_zenoh_api`
+- **Rust type:** request: `BulkReadRequest`; response: `BulkReadResponse` — both in `viva_zenoh_api`
 - **Semantics:** Batch read of multiple node values in a single round-trip. Unknown node names are silently omitted. An empty `names` list returns an empty `values` map. The per-entry shape is identical to `nodes/{name}/value`.
+
+### `genicam/devices/{device_id}/nodes/{node_name}/state` *(API v2)*
+
+- **Direction:** Service → App (subscribe) + App → Service (queryable GET)
+- **Mechanism:** `put` on change **and** queryable reply
+- **Payload (JSON):** a `FeatureState` object:
+  ```json
+  {
+    "value": 1920,
+    "access_mode": "RW",
+    "kind": "Integer",
+    "is_implemented": true,
+    "is_available": true,
+    "numeric": { "min": 16, "max": 4096, "inc": 8 },
+    "unit": "px"
+  }
+  ```
+  Enumeration nodes also carry `"enum_available": ["Off", "Once"]`.
+- **Rust type:** `FeatureState` in `viva_zenoh_api`
+- **Semantics:** Authoritative live state of a feature. `min/max/inc` apply to the current selector context; `enum_available` is the set of entries the device reports as currently implemented/available. The legacy `nodes/{name}/value` key continues to be published in parallel for backward compatibility and is populated from the same `FeatureState` via `FeatureState::to_node_value_update`. Clients that speak API v2 should prefer this key.
+
+### `genicam/devices/{device_id}/nodes/bulk/state` *(API v2)*
+
+- **Direction:** App → Service (queryable GET)
+- **Request (JSON):** `{ "names": ["ExposureTime", "PixelFormat", "Width"] }` (same shape as `BulkReadRequest`)
+- **Response (JSON):** a `HashMap<String, FeatureState>`:
+  ```json
+  {
+    "PixelFormat": {
+      "value": "Mono8",
+      "access_mode": "RW",
+      "kind": "Enumeration",
+      "is_implemented": true,
+      "is_available": true,
+      "enum_available": ["Mono8", "Mono16"]
+    },
+    "Width": {
+      "value": 1920,
+      "access_mode": "RW",
+      "kind": "Integer",
+      "is_implemented": true,
+      "is_available": true,
+      "numeric": { "min": 16, "max": 4096, "inc": 8 }
+    }
+  }
+  ```
+- **Rust type:** request: `BulkReadRequest`; response: `HashMap<String, FeatureState>` — types in `viva_zenoh_api`
+- **Semantics:** Batch introspection. Names that cannot be read are silently omitted (same as `nodes/bulk/read`).
 
 ---
 

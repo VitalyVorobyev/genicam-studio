@@ -29,6 +29,15 @@ export interface StreamerInfo {
   height: number;
 }
 
+/**
+ * Legacy node value payload. New code should use {@link FeatureState} instead —
+ * it carries the same value + access mode plus live introspection (kind,
+ * numeric range, enum availability, implemented/available flags).
+ *
+ * Kept for backward compatibility with services/providers that still emit the
+ * older shape; the Tauri backend projects `FeatureState` to this type until
+ * the UI migration is complete.
+ */
 export interface NodeValueEntry {
   value: number | string | boolean;
   access_mode: string;
@@ -38,6 +47,57 @@ export interface NodeValueEntry {
   max?: number;
   /** Optional runtime increment (step) reported by the camera service. */
   inc?: number;
+}
+
+/** Numeric range for an Integer or Float feature at the current camera state. */
+export interface NumericRange {
+  min: number;
+  max: number;
+  /** Optional increment (step); absent when the feature has no grid. */
+  inc?: number;
+}
+
+/**
+ * Live state of a GenICam feature at a single point in time.
+ *
+ * Authoritative source of truth for the Feature Browser UI: the current value,
+ * access mode, kind, numeric range, and available enum entries all reflect
+ * what the device reports now (not the static XML descriptor).
+ *
+ * - `kind` matches `viva_genapi::Node::kind_name` ("Integer", "Float",
+ *   "Enumeration", "Boolean", "Command", "Category", "SwissKnife", "Converter",
+ *   "IntConverter", "StringReg"). Tolerate unknown kinds.
+ * - `access_mode` uses GenICam spelling: `"RO"`, `"RW"`, `"WO"`, `"NA"`.
+ * - `is_implemented` / `is_available` default to `true` when the service does
+ *   not yet evaluate them.
+ * - `numeric` is present only for Integer/Float nodes with a resolvable range.
+ *   When absent, the UI must render "range unknown" — never invent `i64::MIN` /
+ *   `i64::MAX` fallbacks.
+ * - `enum_available` is present only for Enumeration nodes and replaces the
+ *   static XML enum list as the source of dropdown options.
+ */
+export interface FeatureState {
+  value: number | string | boolean;
+  access_mode: string;
+  kind: string;
+  is_implemented: boolean;
+  is_available: boolean;
+  numeric?: NumericRange;
+  enum_available?: string[];
+  unit?: string;
+}
+
+/**
+ * Response from executing a Command node. `ok=false` means the backend rejected
+ * the request; `error` carries the message. `affected_states` is a map of
+ * nodes whose post-execution value the backend already re-read on our behalf
+ * (e.g. `AcquisitionStatus` after `AcquisitionStart`), so the UI can update
+ * badges and form inputs without a second round-trip.
+ */
+export interface CommandResult {
+  ok: boolean;
+  error?: string;
+  affected_states: Record<string, FeatureState>;
 }
 
 export interface ImageMeta {

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-viva-zenoh-api = "0.2.0"
+viva-zenoh-api = "0.2.3"
 viva_xml_model = { path = "../../crates/viva_xml_model" }
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }

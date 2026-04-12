@@ -42,7 +42,7 @@ function AppLayoutInner() {
     }
   );
   const [autoReconnectOffered, setAutoReconnectOffered] = useState(false);
-  const { liveValues, seedValues } = useNodeValues();
+  const { liveValues, liveStates, seedValues, mergeState } = useNodeValues();
   const { readBulk } = useNodeBulkRead();
   const { status: acqStatus, streamerInfo, start: startAcq, stop: stopAcq } = useAcquisition();
   const { recordingStatus, startRecording, stopRecording } = useRecording();
@@ -268,6 +268,8 @@ function AppLayoutInner() {
               <FeatureBrowserPage
                 externalModel={externalModel}
                 liveValues={liveValues}
+                liveStates={liveStates}
+                onMergeState={mergeState}
                 isConnected={isConnected}
                 onRefreshAll={handleRefreshAll}
               />

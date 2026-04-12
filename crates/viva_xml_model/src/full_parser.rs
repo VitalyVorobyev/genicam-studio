@@ -6,6 +6,58 @@ use viva_genapi_xml::{AccessMode, EnumValueSrc, NodeDecl, NodeMeta, XmlModel};
 use crate::error::ParseError;
 use crate::model::*;
 
+/// Build Integer constraints, returning `None` when the XML declared no
+/// explicit range (both `min == i64::MIN` AND `max == i64::MAX` — the parser
+/// sentinels for "no explicit bound") AND no `inc`. In that case the UI
+/// renders "range unknown" instead of showing the `i64::MIN..i64::MAX`
+/// bounds — these are parser sentinels, not device-reported ranges.
+///
+/// When `pMin`/`pMax` references exist, the live-mode [`FeatureState::numeric`]
+/// from the backend overrides whatever static hint we produce here, so we do
+/// not need special handling for that case — sentinels mean "unknown at
+/// parse time" whether or not runtime can resolve them later.
+fn integer_constraints(
+    min: i64,
+    max: i64,
+    inc: Option<i64>,
+) -> Option<NumericConstraints> {
+    let min_is_sentinel = min == i64::MIN;
+    let max_is_sentinel = max == i64::MAX;
+    if min_is_sentinel && max_is_sentinel && inc.is_none() {
+        return None;
+    }
+    Some(NumericConstraints {
+        min: if min_is_sentinel {
+            None
+        } else {
+            Some(min as f64)
+        },
+        max: if max_is_sentinel {
+            None
+        } else {
+            Some(max as f64)
+        },
+        inc: inc.map(|i| i as f64),
+        value: None,
+    })
+}
+
+/// Same idea as [`integer_constraints`] but for Float nodes. Float sentinels
+/// are `f64::MIN`/`f64::MAX`.
+fn float_constraints(min: f64, max: f64) -> Option<NumericConstraints> {
+    let min_is_sentinel = min == f64::MIN;
+    let max_is_sentinel = max == f64::MAX;
+    if min_is_sentinel && max_is_sentinel {
+        return None;
+    }
+    Some(NumericConstraints {
+        min: if min_is_sentinel { None } else { Some(min) },
+        max: if max_is_sentinel { None } else { Some(max) },
+        inc: None,
+        value: None,
+    })
+}
+
 /// Parse GenICam XML into a [`UiGraph`] using the full genapi pipeline.
 ///
 /// Produces a UiGraph with resolved dependencies, precise integer constraints,
@@ -87,6 +139,7 @@ fn build_from_xml_model(xml_model: &XmlModel) -> Result<UiGraph, ParseError> {
             name: cat_name,
             meta,
             children,
+            ..
         } = decl
         {
             categories.insert(
@@ -181,12 +234,7 @@ fn node_decl_to_ui_node(decl: &NodeDecl, nodemap: &NodeMap) -> (String, UiNode) 
                     access_mode: Some(access_mode_str(*access)),
                     unit: unit.clone(),
                     representation: representation_str(meta),
-                    constraints: Some(NumericConstraints {
-                        min: Some(*min as f64),
-                        max: Some(*max as f64),
-                        inc: inc.map(|i| i as f64),
-                        value: None,
-                    }),
+                    constraints: integer_constraints(*min, *max, *inc),
                     enum_entries: vec![],
                     raw: empty_raw("Integer"),
                     dependencies: deps,
@@ -226,12 +274,7 @@ fn node_decl_to_ui_node(decl: &NodeDecl, nodemap: &NodeMap) -> (String, UiNode) 
                     access_mode: Some(access_mode_str(*access)),
                     unit: unit.clone(),
                     representation: representation_str(meta),
-                    constraints: Some(NumericConstraints {
-                        min: Some(*min),
-                        max: Some(*max),
-                        inc: None,
-                        value: None,
-                    }),
+                    constraints: float_constraints(*min, *max),
                     enum_entries: vec![],
                     raw: empty_raw("Float"),
                     dependencies: deps,
@@ -554,12 +597,7 @@ fn node_decl_to_ui_node_simple(decl: &NodeDecl) -> UiNode {
                 access_mode: Some(access_mode_str(*access)),
                 unit: unit.clone(),
                 representation: representation_str(meta),
-                constraints: Some(NumericConstraints {
-                    min: Some(*min as f64),
-                    max: Some(*max as f64),
-                    inc: inc.map(|i| i as f64),
-                    value: None,
-                }),
+                constraints: integer_constraints(*min, *max, *inc),
                 enum_entries: vec![],
                 raw: empty_raw("Integer"),
                 dependencies: deps,
@@ -595,12 +633,7 @@ fn node_decl_to_ui_node_simple(decl: &NodeDecl) -> UiNode {
                 access_mode: Some(access_mode_str(*access)),
                 unit: unit.clone(),
                 representation: representation_str(meta),
-                constraints: Some(NumericConstraints {
-                    min: Some(*min),
-                    max: Some(*max),
-                    inc: None,
-                    value: None,
-                }),
+                constraints: float_constraints(*min, *max),
                 enum_entries: vec![],
                 raw: empty_raw("Float"),
                 dependencies: deps,
@@ -1054,6 +1087,7 @@ mod tests {
             p_max: None,
             p_min: None,
             value: None,
+            predicates: Default::default(),
         };
         assert_eq!(decl_name(&int_decl), "W");
 
@@ -1061,7 +1095,53 @@ mod tests {
             name: "Root".to_string(),
             meta: NodeMeta::default(),
             children: vec![],
+            predicates: Default::default(),
         };
         assert_eq!(decl_name(&cat_decl), "Root");
+    }
+
+    // ── Integer / Float sentinel fallback ──────────────────────────────────
+
+    #[test]
+    fn integer_constraints_returns_none_when_both_bounds_are_sentinels() {
+        // No explicit <Min>/<Max> → "range unknown". Live mode overrides
+        // via FeatureState.numeric.
+        let c = integer_constraints(i64::MIN, i64::MAX, None);
+        assert!(
+            c.is_none(),
+            "sentinel-only integer must not leak i64::MIN/MAX: {c:?}"
+        );
+    }
+
+    #[test]
+    fn integer_constraints_preserves_explicit_min() {
+        let c = integer_constraints(1, i64::MAX, None);
+        let c = c.expect("explicit min should produce Some constraints");
+        assert_eq!(c.min, Some(1.0));
+        assert!(c.max.is_none(), "sentinel max should not leak");
+    }
+
+    #[test]
+    fn integer_constraints_returns_some_when_inc_present_even_if_bounds_sentinels() {
+        // Inc alone is still useful information for the UI (step size).
+        let c = integer_constraints(i64::MIN, i64::MAX, Some(8));
+        let c = c.expect("inc alone should still produce constraints");
+        assert_eq!(c.inc, Some(8.0));
+        assert!(c.min.is_none());
+        assert!(c.max.is_none());
+    }
+
+    #[test]
+    fn float_constraints_returns_none_for_f64_sentinels() {
+        let c = float_constraints(f64::MIN, f64::MAX);
+        assert!(c.is_none(), "sentinel-only float must not leak: {c:?}");
+    }
+
+    #[test]
+    fn float_constraints_preserves_explicit_bounds() {
+        let c = float_constraints(0.0, 100.0);
+        let c = c.expect("explicit bounds should produce Some constraints");
+        assert_eq!(c.min, Some(0.0));
+        assert_eq!(c.max, Some(100.0));
     }
 }

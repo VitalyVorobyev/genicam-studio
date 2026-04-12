@@ -21,7 +21,9 @@ use bytes::Bytes;
 use tauri::Emitter;
 use tokio::sync::{Mutex as AsyncMutex, RwLock, watch};
 use tracing::{info, warn};
+use viva_genicam::genapi::{AccessMode, Node};
 use viva_genicam::{Camera, FrameStream, GigeRegisterIo};
+use viva_zenoh_api::{FeatureState, NumericRange};
 
 use crate::state::device_state::{DeviceInfo, NodeValueEntry, StreamerInfo};
 
@@ -197,24 +199,20 @@ impl DeviceBackend for EmbeddedBackend {
     }
 
     async fn get_feature(&self, name: &str) -> Result<NodeValueEntry, String> {
+        // Project the rich state into the legacy entry so existing callers
+        // (Tauri commands, cache updaters) keep working during migration.
+        let state = self.get_feature_state(name).await?;
+        Ok(feature_state_to_entry(&state))
+    }
+
+    async fn get_feature_state(&self, name: &str) -> Result<FeatureState, String> {
         let name = name.to_string();
         let mut guard = self.camera.lock().map_err(|_| "Camera mutex poisoned".to_string())?;
         let connected = guard.as_mut().ok_or("No camera connected".to_string())?;
         // Camera::get() calls RegisterIo::read() which uses block_on() internally.
         // block_in_place converts the current async thread to a blocking thread,
         // allowing nested block_on to work without panic.
-        let value_str = tokio::task::block_in_place(|| {
-            connected.camera.get(&name)
-        })
-        .map_err(|e| format!("Failed to read feature '{name}': {e}"))?;
-
-        Ok(NodeValueEntry {
-            value: string_to_json_value(&value_str),
-            access_mode: "RW".to_string(),
-            min: None,
-            max: None,
-            inc: None,
-        })
+        tokio::task::block_in_place(|| build_feature_state(&connected.camera, &name))
     }
 
     async fn set_feature(&self, name: &str, value: &serde_json::Value) -> Result<(), String> {
@@ -241,26 +239,28 @@ impl DeviceBackend for EmbeddedBackend {
     }
 
     async fn bulk_read(&self, names: &[String]) -> Result<HashMap<String, NodeValueEntry>, String> {
+        let states = self.bulk_feature_state(names).await?;
+        Ok(states
+            .into_iter()
+            .map(|(k, s)| (k, feature_state_to_entry(&s)))
+            .collect())
+    }
+
+    async fn bulk_feature_state(
+        &self,
+        names: &[String],
+    ) -> Result<HashMap<String, FeatureState>, String> {
         let mut guard = self.camera.lock().map_err(|_| "Camera mutex poisoned".to_string())?;
         let connected = guard.as_mut().ok_or("No camera connected".to_string())?;
         let result = tokio::task::block_in_place(|| {
             let mut result = HashMap::with_capacity(names.len());
             for name in names {
-                match connected.camera.get(name) {
-                    Ok(value_str) => {
-                        result.insert(
-                            name.clone(),
-                            NodeValueEntry {
-                                value: string_to_json_value(&value_str),
-                                access_mode: "RW".to_string(),
-                                min: None,
-                                max: None,
-                                inc: None,
-                            },
-                        );
+                match build_feature_state(&connected.camera, name) {
+                    Ok(state) => {
+                        result.insert(name.clone(), state);
                     }
                     Err(e) => {
-                        tracing::warn!(name, error = %e, "Failed to read feature in bulk_read");
+                        tracing::warn!(name, error = %e, "Failed to read feature in bulk_feature_state");
                     }
                 }
             }
@@ -471,9 +471,7 @@ impl DeviceBackend for EmbeddedBackend {
             .lock()
             .map_err(|_| "Camera mutex poisoned".to_string())?;
         if let Some(connected) = guard.as_mut() {
-            connected
-                .camera
-                .acquisition_stop()
+            tokio::task::block_in_place(|| connected.camera.acquisition_stop())
                 .map_err(|e| format!("Failed to stop acquisition: {e}"))?;
         }
 
@@ -492,42 +490,55 @@ impl DeviceBackend for EmbeddedBackend {
     }
 
     async fn get_network_config(&self) -> Result<NetworkConfig, String> {
-        let guard = self
-            .camera
-            .lock()
-            .map_err(|_| "Camera mutex poisoned".to_string())?;
-        let connected = guard
-            .as_ref()
-            .ok_or_else(|| "No camera connected".to_string())?;
+        let (current_ip, persistent_ip, persistent_subnet, persistent_gateway, device_id) = {
+            let guard = self
+                .camera
+                .lock()
+                .map_err(|_| "Camera mutex poisoned".to_string())?;
+            let connected = guard
+                .as_ref()
+                .ok_or_else(|| "No camera connected".to_string())?;
+            let device_id = connected.device_id.clone();
 
-        let mut device_guard = connected
-            .camera
-            .transport()
-            .lock_device()
-            .map_err(|e| format!("Failed to access device: {e}"))?;
+            tokio::task::block_in_place(|| {
+                let mut device_guard = connected
+                    .camera
+                    .transport()
+                    .lock_device()
+                    .map_err(|e| format!("Failed to access device: {e}"))?;
 
-        let current_ip = device_guard.remote_addr().ip().to_string();
+                let current_ip = device_guard.remote_addr().ip().to_string();
 
-        let handle = tokio::runtime::Handle::current();
-        let (pip, psub, pgw) = handle
-            .block_on(device_guard.read_persistent_ip())
-            .map_err(|e| format!("Failed to read persistent IP: {e}"))?;
+                let handle = tokio::runtime::Handle::current();
+                let (pip, psub, pgw) = handle
+                    .block_on(device_guard.read_persistent_ip())
+                    .map_err(|e| format!("Failed to read persistent IP: {e}"))?;
 
-        // Get MAC from discovery cache.
+                Ok::<_, String>((
+                    current_ip,
+                    pip.to_string(),
+                    psub.to_string(),
+                    pgw.to_string(),
+                    device_id,
+                ))
+            })?
+        };
+
+        // Read discovery cache after dropping the camera mutex.
         let mac = {
-            let discovered = handle.block_on(self.discovered.read());
+            let discovered = self.discovered.read().await;
             discovered
                 .iter()
-                .find(|d| d.id == connected.device_id)
+                .find(|d| d.id == device_id)
                 .map(|d| d.serial.clone())
                 .unwrap_or_default()
         };
 
         Ok(NetworkConfig {
             current_ip,
-            persistent_ip: pip.to_string(),
-            persistent_subnet: psub.to_string(),
-            persistent_gateway: pgw.to_string(),
+            persistent_ip,
+            persistent_subnet,
+            persistent_gateway,
             mac,
         })
     }
@@ -546,20 +557,24 @@ impl DeviceBackend for EmbeddedBackend {
             .as_ref()
             .ok_or_else(|| "No camera connected".to_string())?;
 
-        let mut device_guard = connected
-            .camera
-            .transport()
-            .lock_device()
-            .map_err(|e| format!("Failed to access device: {e}"))?;
+        tokio::task::block_in_place(|| {
+            let mut device_guard = connected
+                .camera
+                .transport()
+                .lock_device()
+                .map_err(|e| format!("Failed to access device: {e}"))?;
 
-        let handle = tokio::runtime::Handle::current();
-        handle
-            .block_on(device_guard.write_persistent_ip(ip, subnet, gateway))
-            .map_err(|e| format!("Failed to write persistent IP: {e}"))?;
+            let handle = tokio::runtime::Handle::current();
+            handle
+                .block_on(device_guard.write_persistent_ip(ip, subnet, gateway))
+                .map_err(|e| format!("Failed to write persistent IP: {e}"))?;
 
-        handle
-            .block_on(device_guard.enable_persistent_ip())
-            .map_err(|e| format!("Failed to enable persistent IP: {e}"))?;
+            handle
+                .block_on(device_guard.enable_persistent_ip())
+                .map_err(|e| format!("Failed to enable persistent IP: {e}"))?;
+
+            Ok::<_, String>(())
+        })?;
 
         info!(%ip, %subnet, %gateway, "Persistent IP configured and enabled");
         Ok(())
@@ -591,24 +606,168 @@ async fn discover_gige_devices() -> Vec<DeviceInfo> {
     }
 }
 
-// ── Value conversion helpers ────────────────────────────────────────────────
+// ── Feature state construction ──────────────────────────────────────────────
 
-/// Convert a camera feature value string to a JSON value.
-fn string_to_json_value(s: &str) -> serde_json::Value {
-    if let Ok(n) = s.parse::<i64>() {
-        return serde_json::Value::Number(n.into());
+/// Build a [`FeatureState`] snapshot for `name` by reading the live value
+/// through the correct typed accessor on the NodeMap and collecting metadata
+/// (access mode, numeric range, available enum entries, unit).
+///
+/// This replaces the old `string_to_json_value` heuristic that tried to infer
+/// the value's type by sniffing the string from `Camera::get()`. Sniffing led
+/// to Enum entries literally named `"0"` being silently coerced to integers
+/// and to Float registers with bit-pattern-encoded f64 values being parsed as
+/// i64 strings. Typed dispatch based on `Node::kind_name` is the correct
+/// primitive.
+///
+/// NOTE: the underlying typed readers (`get_integer`, `get_float`, etc.) may
+/// themselves be buggy in `viva-genapi` — see
+/// `docs/handoffs/2026-04-12-genapi-numeric-type-dispatch.md` — but at least
+/// we now dispatch to the right one.
+fn build_feature_state(
+    camera: &Camera<GigeRegisterIo>,
+    name: &str,
+) -> Result<FeatureState, String> {
+    let nodemap = camera.nodemap();
+    let node = nodemap
+        .node(name)
+        .ok_or_else(|| format!("Node '{name}' not found"))?;
+
+    let kind = node.kind_name().to_string();
+    let access_mode = access_mode_string(node);
+    let transport = camera.transport();
+
+    // Typed value read by node kind. Categories and Commands have no readable
+    // value; return JSON null for those.
+    let value = match node {
+        Node::Integer(_) => nodemap
+            .get_integer(name, transport)
+            .map(|v| serde_json::Value::Number(v.into()))
+            .map_err(|e| format!("Failed to read integer '{name}': {e}"))?,
+        Node::Float(_) => nodemap
+            .get_float(name, transport)
+            .map(f64_to_json)
+            .map_err(|e| format!("Failed to read float '{name}': {e}"))?,
+        Node::Enum(_) => nodemap
+            .get_enum(name, transport)
+            .map(serde_json::Value::String)
+            .map_err(|e| format!("Failed to read enum '{name}': {e}"))?,
+        Node::Boolean(_) => nodemap
+            .get_bool(name, transport)
+            .map(serde_json::Value::Bool)
+            .map_err(|e| format!("Failed to read bool '{name}': {e}"))?,
+        Node::String(_) => nodemap
+            .get_string(name, transport)
+            .map(serde_json::Value::String)
+            .map_err(|e| format!("Failed to read string '{name}': {e}"))?,
+        Node::SwissKnife(sk) => match sk.output {
+            viva_genicam::genapi::SkOutput::Float => nodemap
+                .get_float(name, transport)
+                .map(f64_to_json)
+                .map_err(|e| format!("Failed to eval SwissKnife '{name}': {e}"))?,
+            viva_genicam::genapi::SkOutput::Integer => nodemap
+                .get_integer(name, transport)
+                .map(|v| serde_json::Value::Number(v.into()))
+                .map_err(|e| format!("Failed to eval SwissKnife '{name}': {e}"))?,
+        },
+        Node::Converter(_) => nodemap
+            .get_converter(name, transport)
+            .map(f64_to_json)
+            .map_err(|e| format!("Failed to eval Converter '{name}': {e}"))?,
+        Node::IntConverter(_) => nodemap
+            .get_int_converter(name, transport)
+            .map(|v| serde_json::Value::Number(v.into()))
+            .map_err(|e| format!("Failed to eval IntConverter '{name}': {e}"))?,
+        Node::Command(_) | Node::Category(_) => serde_json::Value::Null,
+    };
+
+    let (numeric, unit) = match node {
+        Node::Integer(n) => {
+            // When the XML defers bounds to runtime registers (`<pMin>` /
+            // `<pMax>`), `n.min` / `n.max` are `i64::MIN` / `i64::MAX`
+            // sentinels. Resolve the referenced nodes' current values so the
+            // UI can render a real range. A failed pMin/pMax read falls back
+            // to the static bound — the UI suppresses sentinel bleed-through.
+            let resolved_min = n
+                .p_min
+                .as_deref()
+                .and_then(|pm| nodemap.get_integer(pm, transport).ok())
+                .unwrap_or(n.min);
+            let resolved_max = n
+                .p_max
+                .as_deref()
+                .and_then(|pm| nodemap.get_integer(pm, transport).ok())
+                .unwrap_or(n.max);
+            (
+                Some(NumericRange {
+                    min: resolved_min as f64,
+                    max: resolved_max as f64,
+                    inc: n.inc.map(|i| i as f64),
+                }),
+                n.unit.clone(),
+            )
+        }
+        Node::Float(n) => (
+            Some(NumericRange {
+                min: n.min,
+                max: n.max,
+                inc: None,
+            }),
+            n.unit.clone(),
+        ),
+        _ => (None, None),
+    };
+
+    let enum_available = if matches!(node, Node::Enum(_)) {
+        // `Camera::enum_entries` forwards to the NodeMap's enumeration table.
+        // Services that implement `IsAvailable` gating will filter this list;
+        // today it returns the full set. See
+        // `docs/handoffs/2026-04-12-genapi-introspection-predicates.md`.
+        camera.enum_entries(name).ok()
+    } else {
+        None
+    };
+
+    Ok(FeatureState {
+        value,
+        access_mode,
+        kind,
+        is_implemented: true,
+        is_available: true,
+        numeric,
+        enum_available,
+        unit,
+    })
+}
+
+/// Map `Node::access_mode()` to the GenICam string spelling, treating `None`
+/// (e.g. Category nodes) as `"NA"`.
+fn access_mode_string(node: &Node) -> String {
+    match node.access_mode() {
+        Some(AccessMode::RO) => "RO".to_string(),
+        Some(AccessMode::RW) => "RW".to_string(),
+        Some(AccessMode::WO) => "WO".to_string(),
+        None => "NA".to_string(),
     }
-    if let Ok(f) = s.parse::<f64>()
-        && let Some(n) = serde_json::Number::from_f64(f)
-    {
-        return serde_json::Value::Number(n);
+}
+
+/// Convert an `f64` to `serde_json::Value::Number`, falling back to a string
+/// when the value is not JSON-representable (NaN, Inf).
+fn f64_to_json(v: f64) -> serde_json::Value {
+    serde_json::Number::from_f64(v)
+        .map(serde_json::Value::Number)
+        .unwrap_or_else(|| serde_json::Value::String(v.to_string()))
+}
+
+/// Project a rich [`FeatureState`] into the legacy [`NodeValueEntry`] shape.
+fn feature_state_to_entry(state: &FeatureState) -> NodeValueEntry {
+    let update = state.to_node_value_update();
+    NodeValueEntry {
+        value: update.value,
+        access_mode: update.access_mode,
+        min: update.min,
+        max: update.max,
+        inc: update.inc,
     }
-    match s {
-        "true" | "True" => return serde_json::Value::Bool(true),
-        "false" | "False" => return serde_json::Value::Bool(false),
-        _ => {}
-    }
-    serde_json::Value::String(s.to_string())
 }
 
 /// Convert a JSON value to a string suitable for the camera `set()` API.

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useSplitter } from "../Layout/useSplitter";
 import type { Diag, UiGraph, UiNode, UiNodeKind } from "../../xml_model/uigraph";
 import type { NodeValue, ValueError } from "../../xml_model/values";
-import type { NodeValueEntry } from "../../device/types";
+import type { FeatureState, NodeValueEntry } from "../../device/types";
 import { isUnknownKind, nodeDisplayName, nodeKindLabel } from "../../xml_model/helpers";
 import { BoolEditor } from "./editors/BoolEditor";
 import { CommandView } from "./editors/CommandView";
@@ -29,6 +29,12 @@ interface FeaturePanelProps {
   executeDisabledReason: string;
   onExecute: () => void;
   liveValue?: NodeValueEntry;
+  /**
+   * Authoritative live state of the selected node. When present, the editors
+   * use it to drive enum options, numeric ranges, access-mode gating, and to
+   * seed the form value when the draft is unset.
+   */
+  liveState?: FeatureState;
   onSelectNode?: (name: string) => void;
 }
 
@@ -49,6 +55,7 @@ export function FeaturePanel({
   executeDisabledReason,
   onExecute,
   liveValue,
+  liveState,
   onSelectNode,
 }: FeaturePanelProps) {
   const [infoOpen, setInfoOpen] = useState(true);
@@ -152,7 +159,8 @@ export function FeaturePanel({
             onDraftChange,
             canExecute,
             executeDisabledReason,
-            onExecute
+            onExecute,
+            liveState
           )}
         </section>
 
@@ -301,7 +309,8 @@ function renderEditor(
   onDraftChange: (value: NodeValue) => void,
   canExecute: boolean,
   executeDisabledReason: string,
-  onExecute: () => void
+  onExecute: () => void,
+  liveState: FeatureState | undefined
 ) {
   if (isUnknownKind(node.kind)) {
     return <UnknownDebugView raw={node.raw} />;
@@ -310,15 +319,33 @@ function renderEditor(
   switch (node.kind) {
     case "Integer":
       return (
-        <IntegerEditor node={node} value={draftValue} errors={draftErrors} onChange={onDraftChange} />
+        <IntegerEditor
+          node={node}
+          value={draftValue}
+          errors={draftErrors}
+          onChange={onDraftChange}
+          liveState={liveState}
+        />
       );
     case "Float":
       return (
-        <FloatEditor node={node} value={draftValue} errors={draftErrors} onChange={onDraftChange} />
+        <FloatEditor
+          node={node}
+          value={draftValue}
+          errors={draftErrors}
+          onChange={onDraftChange}
+          liveState={liveState}
+        />
       );
     case "Enumeration":
       return (
-        <EnumEditor node={node} value={draftValue} errors={draftErrors} onChange={onDraftChange} />
+        <EnumEditor
+          node={node}
+          value={draftValue}
+          errors={draftErrors}
+          onChange={onDraftChange}
+          liveState={liveState}
+        />
       );
     case "Boolean":
       return (
@@ -334,6 +361,7 @@ function renderEditor(
           canExecute={canExecute}
           onExecute={onExecute}
           disabledReason={executeDisabledReason}
+          liveState={liveState}
         />
       );
     case "Register":

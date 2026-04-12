@@ -9,7 +9,7 @@ path = "src/lib.rs"
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-viva-genapi-xml = { version = "0.2.0", default-features = false }
-viva-genapi = "0.2.0"
+viva-genapi-xml = { version = "0.2.3", default-features = false }
+viva-genapi = "0.2.3"
 
 [dev-dependencies]

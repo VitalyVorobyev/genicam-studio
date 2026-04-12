@@ -40,7 +40,7 @@ cargo test -p genicam_xml_model                     # single crate tests
 ```bash
 cd ui/genicam-studio-ui
 bun install
-bun run wasm:build && bun run dev   # build WASM then start Vite dev server (localhost:5173)
+bun run dev                          # start Vite dev server (localhost:5183)
 bun run build                       # production build
 ```
 

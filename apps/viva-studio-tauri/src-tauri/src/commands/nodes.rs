@@ -1,14 +1,45 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use tauri::State;
+use tauri::{AppHandle, Emitter, State};
 use tokio::sync::RwLock;
 
 use crate::error::HumanizeExt;
 use crate::state::ModelState;
 use crate::state::device_state::{ConnectionState, NodeValueEntry, ZenohState};
 use viva_xml_model::{UiNode, UiNodeKind};
-use viva_zenoh_api::{BulkReadRequest, BulkReadResponse, NodeOpResponse, NodeSetRequest};
+use viva_zenoh_api::{
+    BulkReadRequest, BulkReadResponse, CommandResult, FeatureState, NodeOpResponse, NodeSetRequest,
+};
+
+/// Nodes whose state is likely to change as a side effect of executing the
+/// given command. Kept deliberately small — each entry means one extra read
+/// after a command succeeds.
+fn nodes_affected_by_command(command: &str) -> &'static [&'static str] {
+    match command {
+        // Acquisition lifecycle commands flip the status / running flags and
+        // typically freeze frame rate until the stream is active.
+        "AcquisitionStart" | "AcquisitionStop" | "AcquisitionAbort" => {
+            &["AcquisitionStatus", "AcquisitionFrameRate"]
+        }
+        _ => &[],
+    }
+}
+
+/// Emit a `node-value-changed` event carrying the legacy flat fields plus a
+/// rich `state: FeatureState` member. Old consumers reading `value` /
+/// `access_mode` keep working; new consumers read `state`.
+fn emit_node_state(app: &AppHandle, node_name: &str, state: &FeatureState) {
+    let _ = app.emit(
+        "node-value-changed",
+        serde_json::json!({
+            "node_name": node_name,
+            "value": state.value,
+            "access_mode": state.access_mode,
+            "state": state,
+        }),
+    );
+}
 
 #[tauri::command]
 pub async fn get_node_value(
@@ -27,6 +58,81 @@ pub async fn get_node_value(
         .cloned()
         .ok_or_else(|| format!("Node '{node_name}' not in cache"))
         .humanize()
+}
+
+/// Read the full live state of a node: value + access mode + kind + resolvable
+/// range + available enum entries + unit. This is the authoritative snapshot
+/// the Feature Browser UI consumes as its single source of truth.
+///
+/// In embedded mode the state is produced from a typed read against the
+/// connected camera. In remote mode the state is projected from the Zenoh
+/// `node_cache` until the service is upgraded to publish `FeatureState`
+/// directly (tracked by Step 4 of the migration plan).
+#[tauri::command]
+pub async fn query_feature_state(
+    node_name: String,
+    zenoh: State<'_, Arc<ZenohState>>,
+    backend: State<'_, crate::backend::BackendState>,
+) -> Result<FeatureState, String> {
+    if matches!(backend.mode(), crate::backend::BackendMode::Embedded) {
+        return backend.get_feature_state(&node_name).await;
+    }
+    let entry = zenoh
+        .node_cache
+        .read()
+        .await
+        .get(&node_name)
+        .cloned()
+        .ok_or_else(|| format!("Node '{node_name}' not in cache"))
+        .humanize()?;
+    Ok(node_value_entry_to_feature_state(&entry))
+}
+
+/// Bulk variant of [`query_feature_state`]. Names not found in the cache /
+/// readable on the camera are silently omitted.
+#[tauri::command]
+pub async fn query_feature_states_bulk(
+    names: Vec<String>,
+    zenoh: State<'_, Arc<ZenohState>>,
+    backend: State<'_, crate::backend::BackendState>,
+) -> Result<HashMap<String, FeatureState>, String> {
+    if matches!(backend.mode(), crate::backend::BackendMode::Embedded) {
+        return backend.bulk_feature_state(&names).await;
+    }
+    let cache = zenoh.node_cache.read().await;
+    let mut out = HashMap::with_capacity(names.len());
+    for name in &names {
+        if let Some(entry) = cache.get(name) {
+            out.insert(name.clone(), node_value_entry_to_feature_state(entry));
+        }
+    }
+    Ok(out)
+}
+
+/// Projection used when the remote service has not yet been upgraded to
+/// publish [`FeatureState`] directly. Carries the value, access mode, and any
+/// runtime range hints that did make it onto the wire (ZA-06), but leaves
+/// `kind` as `"Unknown"` and `enum_available` as `None` — the UI treats those
+/// as "fall through to static XML". Remove once Step 4 upgrades the wire.
+fn node_value_entry_to_feature_state(entry: &NodeValueEntry) -> FeatureState {
+    let numeric = match (entry.min, entry.max) {
+        (Some(min), Some(max)) => Some(viva_zenoh_api::NumericRange {
+            min,
+            max,
+            inc: entry.inc,
+        }),
+        _ => None,
+    };
+    FeatureState {
+        value: entry.value.clone(),
+        access_mode: entry.access_mode.clone(),
+        kind: "Unknown".to_string(),
+        is_implemented: true,
+        is_available: true,
+        numeric,
+        enum_available: None,
+        unit: None,
+    }
 }
 
 /// Validate that `value` is a legal write for `node`, using runtime constraints from `live`
@@ -160,6 +266,13 @@ fn validate_numeric_constraints(
     Ok(())
 }
 
+/// Write a value and return the authoritative post-write state.
+///
+/// After a successful write, the backend re-reads the node to confirm what
+/// the device actually accepted (devices routinely clamp or round values) and
+/// returns the resulting [`FeatureState`]. The UI reconciles its draft to
+/// `result.value` so the form always mirrors device truth — this is what
+/// fixes the "enum form resets to (unset) after apply" bug.
 #[tauri::command]
 pub async fn write_node(
     node_name: String,
@@ -167,7 +280,8 @@ pub async fn write_node(
     zenoh: State<'_, Arc<ZenohState>>,
     model: State<'_, RwLock<ModelState>>,
     backend: State<'_, crate::backend::BackendState>,
-) -> Result<(), String> {
+    app: AppHandle,
+) -> Result<FeatureState, String> {
     // Pre-flight: validate against UiGraph constraints when a model is loaded.
     // If no model is present (e.g., pure Zenoh mode without XML) we skip silently.
     {
@@ -182,7 +296,11 @@ pub async fn write_node(
     }
 
     if matches!(backend.mode(), crate::backend::BackendMode::Embedded) {
-        return backend.set_feature(&node_name, &value).await;
+        backend.set_feature(&node_name, &value).await?;
+        // Re-read the full state from the camera and notify the UI.
+        let state = backend.get_feature_state(&node_name).await?;
+        emit_node_state(&app, &node_name, &state);
+        return Ok(state);
     }
 
     let session = zenoh.get_session().await.humanize()?;
@@ -205,59 +323,111 @@ pub async fn write_node(
                 let bytes = sample.payload().to_bytes();
                 let resp: NodeOpResponse =
                     serde_json::from_slice(&bytes).map_err(|e| format!("Parse error: {e}"))?;
-                if resp.ok {
-                    Ok(())
-                } else {
-                    Err(resp.error.unwrap_or_else(|| "Write failed".to_string()))
+                if !resp.ok {
+                    return Err(resp.error.unwrap_or_else(|| "Write failed".to_string()))
+                        .humanize();
                 }
+                // Remote service has not yet been upgraded to return
+                // FeatureState on write (Step 4). Project the refreshed
+                // node_cache entry — the `value/subscriber` task updates
+                // this after the set — with a short wait for propagation.
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                let entry = zenoh
+                    .node_cache
+                    .read()
+                    .await
+                    .get(&node_name)
+                    .cloned()
+                    .ok_or_else(|| format!("Node '{node_name}' not in cache after write"))
+                    .humanize()?;
+                Ok(node_value_entry_to_feature_state(&entry))
             }
-            Err(e) => Err(format!("Reply error: {e}")),
+            Err(e) => Err(format!("Reply error: {e}")).humanize(),
         },
-        Err(_) => Err(format!("No reply for write_node '{node_name}' (timeout)")),
+        Err(_) => Err(format!("No reply for write_node '{node_name}' (timeout)")).humanize(),
     }
-    .humanize()
 }
 
+/// Execute a Command node and return a [`CommandResult`] including the
+/// refreshed state of any nodes whose value is likely to have changed as a
+/// side effect (e.g. `AcquisitionStatus` after `AcquisitionStart`). The UI
+/// shows a toast based on `ok`/`error` and updates its live state cache from
+/// `affected_states` — this is what makes the AcquisitionStart button visibly
+/// "do something".
 #[tauri::command]
 pub async fn execute_command(
     node_name: String,
     zenoh: State<'_, Arc<ZenohState>>,
     backend: State<'_, crate::backend::BackendState>,
-) -> Result<(), String> {
+    app: AppHandle,
+) -> Result<CommandResult, String> {
     if matches!(backend.mode(), crate::backend::BackendMode::Embedded) {
-        return backend.exec_command(&node_name).await;
-    }
-    let session = zenoh.get_session().await.humanize()?;
-    let device_id = connected_device_id(&zenoh).await.humanize()?;
-
-    let key = viva_zenoh_api::keys::node_execute(&device_id, &node_name);
-
-    let replies = session
-        .get(&key)
-        .timeout(std::time::Duration::from_secs(5))
-        .await
-        .map_err(|e| format!("Zenoh error: {e}"))
-        .humanize()?;
-
-    match replies.recv_async().await {
-        Ok(reply) => match reply.result() {
-            Ok(sample) => {
-                let bytes = sample.payload().to_bytes();
-                let resp: NodeOpResponse =
-                    serde_json::from_slice(&bytes).map_err(|e| format!("Parse error: {e}"))?;
-                if resp.ok {
-                    Ok(())
-                } else {
-                    Err(resp.error.unwrap_or_else(|| "Execute failed".to_string()))
+        match backend.exec_command(&node_name).await {
+            Ok(()) => {
+                // Re-read the known side-effect nodes and emit per-node events
+                // so the UI updates without a manual refresh.
+                let affected_names: Vec<String> = nodes_affected_by_command(&node_name)
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect();
+                let mut affected_states = HashMap::new();
+                if !affected_names.is_empty() {
+                    let map = backend
+                        .bulk_feature_state(&affected_names)
+                        .await
+                        .unwrap_or_default();
+                    for (name, state) in map {
+                        emit_node_state(&app, &name, &state);
+                        affected_states.insert(name, state);
+                    }
                 }
+                Ok(CommandResult {
+                    ok: true,
+                    error: None,
+                    affected_states,
+                })
             }
-            Err(e) => Err(format!("Reply error: {e}")),
-        },
-        Err(_) => Err(format!(
-            "No reply for execute_command '{node_name}' (timeout)"
-        )),
+            Err(e) => Ok(CommandResult {
+                ok: false,
+                error: Some(e),
+                affected_states: HashMap::new(),
+            }),
+        }
+    } else {
+        let session = zenoh.get_session().await.humanize()?;
+        let device_id = connected_device_id(&zenoh).await.humanize()?;
+        let key = viva_zenoh_api::keys::node_execute(&device_id, &node_name);
+
+        let replies = session
+            .get(&key)
+            .timeout(std::time::Duration::from_secs(5))
+            .await
+            .map_err(|e| format!("Zenoh error: {e}"))
+            .humanize()?;
+
+        match replies.recv_async().await {
+            Ok(reply) => match reply.result() {
+                Ok(sample) => {
+                    let bytes = sample.payload().to_bytes();
+                    let resp: NodeOpResponse = serde_json::from_slice(&bytes)
+                        .map_err(|e| format!("Parse error: {e}"))?;
+                    Ok(CommandResult {
+                        ok: resp.ok,
+                        error: resp.error,
+                        // Remote services do not yet return affected states
+                        // (Step 4). Leave empty; the UI refreshes from the
+                        // subscriber stream.
+                        affected_states: HashMap::new(),
+                    })
+                }
+                Err(e) => Err(format!("Reply error: {e}")).humanize(),
+            },
+            Err(_) => Err(format!(
+                "No reply for execute_command '{node_name}' (timeout)"
+            ))
+            .humanize(),
+        }
     }
-    .humanize()
 }
 
 /// Parse raw bytes from a `nodes/bulk/read` reply into a `NodeValueEntry` map.
@@ -329,7 +499,10 @@ async fn connected_device_id(zenoh: &ZenohState) -> Result<String, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_bulk_response, validate_node_write, validate_numeric_constraints};
+    use super::{
+        node_value_entry_to_feature_state, nodes_affected_by_command, parse_bulk_response,
+        validate_node_write, validate_numeric_constraints,
+    };
     use crate::state::device_state::NodeValueEntry;
     use std::collections::HashMap;
     use viva_xml_model::{EnumEntry, NumericConstraints, RawNode, UiNode, UiNodeKind};
@@ -633,5 +806,51 @@ mod tests {
             err.contains("Parse error"),
             "error message should contain 'Parse error', got: {err}"
         );
+    }
+
+    // ── FeatureState projection / affected-nodes tables ─────────────────────
+
+    #[test]
+    fn test_node_value_entry_to_feature_state_without_range() {
+        let entry = NodeValueEntry {
+            value: serde_json::json!("Once"),
+            access_mode: "RW".to_string(),
+            min: None,
+            max: None,
+            inc: None,
+        };
+        let state = node_value_entry_to_feature_state(&entry);
+        assert_eq!(state.kind, "Unknown");
+        assert!(state.numeric.is_none());
+        assert!(state.enum_available.is_none());
+        assert_eq!(state.value, serde_json::json!("Once"));
+    }
+
+    #[test]
+    fn test_node_value_entry_to_feature_state_with_range() {
+        let entry = NodeValueEntry {
+            value: serde_json::json!(1920),
+            access_mode: "RW".to_string(),
+            min: Some(16.0),
+            max: Some(4096.0),
+            inc: Some(8.0),
+        };
+        let state = node_value_entry_to_feature_state(&entry);
+        let numeric = state.numeric.expect("numeric should be populated");
+        assert_eq!(numeric.min, 16.0);
+        assert_eq!(numeric.max, 4096.0);
+        assert_eq!(numeric.inc, Some(8.0));
+    }
+
+    #[test]
+    fn test_nodes_affected_by_command_acquisition_start() {
+        let affected = nodes_affected_by_command("AcquisitionStart");
+        assert!(affected.contains(&"AcquisitionStatus"));
+    }
+
+    #[test]
+    fn test_nodes_affected_by_command_unknown() {
+        let affected = nodes_affected_by_command("UserCommand123");
+        assert!(affected.is_empty());
     }
 }

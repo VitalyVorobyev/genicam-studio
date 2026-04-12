@@ -148,6 +148,9 @@ fn main() {
             commands::nodes::write_node,
             commands::nodes::execute_command,
             commands::nodes::read_nodes_bulk,
+            // Live feature state (FeatureState contract — authoritative for the UI)
+            commands::nodes::query_feature_state,
+            commands::nodes::query_feature_states_bulk,
             // Acquisition (Zenoh-based, backward compatible)
             commands::acquisition::get_acquisition_status,
             commands::acquisition::start_acquisition,

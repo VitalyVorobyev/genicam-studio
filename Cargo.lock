@@ -3363,9 +3363,9 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "viva-genapi"
-version = "0.2.0"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0fe18e5aee320740cd48a3f069e173086648d008db6da5c0cd073736fe29c33"
+checksum = "d9acccf01bd5f08516da2a998d9c4431e47985250418cc5f4a5b1c96a8d10462"
 dependencies = [
  "thiserror 1.0.69",
  "tracing",
@@ -3374,9 +3374,9 @@ dependencies = [
 
 [[package]]
 name = "viva-genapi-xml"
-version = "0.2.0"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5e85ad6f196fa47637adcf14f5573fc249488064b3588618a0a30899a7e3b61"
+checksum = "09af7495e83986d585297b581ae4746c93e94151765f64ed24967865614bd1df"
 dependencies = [
  "quick-xml",
  "serde",
@@ -3417,9 +3417,9 @@ dependencies = [
 
 [[package]]
 name = "viva-zenoh-api"
-version = "0.2.0"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4a49ef81e862c200c9305630745c0230bae7519baa14951cef3385b3b8114db"
+checksum = "b9bcfc1b1f7177adaa87c35b8b7e565b501f77259e54dbdec91660fdb2c27bbe"
 dependencies = [
  "serde",
  "serde_json",

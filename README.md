@@ -126,7 +126,7 @@ cargo tauri dev
 ```
 
 Notes:
-- `apps/genicam-studio-tauri/src-tauri/tauri.conf.json` points Tauri to the Vite dev server at `http://localhost:5173`.
+- `apps/genicam-studio-tauri/src-tauri/tauri.conf.json` points Tauri to the Vite dev server at `http://localhost:5183`.
 - The Tauri dev workflow starts the UI dev server via `beforeDevCommand`.
 
 ## Building (production)

@@ -473,6 +473,32 @@ pub async fn write_node(
     }
 }
 
+/// Query the full `FeatureState` for a single node via the
+/// `nodes/{name}/state` queryable (API v2).
+pub async fn query_feature_state(
+    session: &zenoh::Session,
+    device_id: &str,
+    node_name: &str,
+) -> Result<viva_zenoh_api::FeatureState, String> {
+    let key = viva_zenoh_api::keys::node_introspect(device_id, node_name);
+    let replies = session
+        .get(&key)
+        .timeout(Duration::from_secs(5))
+        .await
+        .map_err(|e| format!("GET error: {e}"))?;
+
+    match replies.recv_async().await {
+        Ok(reply) => match reply.result() {
+            Ok(sample) => {
+                let bytes = sample.payload().to_bytes();
+                serde_json::from_slice(&bytes).map_err(|e| format!("parse: {e}"))
+            }
+            Err(e) => Err(format!("reply error: {e}")),
+        },
+        Err(_) => Err("no reply (timeout)".to_string()),
+    }
+}
+
 /// Bulk-read node values via Zenoh GET with payload.
 pub async fn read_bulk(
     session: &zenoh::Session,

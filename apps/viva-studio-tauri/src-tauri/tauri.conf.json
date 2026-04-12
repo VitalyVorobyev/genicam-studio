@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "bun run --cwd ../../ui/viva-studio-ui dev:tauri",
     "beforeBuildCommand": "bun run --cwd ../../ui/viva-studio-ui build:tauri",
-    "devUrl": "http://localhost:5173",
+    "devUrl": "http://localhost:5183",
     "frontendDist": "../../../ui/viva-studio-ui/dist"
   },
   "bundle": {
